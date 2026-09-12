@@ -16,12 +16,13 @@ const faqs = [
 export const metadata = {
   title: "Help & First Steps — LeeMockups",
   description: "Simple setup, download, Mac security, and troubleshooting instructions for LeeMockups customers.",
+  alternates: { canonical: "/help/" },
   openGraph: { title: "Help & First Steps — LeeMockups", description: "Setup, Mac download choices, first-open guidance, and answers for LeeMockups customers.", images: [] },
   twitter: { title: "Help & First Steps — LeeMockups", description: "Setup, Mac download choices, first-open guidance, and answers for LeeMockups customers.", images: [] },
 };
 
 export default function HelpPage(){return <main className="help-page">
-  <nav className="nav shell"><Link className="brand" href="/"><Image src="/leemockups-symbol.png" width={38} height={38} alt=""/><span>LeeMockups</span></Link><Link className="nav-cta" href="/"><ArrowLeft size={15}/> Back to download</Link></nav>
+  <nav className="nav shell"><Link className="brand" href="/"><Image src="/leemockups-symbol.png" width={38} height={38} alt=""/><span>LeeMockups</span></Link><div className="nav-links"><Link href="/mockups/">Mockup library</Link></div><Link className="nav-cta" href="/"><ArrowLeft size={15}/> Back to download</Link></nav>
   <header className="help-hero shell"><span className="help-mark"><HelpCircle/></span><div><p>LEEMOCKUPS HELP CENTER</p><h1>Start with confidence.</h1><span>Everything an Etsy buyer needs—from the right download to the first finished video.</span></div></header>
 
   <section className="quick-start shell"><div className="section-heading"><span>FIRST TIME HERE?</span><h2>Your first mockup, step by step.</h2></div><div className="quick-grid">

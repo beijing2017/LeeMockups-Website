@@ -1,10 +1,22 @@
 import type { Metadata } from 'next';
+import { GoogleAnalytics } from '@/components/google-analytics';
 import './globals.css';
 
+const siteUrl = 'https://www.leemockups.com';
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://leemockups.com'),
-  title: 'LeeMockups — Bring Your Mockups to Life',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? siteUrl),
+  title: {
+    default: 'LeeMockups — Animated Mockup Videos for Etsy Sellers',
+    template: '%s | LeeMockups',
+  },
   description: 'Download LeeMockups for Windows and macOS. Turn your artwork and Etsy mockup purchase into polished product videos in a few clicks.',
+  keywords: ['animated mockups', 'Etsy listing video', 'product mockup video', 'mockup generator', 'LeeMockups'],
+  alternates: { canonical: '/' },
+  robots: { index: true, follow: true },
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+    : undefined,
   icons: { icon: '/leemockups-symbol.png' },
   openGraph: {
     title: 'LeeMockups — Bring Your Mockups to Life',
@@ -26,7 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>{children}<GoogleAnalytics /></body>
     </html>
   );
 }

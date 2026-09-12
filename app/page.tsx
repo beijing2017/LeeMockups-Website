@@ -9,10 +9,23 @@ const DownloadIcon = ({ kind }: { kind: "windows" | "apple" }) => kind === "wind
 ) : <span className="apple-mark" aria-hidden="true">●</span>;
 
 export default function Home() {
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'LeeMockups',
+    applicationCategory: 'MultimediaApplication',
+    operatingSystem: 'Windows, macOS',
+    softwareVersion: appVersion,
+    description: 'Desktop software for turning LeeMockups templates and artwork into animated product videos and still images.',
+    url: 'https://www.leemockups.com/',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  };
+
   return <main>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
     <nav className="nav shell">
       <a className="brand" href="#top"><Image src="/leemockups-symbol.png" width={38} height={38} alt="" /><span>LeeMockups</span></a>
-      <div className="nav-links"><a href="#how">How it works</a><a href="#features">Features</a><a href="/help">Help</a><a href="#download">Download</a></div>
+      <div className="nav-links"><a href="/mockups/">Mockup library</a><a href="#how">How it works</a><a href="#features">Features</a><a href="/help/">Help</a><a href="#download">Download</a></div>
       <a className="nav-cta" href="#download"><Download size={15} /> Get the app</a>
     </nav>
 
