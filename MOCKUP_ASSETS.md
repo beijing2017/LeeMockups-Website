@@ -2,7 +2,7 @@
 
 The product catalog lives in `lib/products.ts`. `LM-VM-MUG-001` is registered as a DRAFT, with a permanent internal ID and SKU. Do not reuse a SKU after withdrawing a product. `nextSku()` suggests the next number and `assertUniqueProduct()` rejects an existing ID or SKU. These helpers are for future Publisher integration; concurrent creation will need a transactional database constraint.
 
-Set `NEXT_PUBLIC_ASSET_BASE_URL` at build time to the public Cloudflare asset origin, such as `https://assets.leemockups.com`. Keep product asset fields as paths below `/mockups/<SKU>/`; do not place Etsy media URLs in those fields. The expected first-product keys are:
+Set the GitHub Actions repository variable `ASSET_BASE_URL` to the public Cloudflare asset origin, such as `https://assets.leemockups.com`; the Pages build passes it through as `NEXT_PUBLIC_ASSET_BASE_URL`. Keep product asset fields as paths below `/mockups/<SKU>/`; do not place Etsy media URLs in those fields. The expected first-product keys are:
 
 - `/mockups/LM-VM-MUG-001/thumbnail.webp` — static square thumbnail, ideally 500 × 500.
 - `/mockups/LM-VM-MUG-001/preview.webm` — full approximately 10-second 500 × 500 muted hover preview.
