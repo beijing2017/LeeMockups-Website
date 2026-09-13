@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Download } from "lucide-react";
+import { assetUrl, publishedProducts } from "../../lib/products";
+import { MockupCard } from "../../components/mockup-card";
 
 export const metadata: Metadata = {
   title: "Mockup Library",
@@ -18,8 +20,9 @@ export default function MockupsPage() {
     </nav>
     <section className="library-content shell" aria-labelledby="library-title">
       <div className="library-heading"><span className="section-tag">LEEMOCKUPS COLLECTION</span><h1 id="library-title">Mockup Library</h1><p>Our first mockups are coming soon.</p></div>
-      <div className="library-grid" aria-label="Upcoming mockup collection">
-        {Array.from({ length: 6 }, (_, index) => <article className="library-placeholder" key={index} aria-label={`Upcoming mockup placeholder ${index + 1}`}>
+      <div className="library-grid" aria-label="Mockup collection">
+        {publishedProducts.map((product) => <MockupCard key={product.sku} product={product} thumbnail={assetUrl(product.thumbnailPath)} preview={assetUrl(product.previewPath)} />)}
+        {Array.from({ length: Math.max(0, 6 - publishedProducts.length) }, (_, index) => <article className="library-placeholder" key={index} aria-label={`Upcoming mockup placeholder ${index + 1}`}>
           <div className="library-placeholder-art"><span>Coming soon</span></div>
           <div className="library-placeholder-body">
             <div className="library-skeleton library-skeleton-category" aria-hidden="true" />

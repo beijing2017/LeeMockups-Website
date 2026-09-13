@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "products": [
+    {
+      "sku": "LM-VM-MUG-001",
+      "displayName": "Floating Black Mug",
+      "fullName": "Floating Black Mug Video Mockup",
+      "category": "MUG",
+      "type": "VM",
+      "motion": "Floating",
+      "color": "Black",
+      "scene": "Minimal studio",
+      "style": "Modern",
+      "status": "DRAFT",
+      "thumbnailPath": "",
+      "previewPath": "",
+      "etsyUrl": "",
+      "purchaseProvider": "ETSY",
+      "primaryKeyword": "black mug video mockup",
+      "keywords": [],
+      "detailPageEnabled": false,
+      "sourceIsFinal": false,
+      "webAssetsUploaded": false,
+      "content": null
+    }
+  ]
+}
