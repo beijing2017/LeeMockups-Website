@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function MockupsPage() {
   return <main className="library-page">
     <nav className="nav shell">
-      <Link className="brand" href="/"><Image src="/leemockups-symbol.png" width={38} height={38} alt="" /><span>LeeMockups</span></Link>
+      <Link className="brand" href="/"><Image src="/leemockups-symbol.png" width={38} height={38} alt="" /><span>LeeMockups</span><span className="beta-badge" title="Preview release">BETA</span></Link>
       <div className="nav-links"><Link href="/#how">How it works</Link><Link href="/#features">Features</Link><Link href="/help/">Help</Link><Link href="/#download">Download</Link><Link href="/mockups/" aria-current="page">Mockup Library</Link></div>
       <Link className="nav-cta" href="/#download"><Download size={15} /> Get the app</Link>
     </nav>
