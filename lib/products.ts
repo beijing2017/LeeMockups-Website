@@ -26,7 +26,7 @@ export const publishedProducts = (registry.products as Product[]).filter(
 );
 
 export function assetUrl(path: string): string {
-  const base = process.env.ASSET_BASE_URL?.replace(/\/$/, "");
+  const base = (process.env.NEXT_PUBLIC_ASSET_BASE_URL || process.env.ASSET_BASE_URL)?.replace(/\/$/, "");
   if (!base || !/^https:\/\//.test(base)) return "";
   return `${base}/${path.replace(/^\/+/, "")}`;
 }

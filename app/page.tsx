@@ -1,8 +1,13 @@
 import Image from "next/image";
 import { ArrowDown, Check, Download, ImagePlus, Layers3, Play, ShieldCheck, Sparkles } from "lucide-react";
 
-const appVersion = "1.13.26";
-const releasePage = "https://github.com/beijing2017/LeeMockups/releases/latest";
+const appVersion = "1.13.71";
+const downloadBase = "https://downloads.leemockups.com/downloads/client";
+const downloads = {
+  windows: `${downloadBase}/windows/LeeMockups-Windows-1.13.71-Portable.zip`,
+  macArm64: `${downloadBase}/macos/LeeMockups-macOS-1.13.71-arm64.zip`,
+  macX64: `${downloadBase}/macos/LeeMockups-macOS-1.13.71-x64.zip`,
+};
 
 const DownloadIcon = ({ kind }: { kind: "windows" | "apple" }) => kind === "windows" ? (
   <span className="windows-mark" aria-hidden="true"><i /><i /><i /><i /></span>
@@ -64,11 +69,11 @@ export default function Home() {
     <section className="feature-band" id="features"><div className="shell feature-grid"><div className="feature-copy"><span className="section-tag">THE QUIETLY POWERFUL PART</span><h2>Professional results.<br />None of the learning curve.</h2><p>LeeMockups handles perspective, motion, and export settings for you. Your only creative decision is the artwork.</p><ul><li><Check /> Real-time video preview</li><li><Check /> High-resolution MP4 and stills</li><li><Check /> Works completely offline after download</li><li><Check /> Your files never leave your device</li></ul></div><div className="feature-visual"><div className="frame-stack back" /><div className="frame-stack middle" /><div className="frame-stack front"><Image src="/room-mockup.webp" fill sizes="480px" alt="Interior wall art mockup" /></div><div className="badge"><Sparkles />Ready for your shop</div></div></div></section>
 
     <section className="download shell" id="download"><div className="download-card"><div className="download-copy"><span className="section-tag">YOUR PURCHASE IS READY</span><h2>Bring your mockup to life.</h2><p>Choose your computer to download LeeMockups. The app is free to use with every compatible mockup purchased from our Etsy shop.</p></div><div className="download-options">
-      <a className="platform main-download" id="windows-download" href={releasePage} target="_blank" rel="noreferrer"><DownloadIcon kind="windows" /><span><small>DOWNLOAD FOR</small><strong>Windows</strong><em>Windows 10 or later · v{appVersion}</em></span><ArrowDown /></a>
-      <a className="platform" id="mac-apple-silicon" href={releasePage} target="_blank" rel="noreferrer"><DownloadIcon kind="apple" /><span><small>MAC · RECOMMENDED FOR MOST</small><strong>Apple Silicon</strong><em>M1, M2, M3, M4 or newer · arm64</em></span><ArrowDown /></a>
-      <a className="platform" id="mac-intel" href={releasePage} target="_blank" rel="noreferrer"><DownloadIcon kind="apple" /><span><small>MAC · OLDER MODELS</small><strong>Intel</strong><em>Shows “Processor: Intel” · x64</em></span><ArrowDown /></a>
+      <a className="platform main-download" id="windows-download" href={downloads.windows}><DownloadIcon kind="windows" /><span><small>DOWNLOAD FOR</small><strong>Windows</strong><em>Windows 10 or later · 64-bit · v{appVersion} · ZIP</em></span><ArrowDown /></a>
+      <a className="platform" id="mac-apple-silicon" href={downloads.macArm64}><DownloadIcon kind="apple" /><span><small>MAC · RECOMMENDED FOR MOST</small><strong>Apple Silicon</strong><em>M1, M2, M3, M4 or newer · v{appVersion} · arm64 ZIP</em></span><ArrowDown /></a>
+      <a className="platform" id="mac-intel" href={downloads.macX64}><DownloadIcon kind="apple" /><span><small>MAC · OLDER MODELS</small><strong>Intel</strong><em>Shows “Processor: Intel” · v{appVersion} · x64 ZIP</em></span><ArrowDown /></a>
       <a className="which-mac" href="/help#choose-mac">Not sure which Mac version? Check in 20 seconds →</a>
-      <p><ShieldCheck /> Secure download · No account required</p>
+      <p><ShieldCheck /> Direct Cloudflare download · No account required</p>
     </div></div></section>
 
     <footer className="shell"><div className="brand"><Image src="/leemockups-symbol.png" width={34} height={34} alt="" /><span>LeeMockups</span></div><p>Professional Mockups. Smarter Marketing.</p><span>© 2026 LeeMockups</span></footer>

@@ -63,12 +63,11 @@ export async function updateProduct(sku, fields) {
     }
     if (fields.status) {
       if (!["DRAFT", "READY", "PUBLISHED", "ARCHIVED"].includes(fields.status)) throw new Error("Invalid status.");
-      if (fields.status === "PUBLISHED" && (!product.sourceIsFinal || !product.webAssetsUploaded || !product.thumbnailPath || !product.previewPath || !/^https:\/\//.test(product.etsyUrl))) {
-        throw new Error("Publishing requires final source confirmation, uploaded web assets and a valid Etsy URL.");
+      if (fields.status === "PUBLISHED" && (!product.sourceIsFinal || !product.webAssetsUploaded || !product.thumbnailPath || !product.previewPath)) {
+        throw new Error("Publishing requires final source confirmation and uploaded web assets.");
       }
       product.status = fields.status;
     }
-    if (product.status === "PUBLISHED" && !product.etsyUrl) product.status = "READY";
     return product;
   });
 }
@@ -80,4 +79,16 @@ export async function generateContent(sku, observations) {
     product.content = draftContent(product, observations);
     return product.content;
   });
+}
+
+export function validateRegistry(registry = readRegistry()) {
+  const seen = new Set();
+  for (const product of registry.products) {
+    if (!skuPattern.test(product.sku)) throw new Error(`Invalid SKU: ${product.sku}`);
+    if (seen.has(product.sku)) throw new Error(`Duplicate SKU: ${product.sku}`);
+    seen.add(product.sku);
+    if (!['DRAFT', 'READY', 'PUBLISHED', 'ARCHIVED'].includes(product.status)) throw new Error(`Invalid status: ${product.sku}`);
+    if (product.content?.tags && product.content.tags.length !== 13) throw new Error(`${product.sku} must have exactly 13 Etsy tags.`);
+  }
+  return { products: registry.products.length, uniqueSkus: seen.size };
 }

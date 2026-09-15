@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "publisher": "node publisher/server.mjs",
+    "publisher:check": "node publisher/self-test.mjs",
     "build": "next build",
     "build:pages": "next build",
     "start": "next start"

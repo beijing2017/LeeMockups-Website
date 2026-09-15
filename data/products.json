@@ -22,6 +22,18 @@
       "sourceIsFinal": false,
       "webAssetsUploaded": false,
       "content": null
+    },
+    {
+      "sku": "LM-VM-MUG-002", "displayName": "Mug Mockup 002", "fullName": "Mug Video Mockup 002", "category": "MUG", "type": "VM", "motion": "", "color": "", "scene": "", "style": "", "status": "DRAFT", "thumbnailPath": "", "previewPath": "", "etsyUrl": "", "purchaseProvider": "ETSY", "primaryKeyword": "mug video mockup", "keywords": [], "detailPageEnabled": false, "sourceIsFinal": false, "webAssetsUploaded": false, "content": null
+    },
+    {
+      "sku": "LM-VM-MUG-003", "displayName": "Mug Mockup 003", "fullName": "Mug Video Mockup 003", "category": "MUG", "type": "VM", "motion": "", "color": "", "scene": "", "style": "", "status": "DRAFT", "thumbnailPath": "", "previewPath": "", "etsyUrl": "", "purchaseProvider": "ETSY", "primaryKeyword": "mug video mockup", "keywords": [], "detailPageEnabled": false, "sourceIsFinal": false, "webAssetsUploaded": false, "content": null
+    },
+    {
+      "sku": "LM-VM-MUG-004", "displayName": "Mug Mockup 004", "fullName": "Mug Video Mockup 004", "category": "MUG", "type": "VM", "motion": "", "color": "", "scene": "", "style": "", "status": "DRAFT", "thumbnailPath": "", "previewPath": "", "etsyUrl": "", "purchaseProvider": "ETSY", "primaryKeyword": "mug video mockup", "keywords": [], "detailPageEnabled": false, "sourceIsFinal": false, "webAssetsUploaded": false, "content": null
+    },
+    {
+      "sku": "LM-VM-MUG-005", "displayName": "Mug Mockup 005", "fullName": "Mug Video Mockup 005", "category": "MUG", "type": "VM", "motion": "", "color": "", "scene": "", "style": "", "status": "DRAFT", "thumbnailPath": "", "previewPath": "", "etsyUrl": "", "purchaseProvider": "ETSY", "primaryKeyword": "mug video mockup", "keywords": [], "detailPageEnabled": false, "sourceIsFinal": false, "webAssetsUploaded": false, "content": null
     }
   ]
 }

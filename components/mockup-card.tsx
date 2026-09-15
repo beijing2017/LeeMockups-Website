@@ -12,7 +12,7 @@ export function MockupCard({ product, thumbnail, preview }: { product: Product; 
       {preview && <video ref={video} src={preview} poster={thumbnail} muted playsInline preload="none" aria-hidden="true" />}
     </div>
     <div className="library-product-body"><span>{product.category}</span><h2>{product.displayName}</h2><p>{product.fullName}</p>
-      {product.purchaseProvider === "ETSY" && product.etsyUrl && <a href={product.etsyUrl} target="_blank" rel="noopener noreferrer">Buy on Etsy →</a>}
+      {product.purchaseProvider === "ETSY" && product.etsyUrl ? <a href={product.etsyUrl} target="_blank" rel="noopener noreferrer">Buy on Etsy →</a> : <span className="coming-soon" aria-disabled="true">Coming Soon</span>}
     </div>
   </article>;
 }

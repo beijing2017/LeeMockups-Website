@@ -70,13 +70,13 @@ export async function prepare({ sku, mockupPath, videoPath, alternateImagePath }
   fs.writeFileSync(path.join(etsy, "LISTING.txt"), `${product.content?.etsyTitle || product.fullName}\n\n${product.content?.etsyDescription || "Review and approve content in Publisher."}\n\nTAGS\n${(product.content?.tags || []).join(", ")}\n`);
   fs.writeFileSync(path.join(dir, "upload-manifest.json"), JSON.stringify({
     assetBaseUrl: process.env.ASSET_BASE_URL || "",
-    webAssets: [thumb, preview].map((file) => ({ local: `web/${file}`, r2Key: `products/${sku}/${file}` })),
+    webAssets: [thumb, preview].map((file) => ({ local: `web/${file}`, r2Key: `mockups/${sku}/${file}` })),
     note: "Upload web assets to your own Cloudflare R2 bucket before setting PUBLISHED. Test source is not final.",
   }, null, 2));
   await transact((data) => {
     const row = data.products.find((item) => item.sku === sku);
-    row.thumbnailPath = `products/${sku}/${thumb}`;
-    row.previewPath = `products/${sku}/${preview}`;
+    row.thumbnailPath = `mockups/${sku}/${thumb}`;
+    row.previewPath = `mockups/${sku}/${preview}`;
     row.status = "READY";
     row.sourceIsFinal = false;
     row.webAssetsUploaded = false;

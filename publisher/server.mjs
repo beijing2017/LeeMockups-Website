@@ -1,8 +1,9 @@
 import http from "node:http";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { readRegistry, reserve, updateProduct, generateContent } from "./registry.mjs";
+import { readRegistry, reserve, updateProduct, generateContent, validateRegistry } from "./registry.mjs";
 import { prepare } from "./media.mjs";
+import { uploadWebsiteAssets } from "./upload.mjs";
 
 const html = fs.readFileSync(fileURLToPath(new URL("./ui.html", import.meta.url)), "utf8");
 const port = Number(process.env.PUBLISHER_PORT || 4177);
@@ -32,6 +33,8 @@ http.createServer(async (req, res) => {
       : action === "save" ? await updateProduct(fields.sku, fields.fields)
       : action === "content" ? await generateContent(fields.sku, fields.observations)
       : action === "prepare" ? await prepare(fields)
+      : action === "upload" ? await uploadWebsiteAssets(fields.sku)
+      : action === "validate" ? validateRegistry()
       : null;
     if (!result) throw new Error("Unknown action.");
     send(res, 200, { result });
