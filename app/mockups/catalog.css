@@ -1,0 +1,10 @@
+.library-page .catalog-toolbar{margin-top:38px}
+.library-page .catalog-search{width:min(100%,440px)}
+.library-page .mockup-card-image{display:grid;place-items:center;aspect-ratio:1;background:linear-gradient(145deg,#ebe5ff 0%,#faf7fd 53%,#ffe9e5 100%);overflow:hidden}
+.library-page .mockup-card-image img,.library-page .mockup-card-image video{width:100%;height:100%;object-fit:cover}
+.library-page .mockup-card-image video{position:absolute;inset:0}
+.mockup-art-pending{padding:10px 14px;border:1px solid #ffffffb0;border-radius:999px;color:#62586c;background:#ffffffd9;font-size:12px;font-weight:800}
+.mockup-coming-soon{color:#928a97;font-size:12px;font-weight:800}
+.library-page .mockup-card-actions{min-height:20px}
+.library-page .mockup-card-body p{min-height:44px}
+@media(max-width:620px){.library-page .catalog-toolbar{margin-top:28px}}

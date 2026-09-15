@@ -9,6 +9,7 @@
     "dev": "next dev",
     "build": "next build",
     "build:pages": "next build",
+    "prepare:mockup": "node scripts/prepare-mockup-assets.mjs",
     "start": "next start"
   },
   "dependencies": {
