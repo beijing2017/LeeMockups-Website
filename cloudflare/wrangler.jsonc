@@ -1,0 +1,22 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "leemockups-download",
+  "main": "./leemockups-download.js",
+  "compatibility_date": "2026-09-11",
+  "r2_buckets": [
+    {
+      "binding": "MOCKUPS",
+      "bucket_name": "leemockups-files"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_id": "2b26ab9e-34b2-4826-aae2-a3dcd73e7db2"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

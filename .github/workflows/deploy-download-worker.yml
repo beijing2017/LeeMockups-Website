@@ -1,0 +1,53 @@
+name: Deploy LeeMockups download worker
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - cloudflare/**
+      - .github/workflows/deploy-download-worker.yml
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_WORKER_DEPLOY_TOKEN: ${{ secrets.CLOUDFLARE_WORKER_DEPLOY_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      SCRIPT_NAME: leemockups-download
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify the dedicated deployment credentials and existing bindings
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_WORKER_DEPLOY_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer ${CLOUDFLARE_WORKER_DEPLOY_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${SCRIPT_NAME}/settings" \
+            | jq -e '([.result.bindings[].name] | sort) == ["DB", "DOWNLOAD_SECRET", "ETSY_KEYSTRING", "ETSY_SHARED_SECRET", "ETSY_WEBHOOK_SECRET", "MOCKUPS"]'
+      - name: Deploy the reviewed Worker module without changing bindings or secrets
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
+            --request PUT \
+            --header "Authorization: Bearer ${CLOUDFLARE_WORKER_DEPLOY_TOKEN}" \
+            --form 'metadata={"main_module":"leemockups-download.js"};type=application/json' \
+            --form 'worker.js=@cloudflare/leemockups-download.js;type=application/javascript+module' \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${SCRIPT_NAME}/content")"
+          cat "$response_file" | jq .
+          test "$status" -ge 200 -a "$status" -lt 300
+          jq -e '.success == true' "$response_file"
+      - name: Reconfirm bindings and safe public-preview route
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer ${CLOUDFLARE_WORKER_DEPLOY_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${SCRIPT_NAME}/settings" \
+            | jq -e '([.result.bindings[].name] | sort) == ["DB", "DOWNLOAD_SECRET", "ETSY_KEYSTRING", "ETSY_SHARED_SECRET", "ETSY_WEBHOOK_SECRET", "MOCKUPS"]'
+          test "$(curl --silent --show-error --head --output /dev/null --write-out '%{http_code}' \
+            "https://downloads.leemockups.com/mockups/LM-VM-MUG-001/LM-VM-MUG-001-thumb.webp")" = 404
