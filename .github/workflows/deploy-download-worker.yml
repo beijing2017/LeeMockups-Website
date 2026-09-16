@@ -32,13 +32,16 @@ jobs:
       - name: Deploy the reviewed Worker module without changing bindings or secrets
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error \
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
             --request PUT \
             --header "Authorization: Bearer ${CLOUDFLARE_WORKER_DEPLOY_TOKEN}" \
             --form 'metadata={"main_module":"worker.js"};type=application/json' \
             --form 'worker.js=@cloudflare/leemockups-download.js;type=application/javascript+module' \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${SCRIPT_NAME}/content" \
-            | jq -e '.success == true'
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${SCRIPT_NAME}/content")"
+          cat "$response_file" | jq .
+          test "$status" -ge 200 -a "$status" -lt 300
+          jq -e '.success == true' "$response_file"
       - name: Reconfirm bindings and safe public-preview route
         run: |
           set -euo pipefail
