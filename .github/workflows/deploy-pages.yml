@@ -27,7 +27,7 @@ jobs:
       - run: npm run build:pages
         env:
           NEXT_PUBLIC_SITE_URL: https://www.leemockups.com
-          NEXT_PUBLIC_ASSET_BASE_URL: ${{ vars.ASSET_BASE_URL }}
+          NEXT_PUBLIC_ASSET_BASE_URL: https://downloads.leemockups.com
           NEXT_PUBLIC_GA_ID: ${{ vars.GA_MEASUREMENT_ID }}
           NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION: ${{ vars.GOOGLE_SITE_VERIFICATION }}
       - uses: actions/configure-pages@v5

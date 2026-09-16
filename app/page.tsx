@@ -2,11 +2,10 @@ import Image from "next/image";
 import { ArrowDown, Check, Download, ImagePlus, Layers3, Play, ShieldCheck, Sparkles } from "lucide-react";
 
 const appVersion = "1.13.71";
-const downloadBase = "https://downloads.leemockups.com/downloads/client";
 const downloads = {
-  windows: `${downloadBase}/windows/LeeMockups-Windows-1.13.71-Portable.zip`,
-  macArm64: `${downloadBase}/macos/LeeMockups-macOS-1.13.71-arm64.zip`,
-  macX64: `${downloadBase}/macos/LeeMockups-macOS-1.13.71-x64.zip`,
+  windows: "https://downloads.leemockups.com/d/windows",
+  macArm64: "https://downloads.leemockups.com/d/mac-arm64",
+  macX64: "https://downloads.leemockups.com/d/mac-x64",
 };
 
 const DownloadIcon = ({ kind }: { kind: "windows" | "apple" }) => kind === "windows" ? (

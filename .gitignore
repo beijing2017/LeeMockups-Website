@@ -4,3 +4,5 @@ out/
 .npm-cache/
 *.log
 publisher-output/
+.wrangler/
+.wrangler-config/
