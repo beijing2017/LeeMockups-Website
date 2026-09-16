@@ -36,7 +36,7 @@ jobs:
           status="$(curl --silent --show-error --output "$response_file" --write-out '%{http_code}' \
             --request PUT \
             --header "Authorization: Bearer ${CLOUDFLARE_WORKER_DEPLOY_TOKEN}" \
-            --form 'metadata={"main_module":"worker.js"};type=application/json' \
+            --form 'metadata={"main_module":"leemockups-download.js"};type=application/json' \
             --form 'worker.js=@cloudflare/leemockups-download.js;type=application/javascript+module' \
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${SCRIPT_NAME}/content")"
           cat "$response_file" | jq .
