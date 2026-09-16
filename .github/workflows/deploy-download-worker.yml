@@ -2,6 +2,11 @@ name: Deploy LeeMockups download worker
 
 on:
   workflow_dispatch:
+  push:
+    branches: [publisher-v1]
+    paths:
+      - cloudflare/**
+      - .github/workflows/deploy-download-worker.yml
 
 permissions:
   contents: read
