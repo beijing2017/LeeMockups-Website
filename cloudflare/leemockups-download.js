@@ -76,6 +76,22 @@ export default {
         headers,
       });
     }
+    if (url.pathname === "/catalog/products.json") {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
+      }
+      const object = await env.MOCKUPS.get("public/catalog/products.json");
+      if (!object) return new Response(JSON.stringify({ version: 1, products: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json; charset=UTF-8", "Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=60" },
+      });
+      const headers = new Headers();
+      headers.set("Content-Type", "application/json; charset=UTF-8");
+      headers.set("Access-Control-Allow-Origin", "*");
+      headers.set("Cache-Control", "public, max-age=60");
+      headers.set("X-Content-Type-Options", "nosniff");
+      return new Response(request.method === "HEAD" ? null : object.body, { status: 200, headers });
+    }
     // ==================================================
     // 0. Etsy Webhook - 正式验签版
     //    当前只验签，不写 orders / entitlements
