@@ -1,0 +1,86 @@
+name: Deploy isolated LeeMockups video test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/cloudflare-video-test]
+    paths:
+      - cloudflare/video-test/**
+      - .github/workflows/deploy-video-test.yml
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloudflare/video-test
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_CONTAINER_TEST_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cloudflare/video-test/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - name: Verify isolated target name
+        run: |
+          grep -q '"name": "leemockups-video-test"' wrangler.jsonc
+      - name: Verify Containers API access
+        run: |
+          response="$(curl --silent --show-error \
+            --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/containers/me")"
+          echo "$response" | jq '{success, errors, messages}'
+          echo "$response" | jq -e '.success == true'
+      - run: npm run deploy
+      - name: Protect real-material test endpoint
+        run: |
+          test_key="$(openssl rand -hex 32)"
+          echo "${test_key}" | npx wrangler secret put TEST_KEY
+          echo "VIDEO_TEST_KEY=${test_key}" >> "$GITHUB_ENV"
+      - name: Prepare video verification
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          curl --fail-with-body --retry 12 --retry-all-errors --retry-delay 10 \
+            https://leemockups-video-test.rgbcn-net.workers.dev/health
+      - name: Encode real 2000px mockup motion layer
+        run: |
+          response="$(curl --fail-with-body --silent --show-error --retry 12 --retry-all-errors --retry-delay 10 \
+            --header "x-test-key: ${VIDEO_TEST_KEY}" \
+            --request POST \
+            https://leemockups-video-test.rgbcn-net.workers.dev/jobs/base-test)"
+          job_id="$(echo "${response}" | jq -er '.id')"
+          echo "Cloud job ${job_id}"
+          for attempt in $(seq 1 60); do
+            result="$(curl --fail-with-body --silent --show-error \
+              --header "x-test-key: ${VIDEO_TEST_KEY}" \
+              "https://leemockups-video-test.rgbcn-net.workers.dev/jobs/base-test/${job_id}/status")"
+            state="$(echo "${result}" | jq -r '.status')"
+            echo "Attempt ${attempt}: ${state}"
+            if [ "${state}" = "complete" ]; then break; fi
+            if [ "${state}" = "failed" ]; then echo "${result}"; exit 1; fi
+            sleep 5
+          done
+          test "${state}" = "complete"
+          curl --fail-with-body --silent --show-error \
+            --header "x-test-key: ${VIDEO_TEST_KEY}" \
+            --output real-base-test.mp4 \
+            "https://leemockups-video-test.rgbcn-net.workers.dev/jobs/base-test/${job_id}/video"
+          echo "Real bytes $(wc -c < real-base-test.mp4)"
+          ffprobe -v error -count_frames -select_streams v:0 \
+            -show_entries stream=width,height,avg_frame_rate,nb_read_frames,duration \
+            -of json real-base-test.mp4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: leemockups-real-base-cloud-test
+          path: cloudflare/video-test/real-base-test.mp4
+          if-no-files-found: error
+          retention-days: 3
