@@ -37,11 +37,11 @@ export default function OrderDownloadPage() {
   return <main className="order-page">
     <SiteNav current="order-download" />
     <section className="order-shell shell">
-      <div className="order-copy"><span className="section-tag">ETSY PURCHASE DOWNLOAD</span><h1>Get your mockup.</h1><p>Enter the Etsy order number and the email used at checkout. We’ll verify your purchase and create a private download link.</p><ul><li><ShieldCheck /> Secure, time-limited download</li><li><KeyRound /> No LeeMockups account required</li></ul></div>
+      <div className="order-copy"><span className="section-tag">ETSY PURCHASE DOWNLOAD</span><h1>Get your mockup.</h1><p>Enter your Etsy order number. We’ll verify the purchase and create a private download link.</p><ul><li><ShieldCheck /> Secure, time-limited download</li><li><KeyRound /> No LeeMockups account required</li></ul></div>
       <div className="order-card">
         <form onSubmit={redeem}>
           <label>Etsy order number<input required inputMode="numeric" autoComplete="off" value={orderNumber} onChange={(event) => setOrderNumber(event.target.value.replace(/\D/g, ""))} placeholder="e.g. 1234567890" /></label>
-          <label>Email used at checkout<input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></label>
+          <label>Email used at checkout <span>(optional)</span><input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></label>
           <button className="button primary" disabled={busy}>{busy ? "Verifying purchase…" : "Get my download"}</button>
         </form>
         {error && <div className="order-message error" role="alert">{error}</div>}
