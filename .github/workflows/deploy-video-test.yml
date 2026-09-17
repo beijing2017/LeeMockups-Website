@@ -47,6 +47,8 @@ jobs:
       - run: npm run deploy
       - name: Generate fixed 300-frame cloud video
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
           curl --fail-with-body --retry 12 --retry-all-errors --retry-delay 10 \
             https://leemockups-video-test.rgbcn-net.workers.dev/health
           curl --fail-with-body --show-error \
