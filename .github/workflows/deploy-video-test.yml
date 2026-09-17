@@ -53,7 +53,7 @@ jobs:
             https://leemockups-video-test.rgbcn-net.workers.dev/health
       - name: Encode real 2000px mockup motion layer
         run: |
-          response="$(curl --fail-with-body --silent --show-error \
+          response="$(curl --fail-with-body --silent --show-error --retry 12 --retry-all-errors --retry-delay 10 \
             --header "x-test-key: ${VIDEO_TEST_KEY}" \
             --request POST \
             https://leemockups-video-test.rgbcn-net.workers.dev/jobs/base-test)"
