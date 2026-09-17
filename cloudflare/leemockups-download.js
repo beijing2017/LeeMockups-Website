@@ -973,8 +973,8 @@ export default {
         const body = await request.json();
         const orderNumber = String(body?.orderNumber || "").trim();
         const email = normalizeEmail(body?.email);
-        if (!/^\d{6,20}$/.test(orderNumber) || !email) {
-          return redeemJson({ ok: false, error: "Enter a valid Etsy order number and purchase email." }, 400, corsHeaders);
+        if (!/^\d{6,20}$/.test(orderNumber) || (body?.email && !email)) {
+          return redeemJson({ ok: false, error: "Enter a valid Etsy order number and email address." }, 400, corsHeaders);
         }
         const shop = await getSavedShop(env);
         if (!shop?.shop_id) throw new Error("Etsy shop is not connected.");
@@ -987,10 +987,7 @@ export default {
         const receipt = await receiptResponse.json();
         if (!receiptResponse.ok) throw new Error(`Etsy order lookup failed (${receiptResponse.status}).`);
         const receiptEmail = normalizeEmail(receipt.buyer_email || receipt.payment_email);
-        if (!receiptEmail) {
-          return redeemJson({ ok: false, code: "EMAIL_UNAVAILABLE", error: "Etsy did not provide an email for this order. Please contact us from your Etsy order page." }, 409, corsHeaders);
-        }
-        if (!receipt.is_paid || !safeEqual(email, receiptEmail)) return redeemNotFound(corsHeaders);
+        if (!receipt.is_paid || (email && receiptEmail && !safeEqual(email, receiptEmail))) return redeemNotFound(corsHeaders);
         const catalog = await readProductCatalog(env);
         const listingIds = new Set((receipt.transactions || []).map((item) => String(item.listing_id || "")).filter(Boolean));
         const products = catalog.products.filter((item) => listingIds.has(String(item.listingId)));
