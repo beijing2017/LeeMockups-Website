@@ -48,7 +48,7 @@ createServer(async (request, response) => {
         await run('unzip', ['-q', archive, '-d', extracted]);
         const manifest = JSON.parse(await readFile(join(extracted, 'manifest.json'), 'utf8'));
         const base = join(extracted, manifest.layers?.base || manifest.layers?.white || 'base-layer.mp4');
-        await run('ffmpeg', ['-y','-i',base,'-an','-vf','fps=30,scale=2000:2000:flags=lanczos','-t','10','-r','30','-frames:v','300','-c:v','libx264','-threads','1','-crf','16','-preset','medium','-pix_fmt','yuv420p','-movflags','+faststart',output]);
+        await run('ffmpeg', ['-y','-i',base,'-an','-vf','fps=30,scale=2000:2000:flags=lanczos','-t','10','-r','30','-frames:v','300','-c:v','libx264','-threads','2','-crf','16','-preset','veryfast','-pix_fmt','yuv420p','-movflags','+faststart',output]);
         const video = await readFile(output);
         response.writeHead(200, {'content-type':'video/mp4','content-length':String(video.length),'content-disposition':'attachment; filename="LeeMockups-real-base-cloud.mp4"','x-video-frames':'300','x-video-fps':'30'});
         response.end(video);
