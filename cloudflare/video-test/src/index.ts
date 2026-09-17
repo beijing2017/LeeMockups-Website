@@ -38,7 +38,7 @@ export default {
       }
       const object = await env.MOCKUPS.get('private/mockups/LM-VM-MUG-001/LM-VM-MUG-001.mockup');
       if (!object) return Response.json({ ok: false, error: 'Test mockup is missing.' }, { status: 404, headers: cors });
-      const container = getContainer(env.VIDEO_RENDERER, 'real-base-test');
+      const container = getContainer(env.VIDEO_RENDERER, 'real-base-test-v2');
       const response = await container.fetch(new Request('http://container/render-base-test', {
         method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: object.body,
       }));
