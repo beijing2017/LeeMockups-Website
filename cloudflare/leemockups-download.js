@@ -5,6 +5,11 @@ const ETSY_REDIRECT_URI =
   "https://leemockups-download.rgbcn-net.workers.dev/etsy/callback";
 const ETSY_SCOPES =
   "transactions_r listings_r shops_r";
+const PRODUCT_CATALOG_KEY = "private/catalog/products.json";
+const REDEEM_ORIGINS = new Set([
+  "https://www.leemockups.com",
+  "https://leemockups.com",
+]);
 const CLIENT_DOWNLOADS = {
   "/d/windows": {
     key: "downloads/client/windows/LeeMockups-Windows-1.13.71-Portable.zip",
@@ -935,7 +940,64 @@ export default {
       }
     }
     // ==================================================
-    // 7. 私有 Mockup 下载
+    // 7. Etsy 订单自助兑换
+    // ==================================================
+    if (url.pathname === "/redeem") {
+      const origin = request.headers.get("origin") || "";
+      const corsHeaders = redeemCorsHeaders(origin);
+      if (request.method === "OPTIONS") {
+        return new Response(null, { status: 204, headers: corsHeaders });
+      }
+      if (request.method !== "POST") {
+        return redeemJson({ ok: false, error: "Method not allowed." }, 405, corsHeaders);
+      }
+      try {
+        const contentLength = Number(request.headers.get("content-length") || 0);
+        if (contentLength > 4096) return redeemJson({ ok: false, error: "Request is too large." }, 413, corsHeaders);
+        const body = await request.json();
+        const orderNumber = String(body?.orderNumber || "").trim();
+        const email = normalizeEmail(body?.email);
+        if (!/^\d{6,20}$/.test(orderNumber) || !email) {
+          return redeemJson({ ok: false, error: "Enter a valid Etsy order number and purchase email." }, 400, corsHeaders);
+        }
+        const shop = await getSavedShop(env);
+        if (!shop?.shop_id) throw new Error("Etsy shop is not connected.");
+        const token = await getValidEtsyToken(env);
+        const receiptResponse = await fetch(
+          `https://api.etsy.com/v3/application/shops/${shop.shop_id}/receipts/${orderNumber}`,
+          { headers: etsyHeaders(env, token.access_token) }
+        );
+        if (receiptResponse.status === 404) return redeemNotFound(corsHeaders);
+        const receipt = await receiptResponse.json();
+        if (!receiptResponse.ok) throw new Error(`Etsy order lookup failed (${receiptResponse.status}).`);
+        const receiptEmail = normalizeEmail(receipt.buyer_email || receipt.payment_email);
+        if (!receiptEmail) {
+          return redeemJson({ ok: false, code: "EMAIL_UNAVAILABLE", error: "Etsy did not provide an email for this order. Please contact us from your Etsy order page." }, 409, corsHeaders);
+        }
+        if (!receipt.is_paid || !safeEqual(email, receiptEmail)) return redeemNotFound(corsHeaders);
+        const catalog = await readProductCatalog(env);
+        const listingIds = new Set((receipt.transactions || []).map((item) => String(item.listing_id || "")).filter(Boolean));
+        const products = catalog.products.filter((item) => listingIds.has(String(item.listingId)));
+        if (!products.length) return redeemNotFound(corsHeaders);
+        const expiresAt = Math.floor(Date.now() / 1000) + 30 * 60;
+        const downloads = [];
+        for (const product of products) {
+          const id = String(product.sku || "");
+          if (!/^LM-VM-[A-Z]{3}-\d{3}$/.test(id)) continue;
+          const fileKey = product.fileKey || `private/mockups/${id}/${id}.mockup`;
+          if (!(await env.MOCKUPS.head(fileKey))) continue;
+          const signature = await createSignature(`${id}:${expiresAt}`, env.DOWNLOAD_SECRET);
+          downloads.push({ sku: id, name: product.name || id, url: `${url.origin}/d/${encodeURIComponent(id)}?exp=${expiresAt}&sig=${signature}` });
+        }
+        if (!downloads.length) return redeemJson({ ok: false, code: "FILE_PENDING", error: "Your purchase is verified, but the download is still being prepared. Please try again shortly." }, 409, corsHeaders);
+        return redeemJson({ ok: true, expiresAt, downloads }, 200, corsHeaders);
+      } catch (error) {
+        console.error(JSON.stringify({ type: "redeem_error", message: String(error?.message || error) }));
+        return redeemJson({ ok: false, error: "We could not verify the order right now. Please try again shortly." }, 503, corsHeaders);
+      }
+    }
+    // ==================================================
+    // 8. 私有 Mockup 下载
     // ==================================================
     if (
       url.pathname.startsWith(
@@ -1012,8 +1074,7 @@ export default {
           }
         );
       }
-      const objectKey =
-        FILES[id];
+      const objectKey = FILES[id] || (/^LM-VM-[A-Z]{3}-\d{3}$/.test(id) ? `private/mockups/${id}/${id}.mockup` : null);
       if (!objectKey) {
         return new Response(
           "Mockup not found.",
@@ -1544,6 +1605,37 @@ function safeEqual(
       b.charCodeAt(i);
   }
   return result === 0;
+}
+function normalizeEmail(value) {
+  const email = String(value || "").trim().toLowerCase();
+  return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
+}
+async function readProductCatalog(env) {
+  const object = await env.MOCKUPS.get(PRODUCT_CATALOG_KEY);
+  if (!object) return { products: [] };
+  const catalog = await object.json();
+  return { products: Array.isArray(catalog?.products) ? catalog.products : [] };
+}
+function redeemCorsHeaders(origin) {
+  const headers = new Headers({
+    "access-control-allow-methods": "POST, OPTIONS",
+    "access-control-allow-headers": "content-type",
+    "access-control-max-age": "86400",
+    "cache-control": "no-store",
+    "vary": "Origin",
+  });
+  if (REDEEM_ORIGINS.has(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
+    headers.set("access-control-allow-origin", origin);
+  }
+  return headers;
+}
+function redeemJson(data, status, headers) {
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set("content-type", "application/json; charset=UTF-8");
+  return new Response(JSON.stringify(data), { status, headers: responseHeaders });
+}
+function redeemNotFound(headers) {
+  return redeemJson({ ok: false, error: "We could not match a paid Etsy order with those details. Check the order number and the email used at checkout." }, 404, headers);
 }
 function textResponse(
   text,
