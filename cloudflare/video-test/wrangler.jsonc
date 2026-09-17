@@ -17,6 +17,9 @@
       { "name": "VIDEO_RENDERER", "class_name": "VideoRenderer" }
     ]
   },
+  "r2_buckets": [
+    { "binding": "MOCKUPS", "bucket_name": "leemockups-files" }
+  ],
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["VideoRenderer"] }
   ],

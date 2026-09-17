@@ -3,8 +3,26 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
+import { createDecipheriv, hkdfSync } from 'node:crypto';
 
 const maxBytes = 15 * 1024 * 1024;
+const maxMockupBytes = 80 * 1024 * 1024;
+const magic = Buffer.from('LMOFFLINE1');
+const seed = Buffer.from('9146ab07d3e91258fceb60411df97042a8573cb9e02d65f71498a3be602fcd85', 'hex');
+
+function decryptMockup(bytes) {
+  if (!bytes.subarray(0, magic.length).equals(magic)) return bytes;
+  if (bytes.length < 54) throw new Error('Mockup package is incomplete');
+  const salt = bytes.subarray(10, 26);
+  const iv = bytes.subarray(26, 38);
+  const tag = bytes.subarray(38, 54);
+  const ciphertext = bytes.subarray(54);
+  const key = Buffer.from(hkdfSync('sha256', seed, salt, Buffer.from('LeeMockups offline v1'), 32));
+  const decipher = createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAAD(magic);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+}
 
 function run(command, args) {
   return new Promise((resolve, reject) => {
@@ -17,6 +35,29 @@ function run(command, args) {
 }
 
 createServer(async (request, response) => {
+  if (request.method === 'POST' && request.url === '/render-base-test') {
+    const chunks = []; let size = 0;
+    try {
+      for await (const chunk of request) { size += chunk.length; if (size > maxMockupBytes) throw new Error('Mockup is larger than 80 MB'); chunks.push(chunk); }
+      const folder = await mkdtemp(join(tmpdir(), 'leemockups-real-'));
+      try {
+        const archive = join(folder, 'mockup.zip');
+        const extracted = join(folder, 'package');
+        const output = join(folder, 'real-base-fixed-30fps.mp4');
+        await writeFile(archive, decryptMockup(Buffer.concat(chunks)));
+        await run('unzip', ['-q', archive, '-d', extracted]);
+        const manifest = JSON.parse(await readFile(join(extracted, 'manifest.json'), 'utf8'));
+        const base = join(extracted, manifest.layers?.base || manifest.layers?.white || 'base-layer.mp4');
+        await run('ffmpeg', ['-y','-i',base,'-an','-vf','fps=30,scale=2000:2000:flags=lanczos','-t','10','-r','30','-frames:v','300','-c:v','libx264','-threads','1','-crf','16','-preset','medium','-pix_fmt','yuv420p','-movflags','+faststart',output]);
+        const video = await readFile(output);
+        response.writeHead(200, {'content-type':'video/mp4','content-length':String(video.length),'content-disposition':'attachment; filename="LeeMockups-real-base-cloud.mp4"','x-video-frames':'300','x-video-fps':'30'});
+        response.end(video);
+      } finally { await rm(folder, { recursive: true, force: true }); }
+    } catch (error) {
+      response.writeHead(500, { 'content-type': 'application/json' }); response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
+    }
+    return;
+  }
   if (request.method !== 'POST' || request.url !== '/render') {
     response.writeHead(404, { 'content-type': 'application/json' }); response.end(JSON.stringify({ ok: false })); return;
   }

@@ -5,7 +5,19 @@ export class VideoRenderer extends Container {
   sleepAfter = '2m';
 }
 
-type Env = { VIDEO_RENDERER: DurableObjectNamespace<VideoRenderer> };
+type Env = {
+  VIDEO_RENDERER: DurableObjectNamespace<VideoRenderer>;
+  MOCKUPS: R2Bucket;
+  TEST_KEY?: string;
+};
+
+function keyMatches(request: Request, expected?: string) {
+  const actual = request.headers.get('x-test-key');
+  if (!actual || !expected || actual.length !== expected.length) return false;
+  let difference = 0;
+  for (let index = 0; index < actual.length; index += 1) difference |= actual.charCodeAt(index) ^ expected.charCodeAt(index);
+  return difference === 0;
+}
 
 const cors = {
   'access-control-allow-origin': '*',
@@ -19,6 +31,21 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     if (url.pathname === '/health') {
       return Response.json({ ok: true, service: 'leemockups-video-test', isolated: true }, { headers: cors });
+    }
+    if (url.pathname === '/render-base-test' && request.method === 'POST') {
+      if (!keyMatches(request, env.TEST_KEY)) {
+        return Response.json({ ok: false, error: 'Unauthorized.' }, { status: 401, headers: cors });
+      }
+      const object = await env.MOCKUPS.get('private/mockups/LM-VM-MUG-001/LM-VM-MUG-001.mockup');
+      if (!object) return Response.json({ ok: false, error: 'Test mockup is missing.' }, { status: 404, headers: cors });
+      const container = getContainer(env.VIDEO_RENDERER, 'real-base-test');
+      const response = await container.fetch(new Request('http://container/render-base-test', {
+        method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: object.body,
+      }));
+      const headers = new Headers(response.headers);
+      Object.entries(cors).forEach(([key, value]) => headers.set(key, value));
+      headers.set('cache-control', 'no-store');
+      return new Response(response.body, { status: response.status, headers });
     }
     if (url.pathname !== '/render' || request.method !== 'POST') {
       return Response.json({ ok: false, error: 'POST a PNG or JPG to /render.' }, { status: 404, headers: cors });

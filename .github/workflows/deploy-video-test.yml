@@ -45,6 +45,11 @@ jobs:
           echo "$response" | jq '{success, errors, messages}'
           echo "$response" | jq -e '.success == true'
       - run: npm run deploy
+      - name: Protect real-material test endpoint
+        run: |
+          test_key="$(openssl rand -hex 32)"
+          echo "${test_key}" | npx wrangler secret put TEST_KEY
+          echo "VIDEO_TEST_KEY=${test_key}" >> "$GITHUB_ENV"
       - name: Generate fixed 300-frame cloud video
         run: |
           sudo apt-get update -qq
@@ -64,5 +69,22 @@ jobs:
         with:
           name: leemockups-cloud-fixed-30fps
           path: cloudflare/video-test/cloud-test.mp4
+          if-no-files-found: error
+          retention-days: 3
+      - name: Encode real 2000px mockup motion layer
+        run: |
+          curl --fail-with-body --show-error \
+            --header "x-test-key: ${VIDEO_TEST_KEY}" \
+            --request POST \
+            --output real-base-test.mp4 \
+            --write-out "HTTP %{http_code}\nReal total %{time_total}s\nReal bytes %{size_download}\n" \
+            https://leemockups-video-test.rgbcn-net.workers.dev/render-base-test
+          ffprobe -v error -count_frames -select_streams v:0 \
+            -show_entries stream=width,height,avg_frame_rate,nb_read_frames,duration \
+            -of json real-base-test.mp4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: leemockups-real-base-cloud-test
+          path: cloudflare/video-test/real-base-test.mp4
           if-no-files-found: error
           retention-days: 3
