@@ -978,11 +978,18 @@ export default {
         }
         const shop = await getSavedShop(env);
         if (!shop?.shop_id) throw new Error("Etsy shop is not connected.");
-        const token = await getValidEtsyToken(env);
-        const receiptResponse = await fetch(
+        let token = await getValidEtsyToken(env);
+        let receiptResponse = await fetch(
           `https://api.etsy.com/v3/application/shops/${shop.shop_id}/receipts/${orderNumber}`,
           { headers: etsyHeaders(env, token.access_token) }
         );
+        if (receiptResponse.status === 401) {
+          token = await getValidEtsyToken(env, true);
+          receiptResponse = await fetch(
+            `https://api.etsy.com/v3/application/shops/${shop.shop_id}/receipts/${orderNumber}`,
+            { headers: etsyHeaders(env, token.access_token) }
+          );
+        }
         if (receiptResponse.status === 404) return redeemNotFound(corsHeaders);
         const receipt = await receiptResponse.json();
         if (!receiptResponse.ok) throw new Error(`Etsy order lookup failed (${receiptResponse.status}).`);
@@ -1330,7 +1337,8 @@ async function saveShop(
 // Etsy Token 管理
 // ==================================================
 async function getValidEtsyToken(
-  env
+  env,
+  forceRefresh = false
 ) {
   let token =
     await env.DB.prepare(
@@ -1353,6 +1361,7 @@ async function getValidEtsyToken(
       Date.now() / 1000
     );
   if (
+    !forceRefresh &&
     Number(
       token.expires_at
     ) >
