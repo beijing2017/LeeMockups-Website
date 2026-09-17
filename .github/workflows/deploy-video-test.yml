@@ -53,18 +53,28 @@ jobs:
             https://leemockups-video-test.rgbcn-net.workers.dev/health
       - name: Encode real 2000px mockup motion layer
         run: |
-          status="$(curl --silent --show-error \
+          response="$(curl --fail-with-body --silent --show-error \
             --header "x-test-key: ${VIDEO_TEST_KEY}" \
             --request POST \
+            https://leemockups-video-test.rgbcn-net.workers.dev/jobs/base-test)"
+          job_id="$(echo "${response}" | jq -er '.id')"
+          echo "Cloud job ${job_id}"
+          for attempt in $(seq 1 60); do
+            result="$(curl --fail-with-body --silent --show-error \
+              --header "x-test-key: ${VIDEO_TEST_KEY}" \
+              "https://leemockups-video-test.rgbcn-net.workers.dev/jobs/base-test/${job_id}/status")"
+            state="$(echo "${result}" | jq -r '.status')"
+            echo "Attempt ${attempt}: ${state}"
+            if [ "${state}" = "complete" ]; then break; fi
+            if [ "${state}" = "failed" ]; then echo "${result}"; exit 1; fi
+            sleep 5
+          done
+          test "${state}" = "complete"
+          curl --fail-with-body --silent --show-error \
+            --header "x-test-key: ${VIDEO_TEST_KEY}" \
             --output real-base-test.mp4 \
-            --write-out "%{http_code}" \
-            https://leemockups-video-test.rgbcn-net.workers.dev/render-base-test)"
-          echo "HTTP ${status}"
+            "https://leemockups-video-test.rgbcn-net.workers.dev/jobs/base-test/${job_id}/video"
           echo "Real bytes $(wc -c < real-base-test.mp4)"
-          if [ "${status}" != "200" ]; then
-            cat real-base-test.mp4
-            exit 1
-          fi
           ffprobe -v error -count_frames -select_streams v:0 \
             -show_entries stream=width,height,avg_frame_rate,nb_read_frames,duration \
             -of json real-base-test.mp4

@@ -3,12 +3,13 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
-import { createDecipheriv, hkdfSync } from 'node:crypto';
+import { createDecipheriv, hkdfSync, randomUUID } from 'node:crypto';
 
 const maxBytes = 15 * 1024 * 1024;
 const maxMockupBytes = 80 * 1024 * 1024;
 const magic = Buffer.from('LMOFFLINE1');
 const seed = Buffer.from('9146ab07d3e91258fceb60411df97042a8573cb9e02d65f71498a3be602fcd85', 'hex');
+const jobs = new Map();
 
 function decryptMockup(bytes) {
   if (!bytes.subarray(0, magic.length).equals(magic)) return bytes;
@@ -35,24 +36,58 @@ function run(command, args) {
 }
 
 createServer(async (request, response) => {
-  if (request.method === 'POST' && request.url === '/render-base-test') {
+  if (request.method === 'GET' && request.url?.startsWith('/jobs/base-test/')) {
+    const [, , , jobId, action] = request.url.split('/');
+    const job = jobs.get(jobId);
+    if (!job) {
+      response.writeHead(404, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'Job not found' }));
+      return;
+    }
+    if (action === 'video') {
+      if (job.status !== 'complete') {
+        response.writeHead(409, { 'content-type': 'application/json' });
+        response.end(JSON.stringify({ error: 'Video is not ready', status: job.status }));
+        return;
+      }
+      const video = await readFile(job.output);
+      response.writeHead(200, {'content-type':'video/mp4','content-length':String(video.length),'content-disposition':'attachment; filename="LeeMockups-real-base-cloud.mp4"','x-video-frames':'300','x-video-fps':'30'});
+      response.end(video);
+      return;
+    }
+    response.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+    response.end(JSON.stringify({ id: jobId, status: job.status, startedAt: job.startedAt, completedAt: job.completedAt || null, error: job.error || null }));
+    return;
+  }
+  if (request.method === 'POST' && request.url === '/jobs/base-test') {
     const chunks = []; let size = 0;
     try {
       for await (const chunk of request) { size += chunk.length; if (size > maxMockupBytes) throw new Error('Mockup is larger than 80 MB'); chunks.push(chunk); }
       const folder = await mkdtemp(join(tmpdir(), 'leemockups-real-'));
-      try {
-        const archive = join(folder, 'mockup.zip');
-        const extracted = join(folder, 'package');
-        const output = join(folder, 'real-base-fixed-30fps.mp4');
-        await writeFile(archive, decryptMockup(Buffer.concat(chunks)));
-        await run('unzip', ['-q', archive, '-d', extracted]);
-        const manifest = JSON.parse(await readFile(join(extracted, 'manifest.json'), 'utf8'));
-        const base = join(extracted, manifest.layers?.base || manifest.layers?.white || 'base-layer.mp4');
-        await run('ffmpeg', ['-y','-i',base,'-an','-vf','fps=30,scale=2000:2000:flags=lanczos','-t','10','-r','30','-frames:v','300','-c:v','libx264','-threads','2','-crf','16','-preset','veryfast','-pix_fmt','yuv420p','-movflags','+faststart',output]);
-        const video = await readFile(output);
-        response.writeHead(200, {'content-type':'video/mp4','content-length':String(video.length),'content-disposition':'attachment; filename="LeeMockups-real-base-cloud.mp4"','x-video-frames':'300','x-video-fps':'30'});
-        response.end(video);
-      } finally { await rm(folder, { recursive: true, force: true }); }
+      const archive = join(folder, 'mockup.zip');
+      const extracted = join(folder, 'package');
+      const output = join(folder, 'real-base-fixed-30fps.mp4');
+      await writeFile(archive, decryptMockup(Buffer.concat(chunks)));
+      await run('unzip', ['-q', archive, '-d', extracted]);
+      const manifest = JSON.parse(await readFile(join(extracted, 'manifest.json'), 'utf8'));
+      const base = join(extracted, manifest.layers?.base || manifest.layers?.white || 'base-layer.mp4');
+      const jobId = randomUUID();
+      const job = { status: 'processing', folder, output, startedAt: new Date().toISOString() };
+      jobs.set(jobId, job);
+      void (async () => {
+        try {
+          await run('ffmpeg', ['-y','-i',base,'-an','-vf','fps=30,scale=2000:2000:flags=lanczos','-t','10','-r','30','-frames:v','300','-c:v','libx264','-threads','2','-crf','16','-preset','medium','-pix_fmt','yuv420p','-movflags','+faststart',output]);
+          job.status = 'complete';
+          job.completedAt = new Date().toISOString();
+        } catch (error) {
+          job.status = 'failed';
+          job.error = error instanceof Error ? error.message : String(error);
+          job.completedAt = new Date().toISOString();
+          await rm(folder, { recursive: true, force: true });
+        }
+      })();
+      response.writeHead(202, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      response.end(JSON.stringify({ id: jobId, status: job.status }));
     } catch (error) {
       response.writeHead(500, { 'content-type': 'application/json' }); response.end(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
     }

@@ -22,7 +22,7 @@ function keyMatches(request: Request, expected?: string) {
 const cors = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET, POST, OPTIONS',
-  'access-control-allow-headers': 'content-type',
+  'access-control-allow-headers': 'content-type, x-test-key',
 };
 
 export default {
@@ -32,16 +32,27 @@ export default {
     if (url.pathname === '/health') {
       return Response.json({ ok: true, service: 'leemockups-video-test', isolated: true }, { headers: cors });
     }
-    if (url.pathname === '/render-base-test' && request.method === 'POST') {
+    if (url.pathname === '/jobs/base-test' && request.method === 'POST') {
       if (!keyMatches(request, env.TEST_KEY)) {
         return Response.json({ ok: false, error: 'Unauthorized.' }, { status: 401, headers: cors });
       }
       const object = await env.MOCKUPS.get('private/mockups/LM-VM-MUG-001/LM-VM-MUG-001.mockup');
       if (!object) return Response.json({ ok: false, error: 'Test mockup is missing.' }, { status: 404, headers: cors });
-      const container = getContainer(env.VIDEO_RENDERER, 'real-base-test-v2');
-      const response = await container.fetch(new Request('http://container/render-base-test', {
+      const container = getContainer(env.VIDEO_RENDERER, 'real-base-test-v3');
+      const response = await container.fetch(new Request('http://container/jobs/base-test', {
         method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: object.body,
       }));
+      const headers = new Headers(response.headers);
+      Object.entries(cors).forEach(([key, value]) => headers.set(key, value));
+      headers.set('cache-control', 'no-store');
+      return new Response(response.body, { status: response.status, headers });
+    }
+    if (/^\/jobs\/base-test\/[^/]+\/(status|video)$/.test(url.pathname) && request.method === 'GET') {
+      if (!keyMatches(request, env.TEST_KEY)) {
+        return Response.json({ ok: false, error: 'Unauthorized.' }, { status: 401, headers: cors });
+      }
+      const container = getContainer(env.VIDEO_RENDERER, 'real-base-test-v3');
+      const response = await container.fetch(new Request(`http://container${url.pathname}`));
       const headers = new Headers(response.headers);
       Object.entries(cors).forEach(([key, value]) => headers.set(key, value));
       headers.set('cache-control', 'no-store');
