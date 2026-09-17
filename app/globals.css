@@ -28,3 +28,4 @@
 @media(min-width:901px){.mockup-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}.mockup-card-body{padding:19px}.mockup-card-body h2{font-size:19px}}
 .catalog-categories{padding-top:0}.catalog-categories button.selected{border-color:transparent;background:linear-gradient(110deg,#6650e7,#fa765f);box-shadow:0 8px 18px #714eef26}.catalog-categories button:not(.selected):hover{border-color:#8f7deb;color:#6650e7}
 .catalog-categories button{width:96px;text-align:center}
+.mockup-card-body p{display:-webkit-box;min-height:43px;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2}
