@@ -11,10 +11,10 @@ function ProductCard({ product }: { product: Product }) {
   const stop = () => { const video = videoRef.current; if (video) { video.pause(); video.currentTime = 0; } };
   return <article className="mockup-card">
     <div className="mockup-card-image" onMouseEnter={play} onMouseLeave={stop} onFocus={play} onBlur={stop} tabIndex={0}>
-      <img src={`${assetBase}/${product.thumbnailPath}?v=${encodeURIComponent(product.assetVersion || "1")}`} alt={product.name} loading="lazy" />
-      <video ref={videoRef} muted loop playsInline preload="metadata" poster={`${assetBase}/${product.thumbnailPath}?v=${encodeURIComponent(product.assetVersion || "1")}`} aria-label={`${product.name} animated preview`}><source src={`${assetBase}/${product.previewPath}?v=${encodeURIComponent(product.assetVersion || "1")}`} type="video/webm" /></video>
+      <img src={`${assetBase}/${product.thumbnailPath}?v=${encodeURIComponent(product.assetVersion || "1")}`} alt={product.name} loading="lazy" draggable={false} />
+      <video ref={videoRef} muted loop playsInline preload="metadata" controlsList="nodownload noremoteplayback" disablePictureInPicture draggable={false} onContextMenu={(event) => event.preventDefault()} poster={`${assetBase}/${product.thumbnailPath}?v=${encodeURIComponent(product.assetVersion || "1")}`} aria-label={`${product.name} animated preview`}><source src={`${assetBase}/${product.previewPath}?v=${encodeURIComponent(product.assetVersion || "1")}`} type="video/webm" /></video>
     </div>
-    <div className="mockup-card-body"><span>{product.category} · VIDEO MOCKUP</span><h2>{product.name}</h2><p>{product.description}</p><div className="mockup-card-actions"><a className="mockup-buy-button" href={product.etsyUrl} target="_blank" rel="noreferrer">Buy on Etsy</a><a href="/order-download/">Already purchased? Download →</a></div></div>
+    <div className="mockup-card-body"><h2>{product.name}</h2><p>{product.description}</p><div className="mockup-card-actions"><a className="mockup-buy-button" href={product.etsyUrl} target="_blank" rel="noreferrer">Buy on Etsy</a><a href="/order-download/">Already purchased? Download →</a></div></div>
   </article>;
 }
 
