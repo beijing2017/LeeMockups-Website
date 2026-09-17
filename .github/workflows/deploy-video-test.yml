@@ -53,12 +53,18 @@ jobs:
             https://leemockups-video-test.rgbcn-net.workers.dev/health
       - name: Encode real 2000px mockup motion layer
         run: |
-          curl --fail-with-body --show-error \
+          status="$(curl --silent --show-error \
             --header "x-test-key: ${VIDEO_TEST_KEY}" \
             --request POST \
             --output real-base-test.mp4 \
-            --write-out "HTTP %{http_code}\nReal total %{time_total}s\nReal bytes %{size_download}\n" \
-            https://leemockups-video-test.rgbcn-net.workers.dev/render-base-test
+            --write-out "%{http_code}" \
+            https://leemockups-video-test.rgbcn-net.workers.dev/render-base-test)"
+          echo "HTTP ${status}"
+          echo "Real bytes $(wc -c < real-base-test.mp4)"
+          if [ "${status}" != "200" ]; then
+            cat real-base-test.mp4
+            exit 1
+          fi
           ffprobe -v error -count_frames -select_streams v:0 \
             -show_entries stream=width,height,avg_frame_rate,nb_read_frames,duration \
             -of json real-base-test.mp4
