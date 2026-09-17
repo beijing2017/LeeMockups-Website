@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const assetBase = "https://downloads.leemockups.com";
 type Product = { sku: string; name: string; description: string; category: string; thumbnailPath: string; previewPath: string; etsyUrl: string; keywords?: string[]; assetVersion?: string };
+const categoryLabels: Record<string, string> = { MUG: "Mugs", FRM: "Frames", TSH: "T-Shirts" };
 
 function ProductCard({ product }: { product: Product }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -20,7 +21,9 @@ function ProductCard({ product }: { product: Product }) {
 }
 
 export function MockupCatalog() {
-  const [products, setProducts] = useState<Product[]>([]), [loading, setLoading] = useState(true), [failed, setFailed] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]), [selectedCategory, setSelectedCategory] = useState("ALL"), [loading, setLoading] = useState(true), [failed, setFailed] = useState(false);
   useEffect(() => { fetch(`${assetBase}/catalog/products.json`, { cache: "no-store" }).then((response) => { if (!response.ok) throw new Error(); return response.json(); }).then((data) => setProducts(Array.isArray(data?.products) ? data.products.map((product: Product) => ({ ...product, assetVersion: data.updatedAt })) : [])).catch(() => setFailed(true)).finally(() => setLoading(false)); }, []);
-  return <section className="catalog shell" aria-label="Mockup catalog">{failed ? <div className="catalog-no-results"><h2>Unable to load the library</h2><p>Please refresh the page in a moment.</p></div> : !loading && !products.length ? <div className="catalog-no-results"><h2>New mockups are on the way</h2></div> : <div className="mockup-grid">{products.map((product) => <ProductCard product={product} key={product.sku} />)}</div>}</section>;
+  const categories = useMemo(() => [...new Set(products.map((product) => product.category).filter(Boolean))].sort(), [products]);
+  const visible = selectedCategory === "ALL" ? products : products.filter((product) => product.category === selectedCategory);
+  return <section className="catalog shell" aria-label="Mockup catalog">{categories.length > 0 && <div className="catalog-categories" aria-label="Filter mockups by category"><button type="button" className={selectedCategory === "ALL" ? "selected" : ""} onClick={() => setSelectedCategory("ALL")}>All</button>{categories.map((category) => <button type="button" className={selectedCategory === category ? "selected" : ""} onClick={() => setSelectedCategory(category)} key={category}>{categoryLabels[category] || category}</button>)}</div>}{failed ? <div className="catalog-no-results"><h2>Unable to load the library</h2><p>Please refresh the page in a moment.</p></div> : !loading && !products.length ? <div className="catalog-no-results"><h2>New mockups are on the way</h2></div> : <div className="mockup-grid">{visible.map((product) => <ProductCard product={product} key={product.sku} />)}</div>}</section>;
 }
