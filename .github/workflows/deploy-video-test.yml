@@ -45,3 +45,22 @@ jobs:
           echo "$response" | jq '{success, errors, messages}'
           echo "$response" | jq -e '.success == true'
       - run: npm run deploy
+      - name: Generate fixed 300-frame cloud video
+        run: |
+          curl --fail-with-body --retry 12 --retry-all-errors --retry-delay 10 \
+            https://leemockups-video-test.rgbcn-net.workers.dev/health
+          curl --fail-with-body --show-error \
+            --header "Content-Type: image/png" \
+            --data-binary "@../../public/leemockups-symbol.png" \
+            --output cloud-test.mp4 \
+            --write-out "HTTP %{http_code}\nTotal %{time_total}s\nDownloaded %{size_download} bytes\n" \
+            https://leemockups-video-test.rgbcn-net.workers.dev/render
+          ffprobe -v error -count_frames -select_streams v:0 \
+            -show_entries stream=width,height,avg_frame_rate,nb_read_frames,duration \
+            -of json cloud-test.mp4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: leemockups-cloud-fixed-30fps
+          path: cloudflare/video-test/cloud-test.mp4
+          if-no-files-found: error
+          retention-days: 3
