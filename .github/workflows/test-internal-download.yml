@@ -1,0 +1,87 @@
+name: Test private mockup download
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_WORKER_DEPLOY_TOKEN: ${{ secrets.CLOUDFLARE_WORKER_DEPLOY_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      SCRIPT_NAME: leemockups-download
+      TEST_SKU: LM-VM-MUG-001
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate, download, verify, and always restore
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_WORKER_DEPLOY_TOKEN}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID}"
+          formal_worker="$(mktemp)"
+          test_worker="$(mktemp)"
+          test_download="$(mktemp)"
+          cp cloudflare/leemockups-download.js "${formal_worker}"
+
+          deploy_worker() {
+            local source="$1"
+            local response
+            response="$(mktemp)"
+            status="$(curl --silent --show-error --output "${response}" --write-out '%{http_code}' \
+              --request PUT \
+              --header "Authorization: Bearer ${CLOUDFLARE_WORKER_DEPLOY_TOKEN}" \
+              --form 'metadata={"main_module":"leemockups-download.js"};type=application/json' \
+              --form "worker.js=@${source};type=application/javascript+module" \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${SCRIPT_NAME}/content")"
+            test "${status}" -ge 200 -a "${status}" -lt 300
+            jq -e '.success == true' "${response}" >/dev/null
+            rm -f "${response}"
+          }
+
+          restore_worker() {
+            deploy_worker "${formal_worker}"
+            rm -f "${formal_worker}" "${test_worker}" "${test_download}"
+          }
+          trap restore_worker EXIT
+
+          test_key="$(openssl rand -hex 32)"
+          export TEST_KEY="${test_key}"
+          export TEST_SKU
+          export TEST_WORKER="${test_worker}"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const source = fs.readFileSync('cloudflare/leemockups-download.js', 'utf8');
+          const marker = '    // ==================================================\n    // 0. Etsy Webhook';
+          const key = JSON.stringify(process.env.TEST_KEY);
+          const sku = JSON.stringify(process.env.TEST_SKU);
+          const route = `    if (url.pathname === "/internal-test-download") {
+                if (request.method !== "POST" || !safeEqual(request.headers.get("x-test-key") || "", ${key})) return new Response("Not found", { status: 404 });
+                const sku = ${sku};
+                const fileKey = \`private/mockups/\${sku}/\${sku}.mockup\`;
+                if (!(await env.MOCKUPS.head(fileKey))) return jsonResponse({ ok: false, error: "Test file is missing." }, 409);
+                const expiresAt = Math.floor(Date.now() / 1000) + 300;
+                const signature = await createSignature(\`\${sku}:\${expiresAt}\`, env.DOWNLOAD_SECRET);
+                return jsonResponse({ ok: true, sku, expiresAt, url: \`\${url.origin}/d/\${sku}?exp=\${expiresAt}&sig=\${signature}\` });
+              }
+          `;
+          if (!source.includes(marker)) throw new Error('Worker insertion marker not found');
+          fs.writeFileSync(process.env.TEST_WORKER, source.replace(marker, route + marker));
+          NODE
+
+          deploy_worker "${test_worker}"
+          sleep 3
+          result="$(curl --fail-with-body --silent --show-error \
+            --request POST --header "x-test-key: ${test_key}" \
+            https://downloads.leemockups.com/internal-test-download)"
+          test "$(jq -r '.ok' <<<"${result}")" = "true"
+          test "$(jq -r '.sku' <<<"${result}")" = "${TEST_SKU}"
+          download_url="$(jq -er '.url' <<<"${result}")"
+          curl --fail-with-body --silent --show-error --output "${test_download}" "${download_url}"
+          bytes="$(wc -c < "${test_download}")"
+          test "${bytes}" -gt 1000000
+          sha256sum "${test_download}" | awk '{print "Downloaded SHA-256: " $1}'
+          echo "Verified signed download for ${TEST_SKU}: ${bytes} bytes"
