@@ -25,3 +25,4 @@
 .mockup-card-body h2{margin-top:0}.mockup-card-actions{display:grid;gap:14px}.mockup-card-actions a.mockup-buy-button{width:100%;min-height:50px;justify-content:center;color:#fff;background:var(--coral);box-shadow:0 10px 22px #ff78632b}.mockup-card-actions a.mockup-buy-button:hover{color:#fff;background:#e85f4c}.mockup-card-image img,.mockup-card-image video{-webkit-user-drag:none;user-select:none}
 .mockup-card-actions a.mockup-buy-button{background:linear-gradient(110deg,#6650e7,#fa765f);box-shadow:0 12px 25px #714eef33}.mockup-card-actions a.mockup-buy-button:hover{background:linear-gradient(110deg,#5c45d8,#eb6752)}.mockup-card-actions a:last-child{justify-content:center;text-align:center}
 .mockup-video-guard{position:absolute;inset:0;z-index:1;background:transparent}
+@media(min-width:901px){.mockup-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}.mockup-card-body{padding:19px}.mockup-card-body h2{font-size:19px}}
