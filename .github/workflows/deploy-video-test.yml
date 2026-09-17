@@ -37,4 +37,11 @@ jobs:
       - name: Verify isolated target name
         run: |
           grep -q '"name": "leemockups-video-test"' wrangler.jsonc
+      - name: Verify Containers API access
+        run: |
+          response="$(curl --silent --show-error \
+            --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/containers/me")"
+          echo "$response" | jq '{success, errors, messages}'
+          echo "$response" | jq -e '.success == true'
       - run: npm run deploy
