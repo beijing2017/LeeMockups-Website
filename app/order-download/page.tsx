@@ -1,9 +1,8 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
 import { Download, KeyRound, ShieldCheck } from "lucide-react";
 import { FormEvent, useState } from "react";
+import { SiteNav } from "@/components/site-nav";
 
 type DownloadItem = { sku: string; name: string; url: string };
 
@@ -36,11 +35,7 @@ export default function OrderDownloadPage() {
   }
 
   return <main className="order-page">
-    <nav className="nav shell">
-      <Link className="brand" href="/"><Image src="/leemockups-symbol.png" width={38} height={38} alt="" /><span>LeeMockups</span><span className="beta-badge">BETA</span></Link>
-      <div className="nav-links"><Link href="/mockups/">Mockup Library</Link><Link href="/help/">Help</Link><Link href="/#download">Get the app</Link></div>
-      <Link className="nav-cta" href="/#download"><Download size={15} /> Get the app</Link>
-    </nav>
+    <SiteNav current="order-download" />
     <section className="order-shell shell">
       <div className="order-copy"><span className="section-tag">ETSY PURCHASE DOWNLOAD</span><h1>Get your mockup.</h1><p>Enter the Etsy order number and the email used at checkout. We’ll verify your purchase and create a private download link.</p><ul><li><ShieldCheck /> Secure, time-limited download</li><li><KeyRound /> No LeeMockups account required</li></ul></div>
       <div className="order-card">
@@ -54,6 +49,6 @@ export default function OrderDownloadPage() {
         <p className="order-help">Need help? Contact us from your Etsy order page so we can verify the purchase safely.</p>
       </div>
     </section>
-    <footer className="shell"><div className="brand"><Image src="/leemockups-symbol.png" width={34} height={34} alt="" /><span>LeeMockups</span></div><p>The term “Etsy” is a trademark of Etsy, Inc. This application uses the Etsy API but is not endorsed or certified by Etsy, Inc.</p><span>© 2026 LeeMockups</span></footer>
+    <footer className="shell"><div className="brand"><span>LeeMockups</span></div><p>The term “Etsy” is a trademark of Etsy, Inc. This application uses the Etsy API but is not endorsed or certified by Etsy, Inc.</p><span>© 2026 LeeMockups</span></footer>
   </main>;
 }

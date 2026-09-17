@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { ArrowDown, Check, Download, ImagePlus, Layers3, Play, ShieldCheck, Sparkles } from "lucide-react";
+import { SiteNav } from "@/components/site-nav";
 
 const appVersion = "1.13.71";
 // Public Worker endpoints. The Worker streams private R2 objects and never redirects
@@ -30,11 +31,7 @@ export default function Home() {
 
   return <main>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
-    <nav className="nav shell">
-      <a className="brand" href="#top"><Image src="/leemockups-symbol.png" width={38} height={38} alt="" /><span>LeeMockups</span><span className="beta-badge" title="Preview release">BETA</span></a>
-      <div className="nav-links"><a href="#how">How it works</a><a href="#features">Features</a><a href="/help/">Help</a><a href="#download">Download</a><a href="/mockups/">Mockup Library</a><a href="/order-download/">Order download</a></div>
-      <a className="nav-cta" href="#download"><Download size={15} /> Get the app</a>
-    </nav>
+    <SiteNav />
 
     <section className="hero shell" id="top">
       <div className="hero-copy">
