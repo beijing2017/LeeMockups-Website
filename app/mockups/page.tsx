@@ -14,7 +14,7 @@ export default function MockupsPage() {
   return <main className="mockups-page">
     <SiteNav current="mockups" />
     <section className="mockups-hero">
-      <div className="shell"><span className="mockups-eyebrow">LEEMOCKUPS COLLECTION</span><h1>Mockup Library</h1><p>Animated mockups made for product listings, social media, and client presentations.</p></div>
+      <div className="shell mockups-hero-layout"><div className="mockups-hero-copy"><span className="mockups-eyebrow">LEEMOCKUPS COLLECTION</span><h1>Mockup Library</h1><p>Animated mockups made for product listings, social media, and client presentations.</p></div><div className="mockups-hero-art" aria-hidden="true"><Image src="/mockup-library-hero.png" width={1200} height={1200} alt="" priority /></div></div>
     </section>
     <MockupCatalog />
     <footer className="shell"><div className="brand"><Image src="/leemockups-symbol.png" width={34} height={34} alt="" /><span>LeeMockups</span></div><PolicyLinks /><span>© 2026 LeeMockups</span></footer>
