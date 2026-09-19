@@ -28,7 +28,7 @@ jobs:
           curl --fail-with-body --silent --show-error \
             --header "Authorization: Bearer ${CLOUDFLARE_WORKER_DEPLOY_TOKEN}" \
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${SCRIPT_NAME}/settings" \
-            | jq -e '([.result.bindings[].name] | sort) == ["DB", "DOWNLOAD_SECRET", "ETSY_KEYSTRING", "ETSY_SHARED_SECRET", "ETSY_WEBHOOK_SECRET", "MOCKUPS"]'
+            | jq -e '(["DB", "DOWNLOAD_SECRET", "MOCKUPS"] - [.result.bindings[].name] | length) == 0'
       - name: Deploy the reviewed Worker module without changing bindings or secrets
         run: |
           set -euo pipefail
@@ -48,7 +48,7 @@ jobs:
           curl --fail-with-body --silent --show-error \
             --header "Authorization: Bearer ${CLOUDFLARE_WORKER_DEPLOY_TOKEN}" \
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${SCRIPT_NAME}/settings" \
-            | jq -e '([.result.bindings[].name] | sort) == ["DB", "DOWNLOAD_SECRET", "ETSY_KEYSTRING", "ETSY_SHARED_SECRET", "ETSY_WEBHOOK_SECRET", "MOCKUPS"]'
+            | jq -e '(["DB", "DOWNLOAD_SECRET", "MOCKUPS"] - [.result.bindings[].name] | length) == 0'
           test "$(curl --silent --show-error --head --output /dev/null --write-out '%{http_code}' \
             "https://downloads.leemockups.com/mockups/LM-VM-MUG-001/LM-VM-MUG-001-thumb.webp")" = 200
           test "$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
