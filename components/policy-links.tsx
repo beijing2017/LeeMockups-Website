@@ -5,6 +5,5 @@ export function PolicyLinks() {
     <Link href="/terms/">Terms of Service</Link>
     <Link href="/privacy/">Privacy Policy</Link>
     <Link href="/refunds/">Refund Policy</Link>
-    <a href="mailto:deaspliang@gmail.com">Contact Support</a>
   </nav>;
 }

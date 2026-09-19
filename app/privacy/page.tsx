@@ -17,6 +17,6 @@ export default function PrivacyPage() {
     <section><h2>8. International processing</h2><p>Our providers may process information in countries other than your own. Where required, transfers are protected using recognized legal safeguards.</p></section>
     <section><h2>9. Your rights</h2><p>Depending on your jurisdiction, you may request access, correction, deletion, restriction, portability, or objection to certain processing, and may complain to your local data-protection authority. We may need to verify your identity before completing a request.</p></section>
     <section><h2>10. Children</h2><p>LeeMockups is not directed to children under 13, and we do not knowingly collect personal information from children under 13.</p></section>
-    <section><h2>11. Contact</h2><p>For privacy questions or requests, email <a href="mailto:deaspliang@gmail.com">deaspliang@gmail.com</a>. For information relating to a Paddle transaction, visit <a href="https://paddle.net" target="_blank" rel="noreferrer">paddle.net</a>.</p></section>
+    <section><h2>11. Contact</h2><p>For privacy questions or requests, use the feedback icon in the lower-right corner of this website. For information relating to a Paddle transaction, visit <a href="https://paddle.net" target="_blank" rel="noreferrer">paddle.net</a>.</p></section>
   </article><footer className="legal-footer shell"><strong>LeeMockups</strong><PolicyLinks /><span>© 2026 LeeMockups</span></footer></main>;
 }
