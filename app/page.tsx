@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { ArrowDown, Check, Download, ImagePlus, Layers3, Play, ShieldCheck, Sparkles } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
+import { PolicyLinks } from "@/components/policy-links";
 
 const appVersion = "1.13.71";
 // Public Worker endpoints. The Worker streams private R2 objects and never redirects
@@ -75,6 +76,6 @@ export default function Home() {
       <p><ShieldCheck /> Direct Cloudflare download · No account required</p>
     </div></div></section>
 
-    <footer className="shell"><div className="brand"><Image src="/leemockups-symbol.png" width={34} height={34} alt="" /><span>LeeMockups</span></div><p>Professional Mockups. Smarter Marketing.</p><span>© 2026 LeeMockups</span></footer>
+    <footer className="shell"><div className="brand"><Image src="/leemockups-symbol.png" width={34} height={34} alt="" /><span>LeeMockups</span></div><PolicyLinks /><span>© 2026 LeeMockups</span></footer>
   </main>;
 }

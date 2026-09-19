@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { AlertTriangle, CheckCircle2, Download, ExternalLink, FileImage, FolderOpen, HelpCircle, MousePointer2, Play, ShieldCheck } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
+import { PolicyLinks } from "@/components/policy-links";
 
 const faqs = [
   ["What do I need before I start?", "Install LeeMockups for your computer, download your .mockup file, and have your artwork ready as a PNG or JPG. You do not need Blender, Photoshop, or video-editing software."],
@@ -46,5 +47,5 @@ export default function HelpPage(){return <main className="help-page">
 
   <section className="faq shell"><div className="section-heading"><span>QUICK ANSWERS</span><h2>Common questions.</h2></div><div className="faq-list">{faqs.map(([q,a],i)=><details key={q} open={i===0}><summary>{q}<span>+</span></summary><p>{a}</p></details>)}</div></section>
   <section className="support shell"><AlertTriangle/><div><h2>Still stuck?</h2><p>Take a screenshot of what you see and contact LeeMockups support with your order details and app version.</p></div></section>
-  <footer className="shell"><div className="brand"><Image src="/leemockups-symbol.png" width={34} height={34} alt=""/><span>LeeMockups</span></div><p>Professional Mockups. Smarter Marketing.</p><span>© 2026 LeeMockups</span></footer>
+  <footer className="shell"><div className="brand"><Image src="/leemockups-symbol.png" width={34} height={34} alt=""/><span>LeeMockups</span></div><PolicyLinks /><span>© 2026 LeeMockups</span></footer>
   </main>}

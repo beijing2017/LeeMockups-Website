@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { SiteNav } from "@/components/site-nav";
 import { MockupCatalog } from "./mockup-catalog";
+import { PolicyLinks } from "@/components/policy-links";
 
 export const metadata: Metadata = {
   title: "Mockup Library",
@@ -16,6 +17,6 @@ export default function MockupsPage() {
       <div className="shell"><span className="mockups-eyebrow">LEEMOCKUPS COLLECTION</span><h1>Mockup Library</h1><p>Animated mockups made for product listings, social media, and client presentations.</p></div>
     </section>
     <MockupCatalog />
-    <footer className="shell"><div className="brand"><Image src="/leemockups-symbol.png" width={34} height={34} alt="" /><span>LeeMockups</span></div><p>Professional Mockups. Smarter Marketing.</p><span>© 2026 LeeMockups</span></footer>
+    <footer className="shell"><div className="brand"><Image src="/leemockups-symbol.png" width={34} height={34} alt="" /><span>LeeMockups</span></div><PolicyLinks /><span>© 2026 LeeMockups</span></footer>
   </main>;
 }
