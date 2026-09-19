@@ -28,7 +28,7 @@ const CLIENT_DOWNLOADS = {
   },
 };
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const clientDownload = CLIENT_DOWNLOADS[url.pathname];
     if (clientDownload) {
@@ -164,7 +164,12 @@ export default {
           (emailHash && ((row.email_hash && safeEqual(emailHash, row.email_hash)) || (customer?.email_hash && safeEqual(emailHash, customer.email_hash))))
         );
         if (!permitted) return redeemJson({ ok: false, error: "We could not match that purchase. Check the invoice number and checkout email." }, 404, corsHeaders);
-        const downloads = await createProductDownloads(env, url.origin, rows.map((row) => row.sku));
+        const downloads = await createProductDownloads(
+          env,
+          url.origin,
+          rows.map((row) => row.sku),
+          { provider: "PADDLE", transactionId: resolvedTransactionId || rows[0]?.transaction_id }
+        );
         if (!downloads.length) return redeemJson({ ok: false, code: "FILE_PENDING", error: "Your payment is verified, but the file is still being prepared." }, 409, corsHeaders);
         return redeemJson({ ok: true, downloads }, 200, corsHeaders);
       } catch (error) {
@@ -1094,8 +1099,9 @@ export default {
           if (!/^LM-VM-[A-Z]{3}-\d{3}$/.test(id)) continue;
           const fileKey = product.fileKey || `private/mockups/${id}/${id}.mockup`;
           if (!(await env.MOCKUPS.head(fileKey))) continue;
-          const signature = await createSignature(`${id}:${expiresAt}`, env.DOWNLOAD_SECRET);
-          downloads.push({ sku: id, name: product.name || id, url: `${url.origin}/d/${encodeURIComponent(id)}?exp=${expiresAt}&sig=${signature}` });
+          const purchaseRef = await createPurchaseRef(env, "ETSY", orderNumber);
+          const signature = await createSignature(`${id}:${expiresAt}:${purchaseRef}`, env.DOWNLOAD_SECRET);
+          downloads.push({ sku: id, name: product.name || id, url: `${url.origin}/d/${encodeURIComponent(id)}?exp=${expiresAt}&ref=${encodeURIComponent(purchaseRef)}&sig=${signature}` });
         }
         if (!downloads.length) return redeemJson({ ok: false, code: "FILE_PENDING", error: "Your purchase is verified, but the download is still being prepared. Please try again shortly." }, 409, corsHeaders);
         return redeemJson({ ok: true, expiresAt, downloads }, 200, corsHeaders);
@@ -1126,6 +1132,10 @@ export default {
         url.searchParams.get(
           "sig"
         );
+      const purchaseRef =
+        url.searchParams.get(
+          "ref"
+        ) || "";
       if (
         !id ||
         !exp ||
@@ -1166,7 +1176,7 @@ export default {
       }
       const expectedSig =
         await createSignature(
-          `${id}:${exp}`,
+          purchaseRef ? `${id}:${exp}:${purchaseRef}` : `${id}:${exp}`,
           env.DOWNLOAD_SECRET
         );
       if (
@@ -1218,8 +1228,11 @@ export default {
         "Cache-Control",
         "private, no-store"
       );
+      if (request.method === "GET" && purchaseRef && ctx) {
+        ctx.waitUntil(recordMockupDownload(env, id, purchaseRef));
+      }
       return new Response(
-        object.body,
+        request.method === "HEAD" ? null : object.body,
         {
           headers,
         }
@@ -1745,6 +1758,19 @@ async function ensurePaddleTables(env) {
       event_id TEXT, purchased_at TEXT NOT NULL,
       PRIMARY KEY (provider, transaction_id, sku)
     )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS mockup_download_totals (
+      sku TEXT PRIMARY KEY, download_count INTEGER NOT NULL DEFAULT 0,
+      unique_purchase_count INTEGER NOT NULL DEFAULT 0, last_downloaded_at TEXT NOT NULL
+    )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS mockup_download_purchases (
+      sku TEXT NOT NULL, purchase_ref TEXT NOT NULL, download_count INTEGER NOT NULL DEFAULT 0,
+      first_downloaded_at TEXT NOT NULL, last_downloaded_at TEXT NOT NULL,
+      PRIMARY KEY (sku, purchase_ref)
+    )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS mockup_download_daily (
+      day TEXT NOT NULL, sku TEXT NOT NULL, download_count INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (day, sku)
+    )`),
   ]);
 }
 async function savePaddleCustomer(env, customerId, email) {
@@ -1802,20 +1828,57 @@ async function fetchPaddleTransaction(env, reference) {
   const data = (await response.json()).data;
   return isTransactionId ? data : (Array.isArray(data) ? data.find((item) => item.invoice_number === reference) || null : null);
 }
-async function createProductDownloads(env, origin, skus) {
+async function createProductDownloads(env, origin, skus, purchase = {}) {
   const catalog = await readProductCatalog(env);
   const products = new Map(catalog.products.map((product) => [String(product.sku || ""), product]));
   const expiresAt = Math.floor(Date.now() / 1000) + 30 * 60;
+  const purchaseRef = purchase.provider && purchase.transactionId
+    ? await createPurchaseRef(env, purchase.provider, purchase.transactionId)
+    : "";
   const downloads = [];
   for (const sku of new Set(skus)) {
     if (!/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku)) continue;
     const product = products.get(sku) || {};
     const fileKey = product.fileKey || `private/mockups/${sku}/${sku}.mockup`;
     if (!(await env.MOCKUPS.head(fileKey))) continue;
-    const signature = await createSignature(`${sku}:${expiresAt}`, env.DOWNLOAD_SECRET);
-    downloads.push({ sku, name: product.name || sku, url: `${origin}/d/${encodeURIComponent(sku)}?exp=${expiresAt}&sig=${signature}` });
+    const signaturePayload = purchaseRef ? `${sku}:${expiresAt}:${purchaseRef}` : `${sku}:${expiresAt}`;
+    const signature = await createSignature(signaturePayload, env.DOWNLOAD_SECRET);
+    const refParam = purchaseRef ? `&ref=${encodeURIComponent(purchaseRef)}` : "";
+    downloads.push({ sku, name: product.name || sku, url: `${origin}/d/${encodeURIComponent(sku)}?exp=${expiresAt}${refParam}&sig=${signature}` });
   }
   return downloads;
+}
+async function createPurchaseRef(env, provider, transactionId) {
+  return await createSignature(`purchase:${String(provider).toUpperCase()}:${transactionId}`, env.DOWNLOAD_SECRET);
+}
+async function recordMockupDownload(env, sku, purchaseRef) {
+  if (!env.DB || !/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku) || !/^[A-Za-z0-9_-]{32,}$/.test(purchaseRef)) return;
+  try {
+    await ensurePaddleTables(env);
+    const timestamp = new Date().toISOString();
+    const day = timestamp.slice(0, 10);
+    const inserted = await env.DB.prepare(`INSERT OR IGNORE INTO mockup_download_purchases
+      (sku, purchase_ref, download_count, first_downloaded_at, last_downloaded_at)
+      VALUES (?, ?, 0, ?, ?)`)
+      .bind(sku, purchaseRef, timestamp, timestamp).run();
+    const isUniquePurchase = Number(inserted.meta?.changes || 0) > 0 ? 1 : 0;
+    await env.DB.batch([
+      env.DB.prepare(`UPDATE mockup_download_purchases
+        SET download_count=download_count+1, last_downloaded_at=? WHERE sku=? AND purchase_ref=?`)
+        .bind(timestamp, sku, purchaseRef),
+      env.DB.prepare(`INSERT INTO mockup_download_totals
+        (sku, download_count, unique_purchase_count, last_downloaded_at) VALUES (?, 1, ?, ?)
+        ON CONFLICT(sku) DO UPDATE SET download_count=download_count+1,
+        unique_purchase_count=unique_purchase_count+excluded.unique_purchase_count,
+        last_downloaded_at=excluded.last_downloaded_at`)
+        .bind(sku, isUniquePurchase, timestamp),
+      env.DB.prepare(`INSERT INTO mockup_download_daily (day, sku, download_count) VALUES (?, ?, 1)
+        ON CONFLICT(day, sku) DO UPDATE SET download_count=download_count+1`)
+        .bind(day, sku),
+    ]);
+  } catch (error) {
+    console.error(JSON.stringify({ type: "download_analytics_error", sku, message: String(error?.message || error) }));
+  }
 }
 async function readProductCatalog(env) {
   const object = await env.MOCKUPS.get(PRODUCT_CATALOG_KEY);
