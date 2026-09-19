@@ -10,7 +10,7 @@ import { PurchaseAction } from "@/components/purchase-action";
 
 const assetBase = "https://downloads.leemockups.com";
 type GalleryItem = { type:"image"|"video"; path:string; alt?:string };
-type Product = { sku:string; name:string; description:string; category:string; thumbnailPath:string; previewPath:string; gallery?:GalleryItem[]; purchaseProvider?:string; purchaseUrl?:string; deliveryUrl?:string; etsyUrl?:string; paddlePriceId?:string; priceUsd?:number; resolution?:string; durationSeconds?:number; isFree?:boolean; sampleUrl?:string; supportedPlatforms?:string; includedFiles?:string[]; assetVersion?:string };
+type Product = { sku:string; name:string; description:string; category:string; thumbnailPath:string; previewPath:string; gallery?:GalleryItem[]; purchaseProvider?:string; purchaseUrl?:string; deliveryUrl?:string; etsyUrl?:string; paddlePriceId?:string; priceUsd?:number; resolution?:string; durationSeconds?:number; isFree?:boolean; sampleUrl?:string; supportedPlatforms?:string; includedFiles?:string[]; keywords?:string[]; assetVersion?:string };
 
 export function MockupDetailClient() {
   const sku = useSearchParams().get("sku") || "";
@@ -21,6 +21,37 @@ export function MockupDetailClient() {
   useEffect(() => { fetch(`${assetBase}/catalog/products.json`, { cache:"no-store" }).then((response) => { if (!response.ok) throw new Error(); return response.json(); }).then((data) => setProducts(Array.isArray(data?.products) ? data.products.map((item:Product) => ({...item,assetVersion:data.updatedAt})) : [])).catch(() => setFailed(true)).finally(() => setLoading(false)); }, []);
   const product = useMemo(() => products.find((item) => item.sku === sku), [products, sku]);
   const freeSample = useMemo(() => products.find((item) => item.isFree && item.sampleUrl), [products]);
+  useEffect(() => {
+    if (!product) return;
+    const canonicalUrl = `https://www.leemockups.com/mockup/?sku=${encodeURIComponent(product.sku)}`;
+    const imageUrl = `${assetBase}/${product.thumbnailPath}`;
+    const title = `${product.name} | LeeMockups`;
+    const description = product.description || `${product.name} animated product mockup for the LeeMockups desktop app.`;
+    document.title = title;
+    let descriptionMeta = document.head.querySelector<HTMLMetaElement>('meta[name="description"]');
+    if (!descriptionMeta) { descriptionMeta = document.createElement("meta"); descriptionMeta.name = "description"; document.head.appendChild(descriptionMeta); }
+    descriptionMeta.content = description;
+    const socialMeta = (property:string, content:string) => {
+      let element = document.head.querySelector<HTMLMetaElement>(`meta[property="${property}"]`);
+      if (!element) { element = document.createElement("meta"); element.setAttribute("property", property); document.head.appendChild(element); }
+      element.content = content;
+    };
+    socialMeta("og:title", title); socialMeta("og:description", description); socialMeta("og:url", canonicalUrl); socialMeta("og:image", imageUrl); socialMeta("og:type", "product");
+    let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
+    canonical.href = canonicalUrl;
+    const structuredData = document.createElement("script");
+    structuredData.type = "application/ld+json";
+    structuredData.dataset.productSeo = product.sku;
+    structuredData.text = JSON.stringify({
+      "@context":"https://schema.org", "@type":"Product", sku:product.sku, name:product.name,
+      description, image:[imageUrl], category:product.category, brand:{"@type":"Brand",name:"LeeMockups"},
+      offers:{"@type":"Offer",url:canonicalUrl,priceCurrency:"USD",price:product.isFree?0:Number(product.priceUsd??9.9),availability:"https://schema.org/InStock"}
+    });
+    document.head.querySelectorAll('script[data-product-seo]').forEach((element) => element.remove());
+    document.head.appendChild(structuredData);
+    return () => structuredData.remove();
+  }, [product]);
   if (loading) return <div className="mockup-detail-state shell">Loading mockup details…</div>;
   if (failed || !product) return <div className="mockup-detail-state shell"><h1>Mockup not found</h1><p>The product may have moved or the library could not be loaded.</p><Link className="button secondary" href="/mockups/">Back to Mockup Library</Link></div>;
   const commerce = resolveCommerce(product);
