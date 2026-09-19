@@ -47,10 +47,11 @@ export default function OrderDownloadPage() {
         <form onSubmit={redeem}>
           <label>Invoice number<input required autoComplete="off" value={orderNumber} onChange={(event) => setOrderNumber(event.target.value.trim())} placeholder="e.g. 47733-10001" /></label>
           <label>Email used at checkout<input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></label>
-          <button className="button primary" disabled={busy}>{busy ? "Verifying purchase…" : "Get my download"}</button>
+          {downloads.length > 0
+            ? <a className="button primary" href={downloads[0].url}><Download size={17} /> Download</a>
+            : <button className="button primary" disabled={busy}>{busy ? "Verifying purchase…" : "Get my download"}</button>}
         </form>
         {error && <div className="order-message error" role="alert">{error}</div>}
-        {downloads.length > 0 && <div className="order-results" aria-live="polite"><strong>Purchase verified</strong><p>Your private links expire in 30 minutes.</p>{downloads.map((item) => <a className="button primary" key={item.sku} href={item.url}><Download size={17} /> Download {item.name}</a>)}</div>}
         <p className="order-help">Need help? Contact LeeMockups support with your order details.</p>
       </div>
     </section>

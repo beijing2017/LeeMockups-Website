@@ -1211,7 +1211,7 @@ export default {
       headers.set(
         "Content-Disposition",
         `attachment; filename*=UTF-8''${encodeURIComponent(
-          objectKey
+          `${id}.mockup`
         )}`
       );
       headers.set(
