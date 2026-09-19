@@ -6,6 +6,7 @@ const ETSY_REDIRECT_URI =
 const ETSY_SCOPES =
   "transactions_r listings_r shops_r";
 const PRODUCT_CATALOG_KEY = "private/catalog/products.json";
+const ANALYTICS_ACCESS_HASH = "Yij76R-lFUEKHKJ2rthMg3uVbHtB5zoN_rkwHDcElJU";
 const PADDLE_PRICE_SKUS = {
   pri_01m2xdd5251y7e4j71bd4gkg1z: "LM-VM-MUG-001",
 };
@@ -94,6 +95,36 @@ export default {
       headers.set("Cache-Control", "public, max-age=60");
       headers.set("X-Content-Type-Options", "nosniff");
       return new Response(request.method === "HEAD" ? null : object.body, { status: 200, headers });
+    }
+    if (url.pathname === "/admin/download-analytics") {
+      if (request.method !== "GET") return jsonResponse({ ok: false, error: "Method not allowed." }, 405);
+      const token = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+      const tokenHash = token ? await sha256Base64Url(token) : "";
+      if (!tokenHash || !safeEqual(tokenHash, ANALYTICS_ACCESS_HASH)) {
+        return jsonResponse({ ok: false, error: "Unauthorized." }, 401);
+      }
+      try {
+        await ensurePaddleTables(env);
+        const result = await env.DB.prepare(`SELECT
+          t.sku, t.download_count, t.unique_purchase_count,
+          MAX(t.download_count - t.unique_purchase_count, 0) AS repeat_download_count,
+          t.last_downloaded_at,
+          COALESCE(SUM(CASE WHEN d.day >= date('now', '-6 days') THEN d.download_count ELSE 0 END), 0) AS downloads_7d,
+          COALESCE(SUM(CASE WHEN d.day >= date('now', '-29 days') THEN d.download_count ELSE 0 END), 0) AS downloads_30d
+          FROM mockup_download_totals t
+          LEFT JOIN mockup_download_daily d ON d.sku = t.sku
+          GROUP BY t.sku ORDER BY t.download_count DESC, t.sku ASC`).all();
+        const products = result.results || [];
+        const totals = products.reduce((summary, row) => ({
+          downloads: summary.downloads + Number(row.download_count || 0),
+          purchases: summary.purchases + Number(row.unique_purchase_count || 0),
+          downloads7d: summary.downloads7d + Number(row.downloads_7d || 0),
+        }), { downloads: 0, purchases: 0, downloads7d: 0 });
+        return jsonResponse({ ok: true, updatedAt: new Date().toISOString(), totals, products });
+      } catch (error) {
+        console.error(JSON.stringify({ type: "download_analytics_read_error", message: String(error?.message || error) }));
+        return jsonResponse({ ok: false, error: "Analytics are temporarily unavailable." }, 503);
+      }
     }
     if (url.pathname === "/paddle/webhook") {
       if (request.method === "GET") return jsonResponse({
