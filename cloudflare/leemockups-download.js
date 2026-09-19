@@ -136,21 +136,23 @@ export default {
       try {
         const body = await request.json();
         const provider = String(body?.provider || "PADDLE").trim().toUpperCase();
-        const transactionId = String(body?.transactionId || "").trim();
+        const transactionReference = String(body?.transactionId || body?.orderNumber || "").trim();
         const claimToken = String(body?.claimToken || "").trim();
         const email = normalizeEmail(body?.email);
         if (provider !== "PADDLE") return redeemJson({ ok: false, error: "This payment provider is not available yet." }, 400, corsHeaders);
-        if (!/^txn_[a-z\d]{26}$/.test(transactionId) || (!claimToken && !email)) {
-          return redeemJson({ ok: false, error: "Enter a valid transaction ID and purchase email." }, 400, corsHeaders);
+        if (!(/^txn_[a-z\d]{26}$/.test(transactionReference) || /^\d{2,12}-\d{2,12}$/.test(transactionReference)) || (!claimToken && !email)) {
+          return redeemJson({ ok: false, error: "Enter a valid invoice number and purchase email." }, 400, corsHeaders);
         }
         await ensurePaddleTables(env);
-        let rows = await getPaddleEntitlements(env, transactionId);
+        let resolvedTransactionId = /^txn_/.test(transactionReference) ? transactionReference : "";
+        let rows = resolvedTransactionId ? await getPaddleEntitlements(env, resolvedTransactionId) : [];
         if (!rows.length && env.PADDLE_API_KEY) {
-          const transaction = await fetchPaddleTransaction(env, transactionId);
+          const transaction = await fetchPaddleTransaction(env, transactionReference);
           if (["paid", "completed"].includes(transaction?.status)) {
-            await savePaddleTransaction(env, transaction, `api:${transactionId}`);
+            resolvedTransactionId = transaction.id;
+            await savePaddleTransaction(env, transaction, `api:${transaction.id}`);
             if (transaction.customer?.email) await savePaddleCustomer(env, transaction.customer_id, transaction.customer.email);
-            rows = await getPaddleEntitlements(env, transactionId);
+            rows = await getPaddleEntitlements(env, transaction.id);
           }
         }
         if (!rows.length) return redeemJson({ ok: false, code: "PAYMENT_PENDING", error: "Payment is still being confirmed. Please wait a moment and try again." }, 409, corsHeaders);
@@ -161,7 +163,7 @@ export default {
           (claimHash && row.claim_hash && safeEqual(claimHash, row.claim_hash)) ||
           (emailHash && ((row.email_hash && safeEqual(emailHash, row.email_hash)) || (customer?.email_hash && safeEqual(emailHash, customer.email_hash))))
         );
-        if (!permitted) return redeemJson({ ok: false, error: "We could not match that purchase. Check the transaction ID and checkout email." }, 404, corsHeaders);
+        if (!permitted) return redeemJson({ ok: false, error: "We could not match that purchase. Check the invoice number and checkout email." }, 404, corsHeaders);
         const downloads = await createProductDownloads(env, url.origin, rows.map((row) => row.sku));
         if (!downloads.length) return redeemJson({ ok: false, code: "FILE_PENDING", error: "Your payment is verified, but the file is still being prepared." }, 409, corsHeaders);
         return redeemJson({ ok: true, downloads }, 200, corsHeaders);
@@ -1787,13 +1789,18 @@ async function getPaddleEntitlements(env, transactionId) {
     FROM commerce_entitlements WHERE provider='PADDLE' AND transaction_id=? AND status='completed'`).bind(transactionId).all();
   return result.results || [];
 }
-async function fetchPaddleTransaction(env, transactionId) {
-  const response = await fetch(`https://api.paddle.com/transactions/${encodeURIComponent(transactionId)}?include=customer`, {
+async function fetchPaddleTransaction(env, reference) {
+  const isTransactionId = /^txn_[a-z\d]{26}$/.test(reference);
+  const endpoint = isTransactionId
+    ? `https://api.paddle.com/transactions/${encodeURIComponent(reference)}?include=customer`
+    : `https://api.paddle.com/transactions?invoice_number=${encodeURIComponent(reference)}&include=customer&per_page=1`;
+  const response = await fetch(endpoint, {
     headers: { Authorization: `Bearer ${env.PADDLE_API_KEY}`, Accept: "application/json" },
   });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Paddle transaction lookup failed (${response.status}).`);
-  return (await response.json()).data;
+  const data = (await response.json()).data;
+  return isTransactionId ? data : (Array.isArray(data) ? data.find((item) => item.invoice_number === reference) || null : null);
 }
 async function createProductDownloads(env, origin, skus) {
   const catalog = await readProductCatalog(env);
