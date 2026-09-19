@@ -7,11 +7,11 @@ const siteUrl = 'https://www.leemockups.com';
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? siteUrl),
   title: {
-    default: 'LeeMockups — Animated Mockup Videos for Etsy Sellers',
+    default: 'LeeMockups — Animated Product Mockup Videos',
     template: '%s | LeeMockups',
   },
-  description: 'Download LeeMockups for Windows and macOS. Turn your artwork and Etsy mockup purchase into polished product videos in a few clicks.',
-  keywords: ['animated mockups', 'Etsy listing video', 'product mockup video', 'mockup generator', 'LeeMockups'],
+  description: 'Download LeeMockups for Windows and macOS. Turn your artwork and mockup templates into polished product videos in a few clicks.',
+  keywords: ['animated mockups', 'product listing video', 'product mockup video', 'mockup generator', 'LeeMockups'],
   alternates: { canonical: '/' },
   robots: { index: true, follow: true },
   verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   icons: { icon: '/leemockups-symbol.png' },
   openGraph: {
     title: 'LeeMockups — Bring Your Mockups to Life',
-    description: 'Turn your artwork and Etsy mockup purchase into polished product videos in a few clicks.',
+    description: 'Turn your artwork and mockup templates into polished product videos in a few clicks.',
     images: [{ url: '/og.png', width: 1536, height: 864, alt: 'LeeMockups desktop mockup software' }],
   },
   twitter: {

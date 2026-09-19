@@ -1,17 +1,16 @@
 import Image from "next/image";
-import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Download, ExternalLink, FileImage, FolderOpen, HelpCircle, MousePointer2, Play, ShieldCheck } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
 
 const faqs = [
-  ["What do I need before I start?", "Install LeeMockups for your computer, download the .mockup file from your Etsy purchase, and have your artwork ready as a PNG or JPG. You do not need Blender, Photoshop, or video-editing software."],
-  ["How do I open my Etsy mockup?", "Open LeeMockups, then drag the .mockup file into the app. You can also use the Import mockup button. The template will appear in My Library, so you can use it again later."],
-  ["Why can’t I select my Etsy ZIP file?", "First unzip the Etsy download. The file LeeMockups needs ends in .mockup. Keep the original ZIP as a backup."],
+  ["What do I need before I start?", "Install LeeMockups for your computer, download your .mockup file, and have your artwork ready as a PNG or JPG. You do not need Blender, Photoshop, or video-editing software."],
+  ["How do I open my mockup?", "Open LeeMockups, then drag the .mockup file into the app. You can also use the Import mockup button. The template will appear in My Library, so you can use it again later."],
+  ["Why can’t I select my ZIP file?", "First unzip the download. The file LeeMockups needs ends in .mockup. Keep the original ZIP as a backup."],
   ["My artwork looks cropped. What should I do?", "Check the recommended artwork size shown inside LeeMockups. Use the same aspect ratio for the best fit. You can export your artwork again without changing the mockup."],
   ["Where are my finished files?", "After export, LeeMockups opens the output folder. Your MP4 video and full-resolution still images are stored there. If the folder does not open, check the location shown beside the Export button."],
-  ["Does LeeMockups upload my artwork?", "No. Mockup preview and export happen on your own computer. Your artwork is not sent to LeeMockups or Etsy."],
-  ["Can I use one purchase on another computer?", "You can install the matching Windows or macOS app on your own computers and import your purchased .mockup again. Keep your Etsy download somewhere safe."],
-  ["The app or mockup does not open. What should I send to support?", "Tell us whether you use Windows, Apple Silicon Mac, or Intel Mac; include your LeeMockups version, the Etsy listing name, and a screenshot of the message you see. Never send private artwork unless you choose to."],
+  ["Does LeeMockups upload my artwork?", "No. Mockup preview and export happen on your own computer. Your artwork is not sent to LeeMockups or any marketplace."],
+  ["Can I use one purchase on another computer?", "You can install the matching Windows or macOS app on your own computers and import your purchased .mockup again. Keep the original download somewhere safe."],
+  ["The app or mockup does not open. What should I send to support?", "Tell us whether you use Windows, Apple Silicon Mac, or Intel Mac; include your LeeMockups version, the mockup name, and a screenshot of the message you see. Never send private artwork unless you choose to."],
 ];
 
 export const metadata = {
@@ -24,11 +23,11 @@ export const metadata = {
 
 export default function HelpPage(){return <main className="help-page">
   <SiteNav current="help" />
-  <header className="help-hero shell"><span className="help-mark"><HelpCircle/></span><div><p>LEEMOCKUPS HELP CENTER</p><h1>Start with confidence.</h1><span>Everything an Etsy buyer needs—from the right download to the first finished video.</span></div></header>
+  <header className="help-hero shell"><span className="help-mark"><HelpCircle/></span><div><p>LEEMOCKUPS HELP CENTER</p><h1>Start with confidence.</h1><span>Everything you need—from the right download to the first finished video.</span></div></header>
 
   <section className="quick-start shell"><div className="section-heading"><span>FIRST TIME HERE?</span><h2>Your first mockup, step by step.</h2></div><div className="quick-grid">
     <article><b>1</b><Download/><h3>Install LeeMockups</h3><p>Choose Windows, Apple Silicon Mac, or Intel Mac. Unzip the download before opening it.</p></article>
-    <article><b>2</b><FolderOpen/><h3>Import your purchase</h3><p>Unzip the Etsy download and drag the file ending in <code>.mockup</code> into the app.</p></article>
+    <article><b>2</b><FolderOpen/><h3>Import your mockup</h3><p>Unzip your download and drag the file ending in <code>.mockup</code> into the app.</p></article>
     <article><b>3</b><FileImage/><h3>Choose your artwork</h3><p>Select a PNG or JPG. Your design appears in the animated scene immediately.</p></article>
     <article><b>4</b><Play/><h3>Preview and export</h3><p>Press play, choose quality, then export your MP4 video and still images.</p></article>
   </div></section>
@@ -46,6 +45,6 @@ export default function HelpPage(){return <main className="help-page">
   </ol><div className="safety-note"><ShieldCheck/><p><strong>Why does macOS show this?</strong><br/>Gatekeeper warns when an app is not notarized by Apple. Never bypass this warning for a file from an unknown website.</p></div></section>
 
   <section className="faq shell"><div className="section-heading"><span>QUICK ANSWERS</span><h2>Common questions.</h2></div><div className="faq-list">{faqs.map(([q,a],i)=><details key={q} open={i===0}><summary>{q}<span>+</span></summary><p>{a}</p></details>)}</div></section>
-  <section className="support shell"><AlertTriangle/><div><h2>Still stuck?</h2><p>Take a screenshot of what you see and contact the Etsy shop from your order page. That keeps your purchase details together with your support request.</p></div></section>
+  <section className="support shell"><AlertTriangle/><div><h2>Still stuck?</h2><p>Take a screenshot of what you see and contact LeeMockups support with your order details and app version.</p></div></section>
   <footer className="shell"><div className="brand"><Image src="/leemockups-symbol.png" width={34} height={34} alt=""/><span>LeeMockups</span></div><p>Professional Mockups. Smarter Marketing.</p><span>© 2026 LeeMockups</span></footer>
   </main>}
