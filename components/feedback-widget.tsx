@@ -42,14 +42,14 @@ export function FeedbackWidget() {
       setStatus("Thank you — your feedback was sent.");
     } catch {
       setFailed(true);
-      setStatus("We couldn’t send this message. Please email deaspliang@gmail.com.");
+      setStatus("We couldn’t send this message. Please try again in a moment.");
     } finally {
       setBusy(false);
     }
   }
 
   return <>
-    <button className="site-feedback-trigger" type="button" onClick={() => { setOpen(true); setStatus(""); setFailed(false); }}><MessageCircle size={17} /> Feedback</button>
+    <button className="site-feedback-trigger" type="button" aria-label="Send feedback" title="Send feedback" onClick={() => { setOpen(true); setStatus(""); setFailed(false); }}><MessageCircle size={20} /></button>
     {open && <div className="site-feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="feedback-title" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
       <form className="site-feedback-card" ref={formRef} onSubmit={submit}>
         <div className="site-feedback-heading"><div><span>WE’D LOVE TO HEAR FROM YOU</span><h2 id="feedback-title">Send feedback</h2></div><button type="button" aria-label="Close feedback form" onClick={() => setOpen(false)}><X /></button></div>
