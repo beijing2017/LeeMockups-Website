@@ -3,6 +3,7 @@
 import { Download, KeyRound, ShieldCheck } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { SiteNav } from "@/components/site-nav";
+import { PolicyLinks } from "@/components/policy-links";
 
 type DownloadItem = { sku: string; name: string; url: string };
 
@@ -49,6 +50,6 @@ export default function OrderDownloadPage() {
         <p className="order-help">Need help? Contact LeeMockups support with your order details.</p>
       </div>
     </section>
-    <footer className="shell"><div className="brand"><span>LeeMockups</span></div><p>Professional Mockups. Smarter Marketing.</p><span>© 2026 LeeMockups</span></footer>
+    <footer className="shell"><div className="brand"><span>LeeMockups</span></div><PolicyLinks /><span>© 2026 LeeMockups</span></footer>
   </main>;
 }
