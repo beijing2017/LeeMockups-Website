@@ -166,8 +166,16 @@ export default {
         if (!downloads.length) return redeemJson({ ok: false, code: "FILE_PENDING", error: "Your payment is verified, but the file is still being prepared." }, 409, corsHeaders);
         return redeemJson({ ok: true, downloads }, 200, corsHeaders);
       } catch (error) {
-        console.error(JSON.stringify({ type: "paddle_redeem_error", message: String(error?.message || error) }));
-        return redeemJson({ ok: false, error: "We could not verify the Paddle purchase right now." }, 503, corsHeaders);
+        const message = String(error?.message || error);
+        console.error(JSON.stringify({ type: "paddle_redeem_error", message }));
+        const statusMatch = message.match(/Paddle transaction lookup failed \((\d+)\)/);
+        return redeemJson({
+          ok: false,
+          code: statusMatch ? `PADDLE_API_${statusMatch[1]}` : "VERIFICATION_UNAVAILABLE",
+          error: statusMatch && ["401", "403"].includes(statusMatch[1])
+            ? "The payment service connection does not have permission to verify this order yet."
+            : "We could not verify the Paddle purchase right now.",
+        }, 503, corsHeaders);
       }
     }
     // ==================================================
