@@ -6,6 +6,9 @@ const ETSY_REDIRECT_URI =
 const ETSY_SCOPES =
   "transactions_r listings_r shops_r";
 const PRODUCT_CATALOG_KEY = "private/catalog/products.json";
+const PADDLE_PRICE_SKUS = {
+  pri_01m2xdd5251y7e4j71bd4gkg1z: "LM-VM-MUG-001",
+};
 const REDEEM_ORIGINS = new Set([
   "https://www.leemockups.com",
   "https://leemockups.com",
@@ -91,6 +94,77 @@ export default {
       headers.set("Cache-Control", "public, max-age=60");
       headers.set("X-Content-Type-Options", "nosniff");
       return new Response(request.method === "HEAD" ? null : object.body, { status: 200, headers });
+    }
+    if (url.pathname === "/paddle/webhook") {
+      if (request.method === "GET") return jsonResponse({ ok: true, configured: Boolean(env.PADDLE_WEBHOOK_SECRET) });
+      if (request.method !== "POST") return jsonResponse({ ok: false, error: "Method not allowed." }, 405);
+      const rawBody = await request.text();
+      if (!await verifyPaddleSignature(rawBody, request.headers.get("paddle-signature") || "", env.PADDLE_WEBHOOK_SECRET)) {
+        return jsonResponse({ ok: false, error: "Invalid webhook signature." }, 401);
+      }
+      try {
+        const event = JSON.parse(rawBody);
+        await ensurePaddleTables(env);
+        if (event.event_type === "customer.created" || event.event_type === "customer.updated") {
+          const customer = event.data || {};
+          const email = normalizeEmail(customer.email);
+          if (customer.id && email) await savePaddleCustomer(env, customer.id, email);
+        }
+        if (event.event_type === "transaction.paid" || event.event_type === "transaction.completed") {
+          await savePaddleTransaction(env, event.data || {}, event.event_id || "");
+        }
+        if ((event.event_type === "adjustment.created" || event.event_type === "adjustment.updated") &&
+          event.data?.status === "approved" && ["refund", "chargeback"].includes(event.data?.action)) {
+          await env.DB.prepare(`UPDATE commerce_entitlements SET status='revoked', event_id=?
+            WHERE provider='PADDLE' AND transaction_id=?`).bind(event.event_id || "", event.data.transaction_id || "").run();
+        }
+        return jsonResponse({ ok: true });
+      } catch (error) {
+        console.error(JSON.stringify({ type: "paddle_webhook_error", message: String(error?.message || error) }));
+        return jsonResponse({ ok: false, error: "Webhook processing failed." }, 500);
+      }
+    }
+    if (url.pathname === "/commerce/redeem" || url.pathname === "/paddle/redeem") {
+      const origin = request.headers.get("origin") || "";
+      const corsHeaders = redeemCorsHeaders(origin);
+      if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+      if (request.method !== "POST") return redeemJson({ ok: false, error: "Method not allowed." }, 405, corsHeaders);
+      try {
+        const body = await request.json();
+        const provider = String(body?.provider || "PADDLE").trim().toUpperCase();
+        const transactionId = String(body?.transactionId || "").trim();
+        const claimToken = String(body?.claimToken || "").trim();
+        const email = normalizeEmail(body?.email);
+        if (provider !== "PADDLE") return redeemJson({ ok: false, error: "This payment provider is not available yet." }, 400, corsHeaders);
+        if (!/^txn_[a-z\d]{26}$/.test(transactionId) || (!claimToken && !email)) {
+          return redeemJson({ ok: false, error: "Enter a valid transaction ID and purchase email." }, 400, corsHeaders);
+        }
+        await ensurePaddleTables(env);
+        let rows = await getPaddleEntitlements(env, transactionId);
+        if (!rows.length && env.PADDLE_API_KEY) {
+          const transaction = await fetchPaddleTransaction(env, transactionId);
+          if (["paid", "completed"].includes(transaction?.status)) {
+            await savePaddleTransaction(env, transaction, `api:${transactionId}`);
+            if (transaction.customer?.email) await savePaddleCustomer(env, transaction.customer_id, transaction.customer.email);
+            rows = await getPaddleEntitlements(env, transactionId);
+          }
+        }
+        if (!rows.length) return redeemJson({ ok: false, code: "PAYMENT_PENDING", error: "Payment is still being confirmed. Please wait a moment and try again." }, 409, corsHeaders);
+        const claimHash = claimToken ? await sha256Base64Url(claimToken) : "";
+        const emailHash = email ? await sha256Base64Url(email) : "";
+        const customer = rows[0].customer_id ? await getPaddleCustomer(env, rows[0].customer_id) : null;
+        const permitted = rows.some((row) =>
+          (claimHash && row.claim_hash && safeEqual(claimHash, row.claim_hash)) ||
+          (emailHash && ((row.email_hash && safeEqual(emailHash, row.email_hash)) || (customer?.email_hash && safeEqual(emailHash, customer.email_hash))))
+        );
+        if (!permitted) return redeemJson({ ok: false, error: "We could not match that purchase. Check the transaction ID and checkout email." }, 404, corsHeaders);
+        const downloads = await createProductDownloads(env, url.origin, rows.map((row) => row.sku));
+        if (!downloads.length) return redeemJson({ ok: false, code: "FILE_PENDING", error: "Your payment is verified, but the file is still being prepared." }, 409, corsHeaders);
+        return redeemJson({ ok: true, downloads }, 200, corsHeaders);
+      } catch (error) {
+        console.error(JSON.stringify({ type: "paddle_redeem_error", message: String(error?.message || error) }));
+        return redeemJson({ ok: false, error: "We could not verify the Paddle purchase right now." }, 503, corsHeaders);
+      }
     }
     // ==================================================
     // 0. Etsy Webhook - 正式验签版
@@ -1631,6 +1705,98 @@ function safeEqual(
 function normalizeEmail(value) {
   const email = String(value || "").trim().toLowerCase();
   return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
+}
+async function verifyPaddleSignature(rawBody, header, secret) {
+  if (!secret || !header) return false;
+  const parts = header.split(";").map((part) => part.split("="));
+  const timestamp = parts.find(([key]) => key === "ts")?.[1] || "";
+  const signatures = parts.filter(([key]) => key === "h1").map(([, value]) => value);
+  if (!/^\d+$/.test(timestamp) || !signatures.length) return false;
+  if (Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp)) > 300) return false;
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const digest = await crypto.subtle.sign("HMAC", key, encoder.encode(`${timestamp}:${rawBody}`));
+  const expected = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return signatures.some((signature) => safeEqual(signature, expected));
+}
+async function ensurePaddleTables(env) {
+  await env.DB.batch([
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS commerce_customers (
+      provider TEXT NOT NULL, customer_id TEXT NOT NULL, email_hash TEXT NOT NULL, updated_at TEXT NOT NULL,
+      PRIMARY KEY (provider, customer_id)
+    )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS commerce_entitlements (
+      provider TEXT NOT NULL, transaction_id TEXT NOT NULL, sku TEXT NOT NULL, customer_id TEXT,
+      email_hash TEXT, claim_hash TEXT, status TEXT NOT NULL,
+      event_id TEXT, purchased_at TEXT NOT NULL,
+      PRIMARY KEY (provider, transaction_id, sku)
+    )`),
+  ]);
+}
+async function savePaddleCustomer(env, customerId, email) {
+  const normalized = normalizeEmail(email);
+  if (!customerId || !normalized) return;
+  const emailHash = await sha256Base64Url(normalized);
+  await env.DB.prepare(`INSERT INTO commerce_customers (provider, customer_id, email_hash, updated_at)
+    VALUES ('PADDLE', ?, ?, ?) ON CONFLICT(provider, customer_id) DO UPDATE SET email_hash=excluded.email_hash, updated_at=excluded.updated_at`)
+    .bind(customerId, emailHash, new Date().toISOString()).run();
+  await env.DB.prepare(`UPDATE commerce_entitlements SET email_hash=? WHERE provider='PADDLE' AND customer_id=?`).bind(emailHash, customerId).run();
+}
+async function savePaddleTransaction(env, transaction, eventId) {
+  if (!transaction?.id || !["paid", "completed"].includes(transaction.status)) return;
+  const claimToken = String(transaction.custom_data?.claim_token || "");
+  const claimHash = claimToken ? await sha256Base64Url(claimToken) : null;
+  const explicitSku = String(transaction.custom_data?.sku || "");
+  const skus = new Set();
+  if (/^LM-VM-[A-Z]{3}-\d{3}$/.test(explicitSku)) skus.add(explicitSku);
+  for (const item of transaction.items || []) {
+    const sku = PADDLE_PRICE_SKUS[item?.price?.id];
+    if (sku) skus.add(sku);
+  }
+  const customer = transaction.customer?.email ? transaction.customer : null;
+  if (customer) await savePaddleCustomer(env, transaction.customer_id || customer.id, customer.email);
+  const savedCustomer = transaction.customer_id ? await getPaddleCustomer(env, transaction.customer_id) : null;
+  for (const sku of skus) {
+    await env.DB.prepare(`INSERT INTO commerce_entitlements
+      (provider, transaction_id, sku, customer_id, email_hash, claim_hash, status, event_id, purchased_at)
+      VALUES ('PADDLE', ?, ?, ?, ?, ?, 'completed', ?, ?)
+      ON CONFLICT(provider, transaction_id, sku) DO UPDATE SET customer_id=excluded.customer_id,
+      email_hash=COALESCE(excluded.email_hash, commerce_entitlements.email_hash),
+      claim_hash=COALESCE(excluded.claim_hash, commerce_entitlements.claim_hash),
+      status='completed', event_id=excluded.event_id`)
+      .bind(transaction.id, sku, transaction.customer_id || null, savedCustomer?.email_hash || null, claimHash, eventId, transaction.billed_at || transaction.updated_at || new Date().toISOString()).run();
+  }
+}
+async function getPaddleCustomer(env, customerId) {
+  return await env.DB.prepare(`SELECT customer_id, email_hash FROM commerce_customers WHERE provider='PADDLE' AND customer_id=?`).bind(customerId).first();
+}
+async function getPaddleEntitlements(env, transactionId) {
+  const result = await env.DB.prepare(`SELECT transaction_id, sku, customer_id, email_hash, claim_hash
+    FROM commerce_entitlements WHERE provider='PADDLE' AND transaction_id=? AND status='completed'`).bind(transactionId).all();
+  return result.results || [];
+}
+async function fetchPaddleTransaction(env, transactionId) {
+  const response = await fetch(`https://api.paddle.com/transactions/${encodeURIComponent(transactionId)}?include=customer`, {
+    headers: { Authorization: `Bearer ${env.PADDLE_API_KEY}`, Accept: "application/json" },
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Paddle transaction lookup failed (${response.status}).`);
+  return (await response.json()).data;
+}
+async function createProductDownloads(env, origin, skus) {
+  const catalog = await readProductCatalog(env);
+  const products = new Map(catalog.products.map((product) => [String(product.sku || ""), product]));
+  const expiresAt = Math.floor(Date.now() / 1000) + 30 * 60;
+  const downloads = [];
+  for (const sku of new Set(skus)) {
+    if (!/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku)) continue;
+    const product = products.get(sku) || {};
+    const fileKey = product.fileKey || `private/mockups/${sku}/${sku}.mockup`;
+    if (!(await env.MOCKUPS.head(fileKey))) continue;
+    const signature = await createSignature(`${sku}:${expiresAt}`, env.DOWNLOAD_SECRET);
+    downloads.push({ sku, name: product.name || sku, url: `${origin}/d/${encodeURIComponent(sku)}?exp=${expiresAt}&sig=${signature}` });
+  }
+  return downloads;
 }
 async function readProductCatalog(env) {
   const object = await env.MOCKUPS.get(PRODUCT_CATALOG_KEY);
