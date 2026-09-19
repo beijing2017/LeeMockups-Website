@@ -1,0 +1,36 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { AlertTriangle, Check, Download, Monitor, Play, ShieldCheck } from "lucide-react";
+import { resolveCommerce } from "@/lib/commerce";
+import { productExperience } from "@/lib/product-experience";
+
+const assetBase = "https://downloads.leemockups.com";
+type Product = { sku:string; name:string; description:string; category:string; thumbnailPath:string; previewPath:string; purchaseProvider?:string; purchaseUrl?:string; deliveryUrl?:string; etsyUrl?:string; priceUsd?:number; resolution?:string; durationSeconds?:number; isFree?:boolean; sampleUrl?:string; supportedPlatforms?:string; includedFiles?:string[]; assetVersion?:string };
+
+export function MockupDetailClient() {
+  const sku = useSearchParams().get("sku") || "";
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { fetch(`${assetBase}/catalog/products.json`, { cache:"no-store" }).then((response) => { if (!response.ok) throw new Error(); return response.json(); }).then((data) => setProducts(Array.isArray(data?.products) ? data.products.map((item:Product) => ({...item,assetVersion:data.updatedAt})) : [])).catch(() => setFailed(true)).finally(() => setLoading(false)); }, []);
+  const product = useMemo(() => products.find((item) => item.sku === sku), [products, sku]);
+  const freeSample = useMemo(() => products.find((item) => item.isFree && item.sampleUrl), [products]);
+  if (loading) return <div className="mockup-detail-state shell">Loading mockup details…</div>;
+  if (failed || !product) return <div className="mockup-detail-state shell"><h1>Mockup not found</h1><p>The product may have moved or the library could not be loaded.</p><Link className="button secondary" href="/mockups/">Back to Mockup Library</Link></div>;
+  const commerce = resolveCommerce(product);
+  const included = product.includedFiles?.length ? product.includedFiles : ["One LeeMockups .mockup template", `One ${commerce.resolution}, ${commerce.duration.replace(" sec", "-second")} MP4 video`, "Five matching still images"];
+  return <>
+    <section className="mockup-product-hero shell"><div className="mockup-product-media" onContextMenu={(event)=>event.preventDefault()}><video ref={videoRef} muted loop playsInline autoPlay preload="metadata" controlsList="nodownload noremoteplayback" disablePictureInPicture poster={`${assetBase}/${product.thumbnailPath}?v=${encodeURIComponent(product.assetVersion||"1")}`}><source src={`${assetBase}/${product.previewPath}?v=${encodeURIComponent(product.assetVersion||"1")}`} type="video/webm" /></video>{product.isFree&&<span className="mockup-free-badge">FREE</span>}</div><div className="mockup-product-summary"><Link className="mockup-back" href="/mockups/">← Mockup Library</Link><span className="mockups-eyebrow">{product.category} · VIDEO MOCKUP</span><h1>{product.name}</h1><p>{product.description}</p><div className="mockup-product-price"><strong>{product.isFree?"Free":commerce.price}</strong><span>{commerce.resolution}</span><span>{commerce.duration}</span></div><div className="prepurchase-note"><Check size={17}/><span>Review the compatibility and usage information below before purchasing.</span></div></div></section>
+    <section className="mockup-product-content shell"><div className="mockup-info-main">
+      <section><span className="mockup-section-kicker">WHAT YOU RECEIVE</span><h2>Everything included</h2><ul className="mockup-check-list">{included.map((item)=><li key={item}><Check size={17}/>{item}</li>)}</ul></section>
+      <section><span className="mockup-section-kicker">HOW IT WORKS</span><h2>Three simple steps</h2><ol className="mockup-steps"><li><b>1</b><div><strong>Install LeeMockups</strong><p>Download the free app for {product.supportedPlatforms || productExperience.supportedPlatforms}. Installation is only needed the first time.</p></div></li><li><b>2</b><div><strong>Open the template</strong><p>Open the purchased <code>.mockup</code> file and add your PNG or JPG artwork.</p></div></li><li><b>3</b><div><strong>Generate your files</strong><p>Click Generate to create the finished video and five still images. {productExperience.typicalGenerationTime}.</p></div></li></ol></section>
+      <section><span className="mockup-section-kicker">BEFORE YOU BUY</span><h2>Important product details</h2><div className="expectation-grid"><div><Monitor/><strong>{product.supportedPlatforms || productExperience.supportedPlatforms}</strong><p>The free LeeMockups desktop app is required.</p></div><div><Play/><strong>Prepared animation</strong><p>Artwork placement, camera movement, and animation are preset and are not editable.</p></div><div><ShieldCheck/><strong>Local processing</strong><p>Your artwork is processed on your computer and is not automatically uploaded to LeeMockups.</p></div></div></section>
+      {!productExperience.clientSigned&&<aside className="unsigned-client-notice"><AlertTriangle/><div><strong>Early-access app security notice</strong><p>The current Windows and macOS apps are not yet code-signed while LeeMockups validates the early product. Your system may display a security warning the first time you open the app. Only download LeeMockups from the <Link href={productExperience.officialDownloadPath}>official LeeMockups website</Link>. Code signing will be added in a future release.</p></div></aside>}
+      <section><span className="mockup-section-kicker">TRY BEFORE PURCHASING</span><h2>Test the complete workflow first</h2><p>{freeSample?"Use the free sample to verify installation, artwork import, generation speed, and output quality on your computer before buying a paid template.":"Free sample templates are being prepared. They will let you verify installation, artwork import, generation speed, and output quality before purchasing."}</p>{freeSample&&<Link className="button secondary" href={`/mockup/?sku=${encodeURIComponent(freeSample.sku)}`}>View free sample</Link>}</section>
+    </div><aside className="mockup-purchase-panel"><span>READY TO CONTINUE?</span><strong>{product.isFree?"Free":commerce.price}</strong><small>Digital product · No physical item</small>{product.isFree?(product.sampleUrl?<a className="button primary" href={product.sampleUrl} target="_blank" rel="noreferrer"><Download size={17}/> Download free sample</a>:<button className="button primary" disabled>Free sample coming soon</button>):commerce.available?<a className="button primary" href={commerce.purchaseUrl} target="_blank" rel="noreferrer">Buy now</a>:<button className="button primary" disabled>Coming Soon</button>}<p>By continuing, you confirm that you reviewed the product details, compatibility, and <Link href="/refunds/">refund policy</Link>.</p>{commerce.deliveryUrl&&<a className="mockup-existing-download" href={commerce.deliveryUrl}>Already purchased? Download</a>}</aside></section>
+  </>;
+}
