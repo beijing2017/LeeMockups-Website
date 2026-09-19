@@ -27,7 +27,11 @@ export default function OrderDownloadPage() {
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "We could not verify this order.");
-      setDownloads(body.downloads || []);
+      const verifiedDownloads: DownloadItem[] = body.downloads || [];
+      for (const item of verifiedDownloads) {
+        localStorage.setItem(`leemockups-purchase:${item.sku}`, JSON.stringify({ transactionId: orderNumber, claimToken: "", email }));
+      }
+      setDownloads(verifiedDownloads);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "We could not verify this order.");
     } finally {
