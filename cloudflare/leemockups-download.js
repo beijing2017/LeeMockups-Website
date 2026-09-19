@@ -96,7 +96,11 @@ export default {
       return new Response(request.method === "HEAD" ? null : object.body, { status: 200, headers });
     }
     if (url.pathname === "/paddle/webhook") {
-      if (request.method === "GET") return jsonResponse({ ok: true, configured: Boolean(env.PADDLE_WEBHOOK_SECRET) });
+      if (request.method === "GET") return jsonResponse({
+        ok: true,
+        webhookConfigured: Boolean(env.PADDLE_WEBHOOK_SECRET),
+        apiConfigured: Boolean(env.PADDLE_API_KEY),
+      });
       if (request.method !== "POST") return jsonResponse({ ok: false, error: "Method not allowed." }, 405);
       const rawBody = await request.text();
       if (!await verifyPaddleSignature(rawBody, request.headers.get("paddle-signature") || "", env.PADDLE_WEBHOOK_SECRET)) {
