@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { GoogleAnalytics } from '@/components/google-analytics';
 import { FeedbackWidget } from '@/components/feedback-widget';
+import { MarketingAttributionTracker } from '@/components/marketing-attribution';
 import './globals.css';
 
 const siteUrl = 'https://www.leemockups.com';
@@ -39,7 +40,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}<FeedbackWidget /><GoogleAnalytics /></body>
+      <body>{children}<MarketingAttributionTracker /><FeedbackWidget /><GoogleAnalytics /></body>
     </html>
   );
 }
