@@ -78,6 +78,6 @@ export function PaddleCheckoutButton({priceId,sku}:{priceId:string;sku:string}){
     finally{setOpening(false)}
   }
 
-  if(downloads.length)return <div className="paddle-downloads">{downloads.map((item)=><a className="button primary purchase-primary" key={item.sku} href={item.url} onClick={()=>trackEvent("file_download",{item_id:item.sku})}><Download size={17}/>Download mockup</a>)}</div>;
+  if(downloads.length)return <div className="paddle-downloads purchased">{downloads.map((item)=><a className="button primary purchase-primary purchased" key={item.sku} href={item.url} onClick={()=>trackEvent("file_download",{item_id:item.sku})}><Download size={17}/>Download mockup</a>)}</div>;
   return <>{checking?<button className="button primary purchase-primary" disabled>Checking purchase…</button>:<button className="button primary purchase-primary" type="button" onClick={openCheckout} disabled={opening}>{opening?"Opening checkout…":"Buy now"}</button>}{error&&<small className="checkout-error" role="alert">{error}</small>}<Link className="mockup-existing-download" href="/order-download/">Already purchased? Restore download</Link></>;
 }
