@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { initializePaddle, type Paddle } from "@paddle/paddle-js";
+import { readAttribution, trackEvent } from "@/lib/marketing-attribution";
 
 type DownloadItem={sku:string;name:string;url:string};
 type CheckoutEvent={name?:string;data?:{transaction_id?:string;customer?:{email?:string|null}}};
@@ -52,6 +53,7 @@ export function PaddleCheckoutButton({priceId,sku}:{priceId:string;sku:string}){
       const pending=localStorage.getItem(`${storageKey}:pending`);
       if(!pending)return;
       const record:PurchaseRecord={...JSON.parse(pending),transactionId:event.data.transaction_id,email:event.data.customer?.email||undefined};
+      trackEvent("purchase",{transaction_id:event.data.transaction_id,items:[{item_id:sku}]});
       localStorage.setItem(storageKey,JSON.stringify(record));
       localStorage.removeItem(`${storageKey}:pending`);
       setChecking(true);setError("");
@@ -66,14 +68,16 @@ export function PaddleCheckoutButton({priceId,sku}:{priceId:string;sku:string}){
     setOpening(true);setError("");
     try{
       const claimToken=randomToken();
+      const attribution=readAttribution();
       localStorage.setItem(`${storageKey}:pending`,JSON.stringify({claimToken}));
       const paddle=await paddleClient(token);
       if(!paddle)throw new Error("Paddle did not initialize.");
-      paddle.Checkout.open({items:[{priceId,quantity:1}],customData:{sku,claim_token:claimToken},settings:{displayMode:"overlay",theme:"light",locale:"en"}});
+      trackEvent("begin_checkout",{items:[{item_id:sku}]});
+      paddle.Checkout.open({items:[{priceId,quantity:1}],customData:{sku,claim_token:claimToken,...(attribution?{utm_source:attribution.source,utm_medium:attribution.medium,utm_campaign:attribution.campaign,utm_content:attribution.content,referrer:attribution.referrer}:{})},settings:{displayMode:"overlay",theme:"light",locale:"en"}});
     }catch{localStorage.removeItem(`${storageKey}:pending`);setError("Checkout could not open. Please try again.")}
     finally{setOpening(false)}
   }
 
-  if(downloads.length)return <div className="paddle-downloads">{downloads.map((item)=><a className="button primary purchase-primary" key={item.sku} href={item.url}><Download size={17}/>Download mockup</a>)}</div>;
+  if(downloads.length)return <div className="paddle-downloads">{downloads.map((item)=><a className="button primary purchase-primary" key={item.sku} href={item.url} onClick={()=>trackEvent("file_download",{item_id:item.sku})}><Download size={17}/>Download mockup</a>)}</div>;
   return <>{checking?<button className="button primary purchase-primary" disabled>Checking purchase…</button>:<button className="button primary purchase-primary" type="button" onClick={openCheckout} disabled={opening}>{opening?"Opening checkout…":"Buy now"}</button>}{error&&<small className="checkout-error" role="alert">{error}</small>}<Link className="mockup-existing-download" href="/order-download/">Already purchased? Restore download</Link></>;
 }
