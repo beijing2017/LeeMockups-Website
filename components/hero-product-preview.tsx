@@ -5,13 +5,13 @@ import { Check, ImagePlus, Play, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const mockups = [
-  { name: "Gallery Frame", image: "/hero-mockups/frame.jpg" },
-  { name: "Ceramic Mug", image: "/hero-mockups/mug.jpg" },
-  { name: "Classic T-Shirt", image: "/hero-mockups/tshirt.jpg" },
-  { name: "Canvas Tote Bag", image: "/hero-mockups/tote.jpg" },
-  { name: "Pullover Hoodie", image: "/hero-mockups/hoodie.jpg" },
-  { name: "Phone Case", image: "/hero-mockups/phone-case.jpg" },
-  { name: "Studio Poster", image: "/hero-mockups/poster.jpg" },
+  { name: "Gallery Frame", image: "/hero-mockups/frame.jpg?v=784ab8e" },
+  { name: "Ceramic Mug", image: "/hero-mockups/mug.jpg?v=784ab8e" },
+  { name: "Classic T-Shirt", image: "/hero-mockups/tshirt.jpg?v=784ab8e" },
+  { name: "Canvas Tote Bag", image: "/hero-mockups/tote.jpg?v=784ab8e" },
+  { name: "Pullover Hoodie", image: "/hero-mockups/hoodie.jpg?v=784ab8e" },
+  { name: "Phone Case", image: "/hero-mockups/phone-case.jpg?v=784ab8e" },
+  { name: "Studio Poster", image: "/hero-mockups/poster.jpg?v=784ab8e" },
 ];
 
 const library = mockups.slice(0, 5);
