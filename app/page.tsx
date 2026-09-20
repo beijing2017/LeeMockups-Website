@@ -4,7 +4,7 @@ import { SiteNav } from "@/components/site-nav";
 import { PolicyLinks } from "@/components/policy-links";
 import { DownloadOptions } from "@/components/download-options";
 
-const appVersion = "1.13.71";
+const appVersion = "1.13.72";
 // Public Worker endpoints. The Worker streams private R2 objects and never redirects
 // the browser to a bucket hostname or exposes predictable object keys.
 const downloadBase = "https://downloads.leemockups.com/d";
