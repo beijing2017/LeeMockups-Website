@@ -115,12 +115,16 @@ export default {
           LEFT JOIN mockup_download_daily d ON d.sku = t.sku
           GROUP BY t.sku ORDER BY t.download_count DESC, t.sku ASC`).all();
         const products = result.results || [];
+        const channelResult = await env.DB.prepare(`SELECT source, medium, campaign,
+          COUNT(DISTINCT transaction_id) AS purchases, COUNT(DISTINCT sku) AS products
+          FROM commerce_attribution GROUP BY source, medium, campaign
+          ORDER BY purchases DESC, source ASC`).all();
         const totals = products.reduce((summary, row) => ({
           downloads: summary.downloads + Number(row.download_count || 0),
           purchases: summary.purchases + Number(row.unique_purchase_count || 0),
           downloads7d: summary.downloads7d + Number(row.downloads_7d || 0),
         }), { downloads: 0, purchases: 0, downloads7d: 0 });
-        return jsonResponse({ ok: true, updatedAt: new Date().toISOString(), totals, products });
+        return jsonResponse({ ok: true, updatedAt: new Date().toISOString(), totals, products, channels: channelResult.results || [] });
       } catch (error) {
         console.error(JSON.stringify({ type: "download_analytics_read_error", message: String(error?.message || error) }));
         return jsonResponse({ ok: false, error: "Analytics are temporarily unavailable." }, 503);
@@ -1789,6 +1793,12 @@ async function ensurePaddleTables(env) {
       event_id TEXT, purchased_at TEXT NOT NULL,
       PRIMARY KEY (provider, transaction_id, sku)
     )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS commerce_attribution (
+      provider TEXT NOT NULL, transaction_id TEXT NOT NULL, sku TEXT NOT NULL,
+      source TEXT NOT NULL, medium TEXT NOT NULL, campaign TEXT NOT NULL,
+      content TEXT NOT NULL, referrer TEXT NOT NULL, purchased_at TEXT NOT NULL,
+      PRIMARY KEY (provider, transaction_id, sku)
+    )`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS mockup_download_totals (
       sku TEXT PRIMARY KEY, download_count INTEGER NOT NULL DEFAULT 0,
       unique_purchase_count INTEGER NOT NULL DEFAULT 0, last_downloaded_at TEXT NOT NULL
@@ -1818,6 +1828,14 @@ async function savePaddleTransaction(env, transaction, eventId) {
   const claimToken = String(transaction.custom_data?.claim_token || "");
   const claimHash = claimToken ? await sha256Base64Url(claimToken) : null;
   const explicitSku = String(transaction.custom_data?.sku || "");
+  const cleanAttribution = (value, fallback = "") => String(value || fallback).trim().slice(0, 80);
+  const attribution = {
+    source: cleanAttribution(transaction.custom_data?.utm_source, "direct"),
+    medium: cleanAttribution(transaction.custom_data?.utm_medium, "none"),
+    campaign: cleanAttribution(transaction.custom_data?.utm_campaign),
+    content: cleanAttribution(transaction.custom_data?.utm_content),
+    referrer: cleanAttribution(transaction.custom_data?.referrer),
+  };
   const skus = new Set();
   if (/^LM-VM-[A-Z]{3}-\d{3}$/.test(explicitSku)) skus.add(explicitSku);
   for (const item of transaction.items || []) {
@@ -1828,6 +1846,7 @@ async function savePaddleTransaction(env, transaction, eventId) {
   if (customer) await savePaddleCustomer(env, transaction.customer_id || customer.id, customer.email);
   const savedCustomer = transaction.customer_id ? await getPaddleCustomer(env, transaction.customer_id) : null;
   for (const sku of skus) {
+    const purchasedAt = transaction.billed_at || transaction.updated_at || new Date().toISOString();
     await env.DB.prepare(`INSERT INTO commerce_entitlements
       (provider, transaction_id, sku, customer_id, email_hash, claim_hash, status, event_id, purchased_at)
       VALUES ('PADDLE', ?, ?, ?, ?, ?, 'completed', ?, ?)
@@ -1835,7 +1854,14 @@ async function savePaddleTransaction(env, transaction, eventId) {
       email_hash=COALESCE(excluded.email_hash, commerce_entitlements.email_hash),
       claim_hash=COALESCE(excluded.claim_hash, commerce_entitlements.claim_hash),
       status='completed', event_id=excluded.event_id`)
-      .bind(transaction.id, sku, transaction.customer_id || null, savedCustomer?.email_hash || null, claimHash, eventId, transaction.billed_at || transaction.updated_at || new Date().toISOString()).run();
+      .bind(transaction.id, sku, transaction.customer_id || null, savedCustomer?.email_hash || null, claimHash, eventId, purchasedAt).run();
+    await env.DB.prepare(`INSERT INTO commerce_attribution
+      (provider, transaction_id, sku, source, medium, campaign, content, referrer, purchased_at)
+      VALUES ('PADDLE', ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(provider, transaction_id, sku) DO UPDATE SET source=excluded.source,
+      medium=excluded.medium, campaign=excluded.campaign, content=excluded.content,
+      referrer=excluded.referrer, purchased_at=excluded.purchased_at`)
+      .bind(transaction.id, sku, attribution.source, attribution.medium, attribution.campaign, attribution.content, attribution.referrer, purchasedAt).run();
   }
 }
 async function getPaddleCustomer(env, customerId) {
