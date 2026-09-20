@@ -1,8 +1,9 @@
 import Image from "next/image";
-import { AlertTriangle, Check, Download, ImagePlus, Layers3, Play, ShieldCheck, Sparkles } from "lucide-react";
+import { AlertTriangle, Check, Download, ImagePlus, Play, ShieldCheck, Sparkles } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
 import { PolicyLinks } from "@/components/policy-links";
 import { DownloadOptions } from "@/components/download-options";
+import { HeroProductPreview } from "@/components/hero-product-preview";
 
 const appVersion = "1.13.72";
 // Public Worker endpoints. The Worker streams private R2 objects and never redirects
@@ -40,19 +41,7 @@ export default function Home() {
         <div className="micro-trust"><ShieldCheck size={16} /><span>Private by design</span><b>•</b><span>Your artwork stays on your computer</span></div>
       </div>
 
-      <div className="product-stage" aria-label="LeeMockups desktop app preview">
-        <div className="glow glow-one" /><div className="glow glow-two" />
-        <div className="app-window">
-          <div className="window-bar"><div className="window-brand"><Image src="/leemockups-symbol.png" width={25} height={25} alt="" /><span>LeeMockups</span></div><div className="window-dots"><i /><i /><i /></div></div>
-          <div className="app-body">
-            <aside className="app-sidebar"><small>MY LIBRARY</small><div className="mini-card active"><div className="mini-thumb" /><span>Gallery Frame</span></div><div className="mini-card"><div className="mini-thumb soft" /><span>Studio Poster</span></div><div className="privacy"><span />Artwork stays local</div></aside>
-            <div className="app-preview"><div className="preview-image"><Image src="/room-mockup.webp" fill sizes="620px" alt="Living room frame mockup shown in LeeMockups" /></div><div className="timeline"><span className="play"><Play size={10} fill="currentColor" /></span><i><b /></i><time>00:07 / 00:10</time></div></div>
-            <aside className="app-controls"><span className="control-kicker">YOUR ARTWORK</span><button><ImagePlus size={18} /><span><strong>Choose your image</strong><small>PNG or JPG</small></span></button><div className="control-grid"><span><small>OUTPUT</small><strong>2000 × 2000</strong></span><span><small>FORMAT</small><strong>MP4</strong></span></div><div className="control-label"><span>Video quality</span><b>High</b></div><div className="quality"><i /><i className="selected" /><i /></div><div className="export"><Sparkles size={15} /> Export my mockup</div></aside>
-          </div>
-        </div>
-        <div className="floating-card float-left"><span className="ok"><Check size={14} /></span><div><b>Mockup ready</b><small>10-second product video</small></div></div>
-        <div className="floating-card float-right"><Layers3 size={18} /><div><b>Drop. Preview. Export.</b><small>It really is that simple.</small></div></div>
-      </div>
+      <HeroProductPreview />
     </section>
 
     <section className="proof"><div className="shell proof-inner"><span>Built for the way you sell</span><b>PRODUCT LISTING READY</b><i /><b>WINDOWS &amp; macOS</b><i /><b>NO SUBSCRIPTION</b><i /><b>LOCAL &amp; PRIVATE</b></div></section>

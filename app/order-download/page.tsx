@@ -52,7 +52,7 @@ export default function OrderDownloadPage() {
             : <button className="button primary" disabled={busy}>{busy ? "Verifying purchase…" : "Get my download"}</button>}
         </form>
         {error && <div className="order-message error" role="alert">{error}</div>}
-        <p className="order-help">Need help? Contact LeeMockups support with your order details.</p>
+        <p className="order-help">Need help? Email <a href="mailto:support@leemockups.com">support@leemockups.com</a> with your order details.</p>
       </div>
     </section>
     <footer className="shell"><div className="brand"><span>LeeMockups</span></div><PolicyLinks /><span>© 2026 LeeMockups</span></footer>

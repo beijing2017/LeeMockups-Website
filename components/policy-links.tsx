@@ -5,5 +5,6 @@ export function PolicyLinks() {
     <Link href="/terms/">Terms of Service</Link>
     <Link href="/privacy/">Privacy Policy</Link>
     <Link href="/refunds/">Refund Policy</Link>
+    <a href="mailto:support@leemockups.com">support@leemockups.com</a>
   </nav>;
 }

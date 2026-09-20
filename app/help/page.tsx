@@ -30,7 +30,7 @@ export default function HelpPage(){return <main className="help-page">
     <article><b>1</b><Download/><h3>Install LeeMockups</h3><p>Choose Windows, Apple Silicon Mac, or Intel Mac. Unzip the download before opening it.</p></article>
     <article><b>2</b><FolderOpen/><h3>Import your mockup</h3><p>Unzip your download and drag the file ending in <code>.mockup</code> into the app.</p></article>
     <article><b>3</b><FileImage/><h3>Choose your artwork</h3><p>Select a PNG or JPG. Your design appears in the animated scene immediately.</p></article>
-    <article><b>4</b><Play/><h3>Preview and export</h3><p>Press play, choose quality, then export your MP4 video and still images.</p></article>
+    <article><b>4</b><Play/><h3>Preview and generate</h3><p>Press play to review the scene, then generate your MP4 video and still images.</p></article>
   </div></section>
 
   <section className="mac-help" id="choose-mac"><div className="shell"><div className="mac-heading"><span className="section-tag">DOWNLOADING FOR MAC</span><h2>Choose the version made for your Mac.</h2><p>Click the Apple menu <strong> → About This Mac</strong>, then look for one of these two labels.</p></div><div className="mac-choice-grid">
@@ -46,6 +46,6 @@ export default function HelpPage(){return <main className="help-page">
   </ol><div className="safety-note"><ShieldCheck/><p><strong>Why does macOS show this?</strong><br/>Gatekeeper warns when an app is not notarized by Apple. Never bypass this warning for a file from an unknown website.</p></div></section>
 
   <section className="faq shell"><div className="section-heading"><span>QUICK ANSWERS</span><h2>Common questions.</h2></div><div className="faq-list">{faqs.map(([q,a],i)=><details key={q} open={i===0}><summary>{q}<span>+</span></summary><p>{a}</p></details>)}</div></section>
-  <section className="support shell"><AlertTriangle/><div><h2>Still stuck?</h2><p>Take a screenshot of what you see and contact LeeMockups support with your order details and app version.</p></div></section>
+  <section className="support shell"><AlertTriangle/><div><h2>Still stuck?</h2><p>Take a screenshot of what you see and email <a href="mailto:support@leemockups.com">support@leemockups.com</a> with your order details and app version.</p></div></section>
   <footer className="shell"><div className="brand"><Image src="/leemockups-symbol.png" width={34} height={34} alt=""/><span>LeeMockups</span></div><PolicyLinks /><span>© 2026 LeeMockups</span></footer>
   </main>}

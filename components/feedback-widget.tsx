@@ -32,7 +32,7 @@ export function FeedbackWidget() {
     try {
       data.set("_subject", `LeeMockups website feedback: ${data.get("Type") || "Message"}`);
       data.set("Page", window.location.href);
-      const response = await fetch("https://formsubmit.co/ajax/deaspliang@gmail.com", {
+      const response = await fetch("https://formsubmit.co/ajax/support@leemockups.com", {
         method: "POST",
         headers: { Accept: "application/json" },
         body: data,
@@ -42,7 +42,7 @@ export function FeedbackWidget() {
       setStatus("Thank you — your feedback was sent.");
     } catch {
       setFailed(true);
-      setStatus("We couldn’t send this message. Please try again in a moment.");
+      setStatus("We couldn’t send this message. Please email support@leemockups.com directly.");
     } finally {
       setBusy(false);
     }
@@ -53,7 +53,7 @@ export function FeedbackWidget() {
     {open && <div className="site-feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="feedback-title" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
       <form className="site-feedback-card" ref={formRef} onSubmit={submit}>
         <div className="site-feedback-heading"><div><span>WE’D LOVE TO HEAR FROM YOU</span><h2 id="feedback-title">Send feedback</h2></div><button type="button" aria-label="Close feedback form" onClick={() => setOpen(false)}><X /></button></div>
-        <p>Found a problem, have an idea, or need help? Tell us below. A screenshot is optional.</p>
+        <p>Found a problem, have an idea, or need help? Tell us below. A screenshot is optional. You can also email <a href="mailto:support@leemockups.com">support@leemockups.com</a>.</p>
         <label>Type<select name="Type" defaultValue="Question"><option>Bug report</option><option>Question</option><option>Suggestion</option></select></label>
         <label>What happened?<textarea name="Message" rows={5} maxLength={5000} required placeholder="Please include what you expected and what you saw." /></label>
         <label>Email for reply<input name="Email" type="email" maxLength={254} required placeholder="you@example.com" /></label>
