@@ -5,7 +5,7 @@ import { PolicyLinks } from "@/components/policy-links";
 import { DownloadOptions } from "@/components/download-options";
 import { HeroProductPreview } from "@/components/hero-product-preview";
 
-const appVersion = "1.13.72";
+const appVersion = "1.13.73";
 // Public Worker endpoints. The Worker streams private R2 objects and never redirects
 // the browser to a bucket hostname or exposes predictable object keys.
 const downloadBase = "https://downloads.leemockups.com/d";
