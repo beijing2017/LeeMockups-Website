@@ -7,6 +7,7 @@ import { AlertTriangle, Check, Download, Monitor, Play, ShieldCheck } from "luci
 import { resolveCommerce } from "@/lib/commerce";
 import { productExperience } from "@/lib/product-experience";
 import { PurchaseAction } from "@/components/purchase-action";
+import { trackEvent } from "@/lib/marketing-attribution";
 
 const assetBase = "https://downloads.leemockups.com";
 type GalleryItem = { type:"image"|"video"; path:string; alt?:string };
@@ -23,6 +24,7 @@ export function MockupDetailClient() {
   const freeSample = useMemo(() => products.find((item) => item.isFree && item.sampleUrl), [products]);
   useEffect(() => {
     if (!product) return;
+    trackEvent("view_item", { items:[{ item_id:product.sku, item_name:product.name, price:Number(product.priceUsd??9.9) }] });
     const canonicalUrl = `https://www.leemockups.com/mockup/?sku=${encodeURIComponent(product.sku)}`;
     const imageUrl = `${assetBase}/${product.thumbnailPath}`;
     const title = `${product.name} | LeeMockups`;
