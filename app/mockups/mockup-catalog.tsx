@@ -25,6 +25,16 @@ function ProductCard({ product, purchased }: { product: Product; purchased: bool
   </article></Link>;
 }
 
+function CatalogSkeleton() {
+  return <div className="catalog-loading" role="status" aria-live="polite" aria-label="Loading mockups">
+    <div className="catalog-loading-label"><span className="catalog-loading-spinner" aria-hidden="true" />Loading mockups…</div>
+    <div className="mockup-grid" aria-hidden="true">{Array.from({ length: 4 }, (_, index) => <article className="mockup-card mockup-card-skeleton" key={index}>
+      <div className="mockup-card-image" />
+      <div className="mockup-card-body"><span className="skeleton-line skeleton-price" /><span className="skeleton-line skeleton-button" /></div>
+    </article>)}</div>
+  </div>;
+}
+
 export function MockupCatalog() {
   const [products, setProducts] = useState<Product[]>([]), [selectedCategory, setSelectedCategory] = useState("ALL"), [loading, setLoading] = useState(true), [failed, setFailed] = useState(false), [purchasedSkus, setPurchasedSkus] = useState<Set<string>>(new Set());
   useEffect(() => { fetch(`${assetBase}/catalog/products.json`, { cache: "no-store" }).then((response) => { if (!response.ok) throw new Error(); return response.json(); }).then((data) => setProducts(Array.isArray(data?.products) ? data.products.map((product: Product) => ({ ...product, assetVersion: data.updatedAt })) : [])).catch(() => setFailed(true)).finally(() => setLoading(false)); }, []);
@@ -35,5 +45,5 @@ export function MockupCatalog() {
   }, [products]);
   const categories = useMemo(() => [...new Set(products.map((product) => product.category).filter(Boolean))].sort(), [products]);
   const visible = selectedCategory === "ALL" ? products : products.filter((product) => product.category === selectedCategory);
-  return <section className="catalog shell" aria-label="Mockup catalog">{categories.length > 0 && <div className="catalog-categories" aria-label="Filter mockups by category"><button type="button" className={selectedCategory === "ALL" ? "selected" : ""} onClick={() => setSelectedCategory("ALL")}>All</button>{categories.map((category) => <button type="button" className={selectedCategory === category ? "selected" : ""} onClick={() => setSelectedCategory(category)} key={category}>{categoryLabels[category] || category}</button>)}</div>}{failed ? <div className="catalog-no-results"><h2>Unable to load the library</h2><p>Please refresh the page in a moment.</p></div> : !loading && !products.length ? <div className="catalog-no-results"><h2>New mockups are on the way</h2></div> : <div className="mockup-grid">{visible.map((product) => <ProductCard product={product} purchased={purchasedSkus.has(product.sku)} key={product.sku} />)}</div>}</section>;
+  return <section className="catalog shell" aria-label="Mockup catalog">{loading ? <CatalogSkeleton /> : <>{categories.length > 0 && <div className="catalog-categories" aria-label="Filter mockups by category"><button type="button" className={selectedCategory === "ALL" ? "selected" : ""} onClick={() => setSelectedCategory("ALL")}>All</button>{categories.map((category) => <button type="button" className={selectedCategory === category ? "selected" : ""} onClick={() => setSelectedCategory(category)} key={category}>{categoryLabels[category] || category}</button>)}</div>}{failed ? <div className="catalog-no-results"><h2>Unable to load the library</h2><p>Please refresh the page in a moment.</p></div> : !products.length ? <div className="catalog-no-results"><h2>New mockups are on the way</h2></div> : <div className="mockup-grid">{visible.map((product) => <ProductCard product={product} purchased={purchasedSkus.has(product.sku)} key={product.sku} />)}</div>}</>}</section>;
 }
