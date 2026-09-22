@@ -13,14 +13,6 @@ const PADDLE_PRICE_SKUS = {
 const CREEM_PRODUCT_SKUS = {
   prod_1jYFUPxAzPuJQtKJL2SEe3: "LM-VM-MUG-001",
 };
-function creemProductIdForSku(env, sku) {
-  if (sku === "LM-VM-MUG-001" && env.CREEM_PRODUCT_ID) return String(env.CREEM_PRODUCT_ID).trim();
-  return Object.entries(CREEM_PRODUCT_SKUS).find(([, mappedSku]) => mappedSku === sku)?.[0] || "";
-}
-function creemSkuForProductId(env, productId) {
-  if (env.CREEM_PRODUCT_ID && String(env.CREEM_PRODUCT_ID).trim() === productId) return "LM-VM-MUG-001";
-  return CREEM_PRODUCT_SKUS[productId] || "";
-}
 // Creem receipts expose an ORD- reference that is not currently returned by
 // their public API. Preserve verified legacy receipt mappings for recovery.
 const CREEM_RECEIPT_ALIASES = {
@@ -146,6 +138,27 @@ export default {
         return jsonResponse({ ok: false, error: "Analytics are temporarily unavailable." }, 503);
       }
     }
+    if (url.pathname === "/admin/creem-product-sync") {
+      if (request.method !== "POST") return jsonResponse({ ok: false, error: "Method not allowed." }, 405);
+      if (!await isAdminRequest(request)) return jsonResponse({ ok: false, error: "Unauthorized." }, 401);
+      if (!env.CREEM_API_KEY) return jsonResponse({ ok: false, error: "Creem is not configured." }, 503);
+      try {
+        const body = await request.json();
+        const sku = String(body?.sku || "").trim().toUpperCase();
+        const name = String(body?.name || "").trim().slice(0, 160);
+        const description = String(body?.description || "").trim().slice(0, 2000);
+        const regularPriceCents = Number(body?.regularPriceCents || 999);
+        const launchPriceCents = Number(body?.launchPriceCents || 349);
+        if (!/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku) || !name || !Number.isInteger(regularPriceCents) || !Number.isInteger(launchPriceCents) || launchPriceCents < 100 || regularPriceCents < launchPriceCents) {
+          return jsonResponse({ ok: false, error: "Invalid product settings." }, 400);
+        }
+        const mapping = await syncCreemProduct(env, { sku, name, description, regularPriceCents, launchPriceCents });
+        return jsonResponse({ ok: true, ...mapping });
+      } catch (error) {
+        console.error(JSON.stringify({ type: "creem_product_sync_error", message: String(error?.message || error) }));
+        return jsonResponse({ ok: false, error: String(error?.message || "Creem product sync failed.") }, 502);
+      }
+    }
     if (url.pathname === "/paddle/webhook") {
       if (request.method === "GET") return jsonResponse({
         ok: true,
@@ -190,7 +203,8 @@ export default {
         const body = await request.json();
         const sku = String(body?.sku || "").trim();
         const claimToken = String(body?.claimToken || "").trim();
-        const productId = creemProductIdForSku(env, sku);
+        const mapping = await getCreemProductBySku(env, sku);
+        const productId = mapping?.product_id || "";
         if (!productId || !/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku) || !/^[a-f\d]{64}$/.test(claimToken)) {
           return redeemJson({ ok: false, error: "Invalid checkout request." }, 400, corsHeaders);
         }
@@ -201,6 +215,7 @@ export default {
           headers: { "x-api-key": env.CREEM_API_KEY, "content-type": "application/json", accept: "application/json" },
           body: JSON.stringify({
             product_id: productId,
+            ...(mapping.launch_active && mapping.discount_code ? { discount_code: mapping.discount_code } : {}),
             request_id: `${sku}:${crypto.randomUUID()}`,
             units: 1,
             success_url: `https://www.leemockups.com/mockup/?sku=${encodeURIComponent(sku)}&payment=success`,
@@ -1911,6 +1926,95 @@ async function verifyPaddleSignature(rawBody, header, secret) {
 function creemMode(env) {
   return String(env.CREEM_MODE || "test").trim().toLowerCase() === "live" ? "live" : "test";
 }
+async function isAdminRequest(request) {
+  const token = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  return Boolean(token) && safeEqual(await sha256Base64Url(token), ANALYTICS_ACCESS_HASH);
+}
+async function ensureCreemProductTable(env) {
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS commerce_product_mappings (
+    sku TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    product_id TEXT NOT NULL UNIQUE,
+    regular_price_cents INTEGER NOT NULL,
+    launch_price_cents INTEGER NOT NULL,
+    discount_code TEXT,
+    launch_active INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL
+  )`).run();
+}
+async function getCreemProductBySku(env, sku) {
+  await ensureCreemProductTable(env);
+  const row = await env.DB.prepare(`SELECT product_id, discount_code, launch_active, regular_price_cents, launch_price_cents
+    FROM commerce_product_mappings WHERE provider='CREEM' AND sku=?`).bind(sku).first();
+  if (row) return row;
+  if (creemMode(env) === "test") {
+    const productId = Object.entries(CREEM_PRODUCT_SKUS).find(([, mappedSku]) => mappedSku === sku)?.[0];
+    if (productId) return { product_id: productId, discount_code: "", launch_active: 0, regular_price_cents: 999, launch_price_cents: 999 };
+  }
+  return null;
+}
+async function getCreemSkuByProductId(env, productId) {
+  await ensureCreemProductTable(env);
+  const row = await env.DB.prepare(`SELECT sku FROM commerce_product_mappings WHERE provider='CREEM' AND product_id=?`).bind(productId).first();
+  return row?.sku || (creemMode(env) === "test" ? CREEM_PRODUCT_SKUS[productId] : "") || "";
+}
+async function creemRequest(env, path, init = {}) {
+  const response = await fetch(`${creemApiBase(env)}${path}`, {
+    ...init,
+    headers: { "x-api-key": env.CREEM_API_KEY, "content-type": "application/json", accept: "application/json", ...(init.headers || {}) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body?.message || body?.error || `Creem request failed (${response.status}).`);
+  return body;
+}
+async function syncCreemProduct(env, product) {
+  await ensureCreemProductTable(env);
+  const existing = await getCreemProductBySku(env, product.sku);
+  if (existing && !(creemMode(env) === "live" && CREEM_PRODUCT_SKUS[existing.product_id])) return {
+    sku: product.sku, productId: existing.product_id, discountCode: existing.discount_code || "", created: false,
+  };
+  const createdProduct = await creemRequest(env, "/v1/products", {
+    method: "POST",
+    body: JSON.stringify({
+      name: product.name,
+      description: product.description,
+      price: product.regularPriceCents,
+      currency: "USD",
+      billing_type: "onetime",
+      tax_mode: "inclusive",
+      tax_category: "digital-goods-service",
+      default_success_url: `https://www.leemockups.com/mockup/?sku=${encodeURIComponent(product.sku)}&payment=success`,
+    }),
+  });
+  const productId = String(createdProduct?.id || createdProduct?.product?.id || "");
+  if (!/^prod_[A-Za-z\d]+$/.test(productId)) throw new Error("Creem did not return a product ID.");
+  let discountCode = "";
+  const discountAmount = product.regularPriceCents - product.launchPriceCents;
+  if (discountAmount > 0) {
+    discountCode = `LAUNCH-${product.sku.replace(/[^A-Z0-9]/g, "")}`;
+    const createdDiscount = await creemRequest(env, "/v1/discounts", {
+      method: "POST",
+      body: JSON.stringify({
+        name: `Launch Special ${product.sku}`,
+        code: discountCode,
+        type: "fixed",
+        amount: discountAmount,
+        currency: "USD",
+        duration: "forever",
+        applies_to_products: [productId],
+      }),
+    });
+    discountCode = String(createdDiscount?.code || createdDiscount?.discount?.code || discountCode);
+  }
+  await env.DB.prepare(`INSERT INTO commerce_product_mappings
+    (sku, provider, product_id, regular_price_cents, launch_price_cents, discount_code, launch_active, updated_at)
+    VALUES (?, 'CREEM', ?, ?, ?, ?, 1, ?)
+    ON CONFLICT(sku) DO UPDATE SET provider='CREEM', product_id=excluded.product_id,
+    regular_price_cents=excluded.regular_price_cents, launch_price_cents=excluded.launch_price_cents,
+    discount_code=excluded.discount_code, launch_active=1, updated_at=excluded.updated_at`)
+    .bind(product.sku, productId, product.regularPriceCents, product.launchPriceCents, discountCode || null, new Date().toISOString()).run();
+  return { sku: product.sku, productId, discountCode, created: true };
+}
 function creemApiBase(env) {
   return creemMode(env) === "live" ? "https://api.creem.io" : "https://test-api.creem.io";
 }
@@ -1991,7 +2095,7 @@ async function getCommerceEntitlements(env, provider, reference) {
 async function saveCreemCheckout(env, checkout, eventId) {
   if (!checkout?.id || checkout.status !== "completed" || checkout.order?.status !== "paid") return;
   const productId = String(checkout.product?.id || checkout.order?.product || "");
-  const mappedSku = creemSkuForProductId(env, productId);
+  const mappedSku = await getCreemSkuByProductId(env, productId);
   const metadataSku = String(checkout.metadata?.sku || "");
   const sku = mappedSku && (!metadataSku || metadataSku === mappedSku) ? mappedSku : "";
   if (!sku) throw new Error("Creem product is not mapped to a LeeMockups SKU.");
