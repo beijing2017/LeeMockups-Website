@@ -7,6 +7,7 @@ import { PolicyLinks } from "@/components/policy-links";
 import { savePrivateDownload } from "@/lib/private-download";
 
 type DownloadItem = { sku: string; name: string; url: string };
+const lastOrderKey = "leemockups:last-order-reference";
 
 export default function OrderDownloadPage() {
   const [orderNumber, setOrderNumber] = useState("");
@@ -34,6 +35,7 @@ export default function OrderDownloadPage() {
       for (const item of verifiedDownloads) {
         localStorage.setItem(`leemockups-purchase:${item.sku}`, JSON.stringify({ transactionId: orderNumber, claimToken: "", email }));
       }
+      localStorage.setItem(lastOrderKey, orderNumber);
       setDownloads(verifiedDownloads);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "We could not verify this order.");
@@ -63,10 +65,10 @@ export default function OrderDownloadPage() {
       <div className="order-copy"><span className="section-tag">PURCHASE DOWNLOAD</span><h1>Get your mockup.</h1><p>Enter the order, transaction, or invoice reference from your Creem or Paddle receipt. We’ll verify the payment and create a private download link.</p><ul><li><ShieldCheck /> Secure, time-limited download</li><li><KeyRound /> No LeeMockups account required</li></ul></div>
       <div className="order-card">
         <form onSubmit={redeem}>
-          <label>Order or invoice reference<input required autoComplete="off" value={orderNumber} onChange={(event) => setOrderNumber(event.target.value.trim())} placeholder="e.g. ord_… or 47733-10001" /></label>
+          <label>Order or invoice reference<input required autoComplete="off" value={orderNumber} onFocus={() => { if (!orderNumber) setOrderNumber(localStorage.getItem(lastOrderKey) || ""); }} onChange={(event) => setOrderNumber(event.target.value.trim())} placeholder="e.g. ORD-… or 47733-10001" /></label>
           <label>Email used at checkout<input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></label>
           {downloads.length > 0
-            ? <button className="button primary" type="button" onClick={() => beginDownload(downloads[0])}><Download size={17} /> Download</button>
+            ? <button className="button primary purchase-primary purchased" type="button" onClick={() => beginDownload(downloads[0])}><Download size={17} /> Download</button>
             : <button className="button primary" disabled={busy}>{busy ? "Verifying purchase…" : "Get my download"}</button>}
         </form>
         {error && <div className="order-message error" role="alert">{error}</div>}
