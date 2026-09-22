@@ -1971,9 +1971,10 @@ async function getCommerceCustomer(env, provider, customerId) {
     .bind(provider, customerId).first();
 }
 async function getCommerceEntitlements(env, provider, reference) {
+  const normalizedReference = provider === "CREEM" && /^ORD-/i.test(reference) ? reference.toUpperCase() : reference;
   const alias = await env.DB.prepare(`SELECT transaction_id FROM commerce_order_aliases WHERE provider=? AND alias=?`)
-    .bind(provider, reference).first();
-  const transactionId = alias?.transaction_id || (provider === "CREEM" ? CREEM_RECEIPT_ALIASES[reference.toUpperCase()] : "") || reference;
+    .bind(provider, normalizedReference).first();
+  const transactionId = alias?.transaction_id || (provider === "CREEM" ? CREEM_RECEIPT_ALIASES[normalizedReference] : "") || normalizedReference;
   const result = await env.DB.prepare(`SELECT transaction_id, sku, customer_id, email_hash, claim_hash
     FROM commerce_entitlements WHERE provider=? AND transaction_id=? AND status='completed'`)
     .bind(provider, transactionId).all();
@@ -2004,14 +2005,20 @@ async function saveCreemCheckout(env, checkout, eventId) {
     checkout.order?.transaction,
     checkout.order?.order_no,
     checkout.order?.order_number,
+    checkout.order?.orderNo,
+    checkout.order?.orderNumber,
+    checkout.order?.number,
     checkout.order?.reference,
     checkout.order_no,
     checkout.order_number,
+    checkout.orderNo,
+    checkout.orderNumber,
   ].filter(Boolean).map(String));
   for (const alias of aliases) {
+    const normalizedAlias = /^ORD-/i.test(alias) ? alias.toUpperCase() : alias;
     await env.DB.prepare(`INSERT INTO commerce_order_aliases (provider, alias, transaction_id)
       VALUES ('CREEM', ?, ?) ON CONFLICT(provider, alias) DO UPDATE SET transaction_id=excluded.transaction_id`)
-      .bind(alias, checkout.id).run();
+      .bind(normalizedAlias, checkout.id).run();
   }
   const cleanAttribution = (value, fallback = "") => String(value || fallback).trim().slice(0, 80);
   await env.DB.prepare(`INSERT INTO commerce_attribution
