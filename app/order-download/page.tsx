@@ -20,10 +20,11 @@ export default function OrderDownloadPage() {
     setError("");
     setDownloads([]);
     try {
+      const provider = /^(?:ch|ord|tran)_/i.test(orderNumber) ? "CREEM" : "PADDLE";
       const response = await fetch("https://downloads.leemockups.com/commerce/redeem", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ provider: "PADDLE", transactionId: orderNumber, email }),
+        body: JSON.stringify({ provider, transactionId: orderNumber, email }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "We could not verify this order.");
@@ -42,10 +43,10 @@ export default function OrderDownloadPage() {
   return <main className="order-page">
     <SiteNav current="order-download" />
     <section className="order-shell shell">
-      <div className="order-copy"><span className="section-tag">PURCHASE DOWNLOAD</span><h1>Get your mockup.</h1><p>Enter the invoice reference shown under Invoice details in the PDF attached to your Paddle receipt. We’ll verify the payment and create a private download link.</p><ul><li><ShieldCheck /> Secure, time-limited download</li><li><KeyRound /> No LeeMockups account required</li></ul></div>
+      <div className="order-copy"><span className="section-tag">PURCHASE DOWNLOAD</span><h1>Get your mockup.</h1><p>Enter the order, transaction, or invoice reference from your Creem or Paddle receipt. We’ll verify the payment and create a private download link.</p><ul><li><ShieldCheck /> Secure, time-limited download</li><li><KeyRound /> No LeeMockups account required</li></ul></div>
       <div className="order-card">
         <form onSubmit={redeem}>
-          <label>Invoice reference<input required autoComplete="off" value={orderNumber} onChange={(event) => setOrderNumber(event.target.value.trim())} placeholder="e.g. 47733-10001" /></label>
+          <label>Order or invoice reference<input required autoComplete="off" value={orderNumber} onChange={(event) => setOrderNumber(event.target.value.trim())} placeholder="e.g. ord_… or 47733-10001" /></label>
           <label>Email used at checkout<input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></label>
           {downloads.length > 0
             ? <a className="button primary" href={downloads[0].url}><Download size={17} /> Download</a>
