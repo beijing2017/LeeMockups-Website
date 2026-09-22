@@ -55,6 +55,5 @@ export async function savePrivateDownload(
 
 export function downloadProgressLabel(progress: DownloadProgress | null) {
   if (!progress) return "Choose save location…";
-  if (!progress.total) return "Downloading…";
-  return `Downloading ${Math.min(100, Math.round((progress.received / progress.total) * 100))}%`;
+  return "Downloading…";
 }
