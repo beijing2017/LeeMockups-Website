@@ -1,4 +1,4 @@
-export type PurchaseProvider = "NONE" | "CREEM" | "LEMONSQUEEZY" | "ETSY" | "OTHER";
+export type PurchaseProvider = "NONE" | "PADDLE" | "CREEM" | "LEMONSQUEEZY" | "ETSY" | "OTHER";
 
 export type CommerceProduct = {
   sku?: string;
