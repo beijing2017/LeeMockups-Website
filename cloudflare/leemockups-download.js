@@ -13,6 +13,14 @@ const PADDLE_PRICE_SKUS = {
 const CREEM_PRODUCT_SKUS = {
   prod_1jYFUPxAzPuJQtKJL2SEe3: "LM-VM-MUG-001",
 };
+function creemProductIdForSku(env, sku) {
+  if (sku === "LM-VM-MUG-001" && env.CREEM_PRODUCT_ID) return String(env.CREEM_PRODUCT_ID).trim();
+  return Object.entries(CREEM_PRODUCT_SKUS).find(([, mappedSku]) => mappedSku === sku)?.[0] || "";
+}
+function creemSkuForProductId(env, productId) {
+  if (env.CREEM_PRODUCT_ID && String(env.CREEM_PRODUCT_ID).trim() === productId) return "LM-VM-MUG-001";
+  return CREEM_PRODUCT_SKUS[productId] || "";
+}
 // Creem receipts expose an ORD- reference that is not currently returned by
 // their public API. Preserve verified legacy receipt mappings for recovery.
 const CREEM_RECEIPT_ALIASES = {
@@ -180,10 +188,10 @@ export default {
       if (!env.CREEM_API_KEY) return redeemJson({ ok: false, error: "Creem checkout is not configured yet." }, 503, corsHeaders);
       try {
         const body = await request.json();
-        const productId = String(body?.productId || "").trim();
         const sku = String(body?.sku || "").trim();
         const claimToken = String(body?.claimToken || "").trim();
-        if (CREEM_PRODUCT_SKUS[productId] !== sku || !/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku) || !/^[a-f\d]{64}$/.test(claimToken)) {
+        const productId = creemProductIdForSku(env, sku);
+        if (!productId || !/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku) || !/^[a-f\d]{64}$/.test(claimToken)) {
           return redeemJson({ ok: false, error: "Invalid checkout request." }, 400, corsHeaders);
         }
         const cleanAttribution = (value, fallback = "") => String(value || fallback).trim().slice(0, 80);
@@ -1983,7 +1991,7 @@ async function getCommerceEntitlements(env, provider, reference) {
 async function saveCreemCheckout(env, checkout, eventId) {
   if (!checkout?.id || checkout.status !== "completed" || checkout.order?.status !== "paid") return;
   const productId = String(checkout.product?.id || checkout.order?.product || "");
-  const mappedSku = CREEM_PRODUCT_SKUS[productId];
+  const mappedSku = creemSkuForProductId(env, productId);
   const metadataSku = String(checkout.metadata?.sku || "");
   const sku = mappedSku && (!metadataSku || metadataSku === mappedSku) ? mappedSku : "";
   if (!sku) throw new Error("Creem product is not mapped to a LeeMockups SKU.");

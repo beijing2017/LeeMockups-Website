@@ -29,7 +29,6 @@ jobs:
           NEXT_PUBLIC_SITE_URL: https://www.leemockups.com
           NEXT_PUBLIC_GA_ID: ${{ vars.GA_MEASUREMENT_ID }}
           NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION: ${{ vars.GOOGLE_SITE_VERIFICATION }}
-          NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: ${{ vars.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

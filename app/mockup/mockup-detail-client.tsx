@@ -4,14 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AlertTriangle, Check, Download, Monitor, Play, ShieldCheck } from "lucide-react";
-import { resolveCommerce } from "@/lib/commerce";
+import { resolveCommerce, resolvePriceUsd } from "@/lib/commerce";
 import { productExperience } from "@/lib/product-experience";
 import { PurchaseAction } from "@/components/purchase-action";
 import { trackEvent } from "@/lib/marketing-attribution";
 
 const assetBase = "https://downloads.leemockups.com";
 type GalleryItem = { type:"image"|"video"; path:string; alt?:string };
-type Product = { sku:string; name:string; description:string; category:string; thumbnailPath:string; previewPath:string; gallery?:GalleryItem[]; purchaseProvider?:string; providerProductId?:string; purchaseUrl?:string; deliveryUrl?:string; etsyUrl?:string; paddlePriceId?:string; priceUsd?:number; resolution?:string; durationSeconds?:number; isFree?:boolean; sampleUrl?:string; supportedPlatforms?:string; includedFiles?:string[]; keywords?:string[]; assetVersion?:string };
+type Product = { sku:string; name:string; description:string; category:string; thumbnailPath:string; previewPath:string; gallery?:GalleryItem[]; purchaseProvider?:string; providerProductId?:string; purchaseUrl?:string; deliveryUrl?:string; etsyUrl?:string; priceUsd?:number; resolution?:string; durationSeconds?:number; isFree?:boolean; sampleUrl?:string; supportedPlatforms?:string; includedFiles?:string[]; keywords?:string[]; assetVersion?:string };
 
 export function MockupDetailClient() {
   const sku = useSearchParams().get("sku") || "";
@@ -24,7 +24,7 @@ export function MockupDetailClient() {
   const freeSample = useMemo(() => products.find((item) => item.isFree && item.sampleUrl), [products]);
   useEffect(() => {
     if (!product) return;
-    trackEvent("view_item", { items:[{ item_id:product.sku, item_name:product.name, price:Number(product.priceUsd??9.9) }] });
+    trackEvent("view_item", { items:[{ item_id:product.sku, item_name:product.name, price:resolvePriceUsd(product) }] });
     const canonicalUrl = `https://www.leemockups.com/mockup/?sku=${encodeURIComponent(product.sku)}`;
     const imageUrl = `${assetBase}/${product.thumbnailPath}`;
     const title = `${product.name} | LeeMockups`;
@@ -48,7 +48,7 @@ export function MockupDetailClient() {
     structuredData.text = JSON.stringify({
       "@context":"https://schema.org", "@type":"Product", sku:product.sku, name:product.name,
       description, image:[imageUrl], category:product.category, brand:{"@type":"Brand",name:"LeeMockups"},
-      offers:{"@type":"Offer",url:canonicalUrl,priceCurrency:"USD",price:product.isFree?0:Number(product.priceUsd??9.9),availability:"https://schema.org/InStock"}
+      offers:{"@type":"Offer",url:canonicalUrl,priceCurrency:"USD",price:product.isFree?0:resolvePriceUsd(product),availability:"https://schema.org/InStock"}
     });
     document.head.querySelectorAll('script[data-product-seo]').forEach((element) => element.remove());
     document.head.appendChild(structuredData);
@@ -61,9 +61,9 @@ export function MockupDetailClient() {
   const gallery:GalleryItem[] = product.gallery?.length ? product.gallery : [{type:"image",path:product.thumbnailPath,alt:product.name},{type:"video",path:product.previewPath,alt:`${product.name} video preview`}];
   const activeMedia = gallery[Math.min(selectedMedia, gallery.length - 1)];
   const fallbackProvider=product.sku==="LM-VM-MUG-001"?"CREEM":"";
-  const purchaseProvider=commerce.provider!=="NONE"?commerce.provider:fallbackProvider;
-  const providerProductId=product.providerProductId||(purchaseProvider==="CREEM"&&product.sku==="LM-VM-MUG-001"?"prod_1jYFUPxAzPuJQtKJL2SEe3":product.paddlePriceId||"");
-  const purchasePanel = <aside className="mockup-purchase-panel"><div className="mockup-purchase-meta"><strong>{product.isFree?"Free":commerce.price}</strong><div><small>{commerce.resolution}</small><small>{commerce.duration}</small></div></div><small>Digital product · No physical item</small>{product.isFree?(product.sampleUrl?<a className="button primary" href={product.sampleUrl} target="_blank" rel="noreferrer"><Download size={17}/> Download free sample</a>:<button className="button primary" disabled>Free sample coming soon</button>):<PurchaseAction provider={purchaseProvider} providerProductId={providerProductId} purchaseUrl={commerce.purchaseUrl} sku={product.sku}/>}<Link className="mockup-client-download" href={productExperience.officialDownloadPath}><Download size={17}/><span><strong>Download Desktop App</strong><small>First-time use · Windows and macOS</small></span></Link><p>Review compatibility and the <Link href="/refunds/">refund policy</Link> before purchasing.</p>{commerce.deliveryUrl&&<a className="mockup-existing-download" href={commerce.deliveryUrl}>Already purchased? Download</a>}</aside>;
+  const purchaseProvider=product.sku==="LM-VM-MUG-001"?"CREEM":commerce.provider!=="NONE"?commerce.provider:fallbackProvider;
+  const providerProductId=product.providerProductId||(purchaseProvider==="CREEM"&&product.sku==="LM-VM-MUG-001"?"prod_1jYFUPxAzPuJQtKJL2SEe3":"");
+  const purchasePanel = <aside className="mockup-purchase-panel"><div className="mockup-purchase-meta"><strong>{product.isFree?"Free":commerce.launchSpecial?`Launch Special · ${commerce.price}`:commerce.price}</strong><div><small>{commerce.resolution}</small><small>{commerce.duration}</small></div></div><small>Digital product · No physical item</small>{product.isFree?(product.sampleUrl?<a className="button primary" href={product.sampleUrl} target="_blank" rel="noreferrer"><Download size={17}/> Download free sample</a>:<button className="button primary" disabled>Free sample coming soon</button>):<PurchaseAction provider={purchaseProvider} providerProductId={providerProductId} purchaseUrl={commerce.purchaseUrl} sku={product.sku}/>}<Link className="mockup-client-download" href={productExperience.officialDownloadPath}><Download size={17}/><span><strong>Download Desktop App</strong><small>First-time use · Windows and macOS</small></span></Link><p>Review compatibility and the <Link href="/refunds/">refund policy</Link> before purchasing.</p>{commerce.deliveryUrl&&<a className="mockup-existing-download" href={commerce.deliveryUrl}>Already purchased? Download</a>}</aside>;
   return <>
     <section className="mockup-product-hero shell"><div className="mockup-gallery"><div className="mockup-gallery-thumbs" aria-label="Product media">{gallery.map((item,index)=><button type="button" className={index===selectedMedia?"selected":""} onClick={()=>setSelectedMedia(index)} aria-label={`Show ${item.type} ${index+1}`} key={`${item.path}-${index}`}>{item.type==="video"?<><video muted preload="metadata" poster={`${assetBase}/${product.thumbnailPath}?v=${encodeURIComponent(product.assetVersion||"1")}`}><source src={`${assetBase}/${item.path}?v=${encodeURIComponent(product.assetVersion||"1")}`} /></video><Play size={16}/></>:<img src={`${assetBase}/${item.path}?v=${encodeURIComponent(product.assetVersion||"1")}`} alt="" loading="lazy"/>}</button>)}</div><div className="mockup-product-media" onContextMenu={(event)=>event.preventDefault()}>{activeMedia.type==="video"?<video key={activeMedia.path} muted loop playsInline autoPlay preload="metadata" controlsList="nodownload noremoteplayback" disablePictureInPicture poster={`${assetBase}/${product.thumbnailPath}?v=${encodeURIComponent(product.assetVersion||"1")}`}><source src={`${assetBase}/${activeMedia.path}?v=${encodeURIComponent(product.assetVersion||"1")}`} /></video>:<img src={`${assetBase}/${activeMedia.path}?v=${encodeURIComponent(product.assetVersion||"1")}`} alt={activeMedia.alt||product.name}/>} {product.isFree&&<span className="mockup-free-badge">FREE</span>}</div></div><div className="mockup-product-summary"><Link className="mockup-back" href="/mockups/">← Mockup Library</Link><h1>{product.name}</h1>{purchasePanel}</div></section>
     <section className="mockup-product-content shell"><div className="mockup-info-main">

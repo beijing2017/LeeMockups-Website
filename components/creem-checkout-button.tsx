@@ -16,7 +16,7 @@ function randomToken(){
   return Array.from(bytes,(value)=>value.toString(16).padStart(2,"0")).join("");
 }
 
-export function CreemCheckoutButton({productId,sku}:{productId:string;sku:string}){
+export function CreemCheckoutButton({sku}:{sku:string}){
   const [opening,setOpening]=useState(false),[checking,setChecking]=useState(true),[error,setError]=useState(""),[downloads,setDownloads]=useState<DownloadItem[]>([]);
   const downloadLock=useRef(false);
   const storageKey=`leemockups-purchase:${sku}`;
@@ -53,7 +53,7 @@ export function CreemCheckoutButton({productId,sku}:{productId:string;sku:string
     setOpening(true);setError("");
     try{
       const claimToken=randomToken();localStorage.setItem(`${storageKey}:pending`,JSON.stringify({claimToken}));
-      const response=await fetch(checkoutApi,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({productId,sku,claimToken,attribution:readAttribution()})});
+      const response=await fetch(checkoutApi,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sku,claimToken,attribution:readAttribution()})});
       const body=await response.json();
       if(!response.ok||!body.checkoutUrl)throw new Error(body.error||"Checkout could not open.");
       trackEvent("begin_checkout",{items:[{item_id:sku}]});window.location.assign(body.checkoutUrl);
@@ -66,6 +66,6 @@ export function CreemCheckoutButton({productId,sku}:{productId:string;sku:string
     catch(reason){if((reason as DOMException)?.name!=="AbortError")setError(reason instanceof Error?reason.message:"The download could not be completed.")}
     finally{downloadLock.current=false}
   }
-  if(downloads.length)return <><div className="paddle-downloads purchased">{downloads.map((item)=><button className="button primary purchase-primary purchased" type="button" key={item.sku} onClick={()=>beginDownload(item)}><Download size={17}/>Download mockup</button>)}</div>{error&&<small className="checkout-error" role="alert">{error}</small>}</>;
+  if(downloads.length)return <><div className="purchase-downloads purchased">{downloads.map((item)=><button className="button primary purchase-primary purchased" type="button" key={item.sku} onClick={()=>beginDownload(item)}><Download size={17}/>Download mockup</button>)}</div>{error&&<small className="checkout-error" role="alert">{error}</small>}</>;
   return <>{checking?<button className="button primary purchase-primary" disabled>Checking purchase…</button>:<button className="button primary purchase-primary" type="button" onClick={openCheckout} disabled={opening}>{opening?"Opening checkout…":"Buy now"}</button>}{error&&<small className="checkout-error" role="alert">{error}</small>}<Link className="mockup-existing-download" href="/order-download/">Already purchased? Restore download</Link></>;
 }

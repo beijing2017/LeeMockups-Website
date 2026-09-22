@@ -23,11 +23,10 @@ export default function OrderDownloadPage() {
     setError("");
     setDownloads([]);
     try {
-      const provider = /^(?:(?:ch|ord|tran)_|ORD-)/i.test(orderNumber) ? "CREEM" : "PADDLE";
       const response = await fetch("https://downloads.leemockups.com/commerce/redeem", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ provider, transactionId: orderNumber, email }),
+        body: JSON.stringify({ provider: "CREEM", transactionId: orderNumber, email }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "We could not verify this order.");
@@ -62,10 +61,10 @@ export default function OrderDownloadPage() {
   return <main className="order-page">
     <SiteNav current="order-download" />
     <section className="order-shell shell">
-      <div className="order-copy"><span className="section-tag">PURCHASE DOWNLOAD</span><h1>Get your mockup.</h1><p>Enter the order, transaction, or invoice reference from your Creem or Paddle receipt. We’ll verify the payment and create a private download link.</p><ul><li><ShieldCheck /> Secure, time-limited download</li><li><KeyRound /> No LeeMockups account required</li></ul></div>
+      <div className="order-copy"><span className="section-tag">PURCHASE DOWNLOAD</span><h1>Get your mockup.</h1><p>Enter the order number from your Creem receipt. We’ll verify the payment and create a private download link.</p><ul><li><ShieldCheck /> Secure, time-limited download</li><li><KeyRound /> No LeeMockups account required</li></ul></div>
       <div className="order-card">
         <form onSubmit={redeem}>
-          <label>Order number or invoice reference<input required autoComplete="off" value={orderNumber} onFocus={() => { if (!orderNumber) setOrderNumber(localStorage.getItem(lastOrderKey) || ""); }} onChange={(event) => setOrderNumber(event.target.value.trim())} placeholder="Creem: ORD-…  ·  Paddle: 47733-10001" /></label>
+          <label>Order number<input required autoComplete="off" value={orderNumber} onFocus={() => { if (!orderNumber) setOrderNumber(localStorage.getItem(lastOrderKey) || ""); }} onChange={(event) => setOrderNumber(event.target.value.trim())} placeholder="e.g. ORD-1A0CA4D195542817" /></label>
           <label>Email used at checkout<input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></label>
           {downloads.length > 0
             ? <button className="button primary purchase-primary purchased" type="button" onClick={() => beginDownload(downloads[0])}><Download size={17} /> Download</button>
