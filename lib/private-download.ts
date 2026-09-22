@@ -18,7 +18,7 @@ export type DownloadProgress = { received: number; total: number };
 export async function savePrivateDownload(
   url: string,
   fileName: string,
-  onProgress: (progress: DownloadProgress) => void,
+  onProgress: (progress: DownloadProgress) => void = () => undefined,
 ) {
   const picker = (window as SavePickerWindow).showSaveFilePicker;
   if (!picker) {
@@ -51,9 +51,4 @@ export async function savePrivateDownload(
     await writable.abort().catch(() => undefined);
     throw error;
   }
-}
-
-export function downloadProgressLabel(progress: DownloadProgress | null) {
-  if (!progress) return "Choose save location…";
-  return "Downloading…";
 }

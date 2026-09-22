@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Download } from "lucide-react";
 import { readAttribution, trackEvent } from "@/lib/marketing-attribution";
-import { downloadProgressLabel, savePrivateDownload, type DownloadProgress } from "@/lib/private-download";
+import { savePrivateDownload } from "@/lib/private-download";
 
 type DownloadItem={sku:string;name:string;url:string};
 type PurchaseRecord={transactionId:string;claimToken:string;email?:string};
@@ -17,7 +17,7 @@ function randomToken(){
 }
 
 export function CreemCheckoutButton({productId,sku}:{productId:string;sku:string}){
-  const [opening,setOpening]=useState(false),[checking,setChecking]=useState(true),[downloading,setDownloading]=useState(false),[progress,setProgress]=useState<DownloadProgress|null>(null),[error,setError]=useState(""),[downloads,setDownloads]=useState<DownloadItem[]>([]);
+  const [opening,setOpening]=useState(false),[checking,setChecking]=useState(true),[error,setError]=useState(""),[downloads,setDownloads]=useState<DownloadItem[]>([]);
   const downloadLock=useRef(false);
   const storageKey=`leemockups-purchase:${sku}`;
   async function redeem(record:PurchaseRecord,retries=0){
@@ -61,11 +61,11 @@ export function CreemCheckoutButton({productId,sku}:{productId:string;sku:string
   }
   async function beginDownload(item:DownloadItem){
     if(downloadLock.current)return;
-    downloadLock.current=true;setDownloading(true);setProgress(null);setError("");trackEvent("file_download",{item_id:item.sku});
-    try{await savePrivateDownload(item.url,`${item.sku}.mockup`,setProgress)}
+    downloadLock.current=true;setError("");trackEvent("file_download",{item_id:item.sku});
+    try{await savePrivateDownload(item.url,`${item.sku}.mockup`)}
     catch(reason){if((reason as DOMException)?.name!=="AbortError")setError(reason instanceof Error?reason.message:"The download could not be completed.")}
-    finally{downloadLock.current=false;setDownloading(false);setProgress(null)}
+    finally{downloadLock.current=false}
   }
-  if(downloads.length)return <><div className="paddle-downloads purchased">{downloading?<button className="button primary purchase-primary purchased" disabled aria-busy="true">{downloadProgressLabel(progress)}</button>:downloads.map((item)=><button className="button primary purchase-primary purchased" type="button" key={item.sku} onClick={()=>beginDownload(item)}><Download size={17}/>Download mockup</button>)}</div>{error&&<small className="checkout-error" role="alert">{error}</small>}</>;
+  if(downloads.length)return <><div className="paddle-downloads purchased">{downloads.map((item)=><button className="button primary purchase-primary purchased" type="button" key={item.sku} onClick={()=>beginDownload(item)}><Download size={17}/>Download mockup</button>)}</div>{error&&<small className="checkout-error" role="alert">{error}</small>}</>;
   return <>{checking?<button className="button primary purchase-primary" disabled>Checking purchase…</button>:<button className="button primary purchase-primary" type="button" onClick={openCheckout} disabled={opening}>{opening?"Opening checkout…":"Buy now"}</button>}{error&&<small className="checkout-error" role="alert">{error}</small>}<Link className="mockup-existing-download" href="/order-download/">Already purchased? Restore download</Link></>;
 }
