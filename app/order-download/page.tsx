@@ -4,6 +4,7 @@ import { Download, KeyRound, ShieldCheck } from "lucide-react";
 import { FormEvent, useRef, useState } from "react";
 import { SiteNav } from "@/components/site-nav";
 import { PolicyLinks } from "@/components/policy-links";
+import { downloadProgressLabel, savePrivateDownload, type DownloadProgress } from "@/lib/private-download";
 
 type DownloadItem = { sku: string; name: string; url: string };
 
@@ -12,6 +13,7 @@ export default function OrderDownloadPage() {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const downloadLock = useRef(false);
   const [error, setError] = useState("");
   const [downloads, setDownloads] = useState<DownloadItem[]>([]);
@@ -42,6 +44,25 @@ export default function OrderDownloadPage() {
     }
   }
 
+  async function beginDownload(item: DownloadItem) {
+    if (downloadLock.current) return;
+    downloadLock.current = true;
+    setDownloading(true);
+    setProgress(null);
+    setError("");
+    try {
+      await savePrivateDownload(item.url, `${item.sku}.mockup`, setProgress);
+    } catch (reason) {
+      if ((reason as DOMException)?.name !== "AbortError") {
+        setError(reason instanceof Error ? reason.message : "The download could not be completed.");
+      }
+    } finally {
+      downloadLock.current = false;
+      setDownloading(false);
+      setProgress(null);
+    }
+  }
+
   return <main className="order-page">
     <SiteNav current="order-download" />
     <section className="order-shell shell">
@@ -52,13 +73,8 @@ export default function OrderDownloadPage() {
           <label>Email used at checkout<input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></label>
           {downloads.length > 0
             ? downloading
-              ? <button className="button primary" type="button" disabled aria-busy="true">Preparing download…</button>
-              : <a className="button primary" href={downloads[0].url} onClick={(event) => {
-                if (downloadLock.current) { event.preventDefault(); return; }
-                downloadLock.current = true;
-                setDownloading(true);
-                window.setTimeout(() => { downloadLock.current = false; setDownloading(false); }, 20000);
-              }}><Download size={17} /> Download</a>
+              ? <button className="button primary" type="button" disabled aria-busy="true">{downloadProgressLabel(progress)}</button>
+              : <button className="button primary" type="button" onClick={() => beginDownload(downloads[0])}><Download size={17} /> Download</button>
             : <button className="button primary" disabled={busy}>{busy ? "Verifying purchase…" : "Get my download"}</button>}
         </form>
         {error && <div className="order-message error" role="alert">{error}</div>}

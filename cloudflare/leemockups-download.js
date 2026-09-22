@@ -1371,6 +1371,12 @@ export default {
         "X-LeeMockups-R2-Ms",
         String(storageDurationMs)
       );
+      const downloadOrigin = request.headers.get("origin") || "";
+      if (isRedeemOrigin(downloadOrigin)) {
+        headers.set("Access-Control-Allow-Origin", downloadOrigin);
+        headers.set("Access-Control-Expose-Headers", "Content-Length, Content-Disposition, Server-Timing, X-LeeMockups-R2-Ms");
+        headers.set("Vary", "Origin");
+      }
       if (request.method === "GET" && purchaseRef && ctx) {
         ctx.waitUntil(recordMockupDownload(env, id, purchaseRef));
       }
