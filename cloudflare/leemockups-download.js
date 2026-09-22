@@ -1973,7 +1973,12 @@ async function syncCreemProduct(env, product) {
   if (existing && !(creemMode(env) === "live" && CREEM_PRODUCT_SKUS[existing.product_id])) return {
     sku: product.sku, productId: existing.product_id, discountCode: existing.discount_code || "", created: false,
   };
-  const createdProduct = await creemRequest(env, "/v1/products", {
+  const successUrl = `https://www.leemockups.com/mockup/?sku=${encodeURIComponent(product.sku)}&payment=success`;
+  const productList = await creemRequest(env, "/v1/products/search?page_number=1&page_size=100", { method: "GET" });
+  const matchingProduct = (productList?.items || productList?.products || []).find((item) =>
+    String(item?.default_success_url || "") === successUrl && Number(item?.price) === product.regularPriceCents && String(item?.currency || "").toUpperCase() === "USD"
+  );
+  const createdProduct = matchingProduct || await creemRequest(env, "/v1/products", {
     method: "POST",
     body: JSON.stringify({
       name: product.name,
@@ -1983,7 +1988,7 @@ async function syncCreemProduct(env, product) {
       billing_type: "onetime",
       tax_mode: "inclusive",
       tax_category: "digital-goods-service",
-      default_success_url: `https://www.leemockups.com/mockup/?sku=${encodeURIComponent(product.sku)}&payment=success`,
+      default_success_url: successUrl,
     }),
   });
   const productId = String(createdProduct?.id || createdProduct?.product?.id || "");
@@ -1991,7 +1996,7 @@ async function syncCreemProduct(env, product) {
   let discountCode = "";
   const discountAmount = product.regularPriceCents - product.launchPriceCents;
   if (discountAmount > 0) {
-    discountCode = `LAUNCH-${product.sku.replace(/[^A-Z0-9]/g, "")}`;
+    discountCode = `L349${product.sku.slice(-6).replace(/[^A-Z0-9]/g, "")}`.slice(0, 14);
     const createdDiscount = await creemRequest(env, "/v1/discounts", {
       method: "POST",
       body: JSON.stringify({
