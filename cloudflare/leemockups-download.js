@@ -190,7 +190,7 @@ export default {
             product_id: productId,
             request_id: `${sku}:${crypto.randomUUID()}`,
             units: 1,
-            success_url: `https://www.leemockups.com/mockup/?sku=${encodeURIComponent(sku)}&payment=success&checkout_id={checkout_id}`,
+            success_url: `https://www.leemockups.com/mockup/?sku=${encodeURIComponent(sku)}&payment=success`,
             metadata: {
               sku,
               claim_token: claimToken,

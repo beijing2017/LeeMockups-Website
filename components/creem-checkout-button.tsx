@@ -29,10 +29,12 @@ export function CreemCheckoutButton({productId,sku}:{productId:string;sku:string
     return false;
   }
   useEffect(()=>{
-    const params=new URLSearchParams(window.location.search),returnedCheckout=params.get("checkout_id")||"",pendingRaw=localStorage.getItem(`${storageKey}:pending`);
-    if(params.get("payment")==="success"&&returnedCheckout&&pendingRaw){
+    const params=new URLSearchParams(window.location.search);
+    const returnedCheckout=params.getAll("checkout_id").find((value)=>/^ch_[A-Za-z\d]+$/.test(value))||"";
+    const purchaseRaw=localStorage.getItem(`${storageKey}:pending`)||localStorage.getItem(storageKey);
+    if(params.get("payment")==="success"&&returnedCheckout&&purchaseRaw){
       try{
-        const pending=JSON.parse(pendingRaw) as {claimToken:string};
+        const pending=JSON.parse(purchaseRaw) as {claimToken:string};
         const record:PurchaseRecord={transactionId:returnedCheckout,claimToken:pending.claimToken};
         localStorage.setItem(storageKey,JSON.stringify(record));localStorage.removeItem(`${storageKey}:pending`);
         trackEvent("purchase",{transaction_id:returnedCheckout,items:[{item_id:sku}]});
