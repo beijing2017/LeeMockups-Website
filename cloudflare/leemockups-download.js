@@ -10,6 +10,9 @@ const ANALYTICS_ACCESS_HASH = "Yij76R-lFUEKHKJ2rthMg3uVbHtB5zoN_rkwHDcElJU";
 const PADDLE_PRICE_SKUS = {
   pri_01m2xdd5251y7e4j71bd4gkg1z: "LM-VM-MUG-001",
 };
+const CREEM_PRODUCT_SKUS = {
+  prod_1jYFUPxAzPuJQtKJL2SEe3: "LM-VM-MUG-001",
+};
 const REDEEM_ORIGINS = new Set([
   "https://www.leemockups.com",
   "https://leemockups.com",
@@ -163,6 +166,81 @@ export default {
         return jsonResponse({ ok: false, error: "Webhook processing failed." }, 500);
       }
     }
+    if (url.pathname === "/creem/checkout") {
+      const origin = request.headers.get("origin") || "";
+      const corsHeaders = redeemCorsHeaders(origin);
+      if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+      if (request.method !== "POST") return redeemJson({ ok: false, error: "Method not allowed." }, 405, corsHeaders);
+      if (!isRedeemOrigin(origin)) return redeemJson({ ok: false, error: "Origin not allowed." }, 403, corsHeaders);
+      if (!env.CREEM_API_KEY) return redeemJson({ ok: false, error: "Creem checkout is not configured yet." }, 503, corsHeaders);
+      try {
+        const body = await request.json();
+        const productId = String(body?.productId || "").trim();
+        const sku = String(body?.sku || "").trim();
+        const claimToken = String(body?.claimToken || "").trim();
+        if (CREEM_PRODUCT_SKUS[productId] !== sku || !/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku) || !/^[a-f\d]{64}$/.test(claimToken)) {
+          return redeemJson({ ok: false, error: "Invalid checkout request." }, 400, corsHeaders);
+        }
+        const cleanAttribution = (value, fallback = "") => String(value || fallback).trim().slice(0, 80);
+        const attribution = body?.attribution || {};
+        const checkoutResponse = await fetch(`${creemApiBase(env)}/v1/checkouts`, {
+          method: "POST",
+          headers: { "x-api-key": env.CREEM_API_KEY, "content-type": "application/json", accept: "application/json" },
+          body: JSON.stringify({
+            product_id: productId,
+            request_id: `${sku}:${crypto.randomUUID()}`,
+            units: 1,
+            success_url: `https://www.leemockups.com/mockup/?sku=${encodeURIComponent(sku)}&payment=success&checkout_id={checkout_id}`,
+            metadata: {
+              sku,
+              claim_token: claimToken,
+              utm_source: cleanAttribution(attribution.source, "direct"),
+              utm_medium: cleanAttribution(attribution.medium, "none"),
+              utm_campaign: cleanAttribution(attribution.campaign),
+              utm_content: cleanAttribution(attribution.content),
+              referrer: cleanAttribution(attribution.referrer),
+            },
+          }),
+        });
+        const checkout = await checkoutResponse.json().catch(() => ({}));
+        if (!checkoutResponse.ok || !checkout?.checkout_url) {
+          console.error(JSON.stringify({ type: "creem_checkout_error", status: checkoutResponse.status }));
+          return redeemJson({ ok: false, error: "Checkout could not be created." }, 502, corsHeaders);
+        }
+        return redeemJson({ ok: true, checkoutUrl: checkout.checkout_url }, 200, corsHeaders);
+      } catch (error) {
+        console.error(JSON.stringify({ type: "creem_checkout_error", message: String(error?.message || error) }));
+        return redeemJson({ ok: false, error: "Checkout is temporarily unavailable." }, 503, corsHeaders);
+      }
+    }
+    if (url.pathname === "/creem/webhook") {
+      if (request.method === "GET") return jsonResponse({
+        ok: true,
+        mode: creemMode(env),
+        webhookConfigured: Boolean(env.CREEM_WEBHOOK_SECRET),
+        apiConfigured: Boolean(env.CREEM_API_KEY),
+      });
+      if (request.method !== "POST") return jsonResponse({ ok: false, error: "Method not allowed." }, 405);
+      const rawBody = await request.text();
+      if (!await verifyCreemSignature(rawBody, request.headers.get("creem-signature") || "", env.CREEM_WEBHOOK_SECRET)) {
+        return jsonResponse({ ok: false, error: "Invalid webhook signature." }, 401);
+      }
+      try {
+        const event = JSON.parse(rawBody);
+        await ensurePaddleTables(env);
+        if (event.eventType === "checkout.completed") await saveCreemCheckout(env, event.object || {}, event.id || "");
+        if (event.eventType === "refund.created" || event.eventType === "dispute.created") {
+          await revokeCreemEntitlements(env, event.object || {}, event.id || "");
+        }
+        if (event.id) await env.DB.prepare(`INSERT OR IGNORE INTO commerce_webhook_events
+          (provider, event_id, event_type, processed_at) VALUES ('CREEM', ?, ?, ?)`)
+          .bind(event.id, event.eventType || "unknown", new Date().toISOString()).run();
+        return jsonResponse({ ok: true });
+      } catch (error) {
+        console.error(JSON.stringify({ type: "creem_webhook_error", message: String(error?.message || error) }));
+        return jsonResponse({ ok: false, error: "Webhook processing failed." }, 500);
+      }
+    }
     if (url.pathname === "/commerce/redeem" || url.pathname === "/paddle/redeem") {
       const origin = request.headers.get("origin") || "";
       const corsHeaders = redeemCorsHeaders(origin);
@@ -174,14 +252,19 @@ export default {
         const transactionReference = String(body?.transactionId || body?.orderNumber || "").trim();
         const claimToken = String(body?.claimToken || "").trim();
         const email = normalizeEmail(body?.email);
-        if (provider !== "PADDLE") return redeemJson({ ok: false, error: "This payment provider is not available yet." }, 400, corsHeaders);
-        if (!(/^txn_[a-z\d]{26}$/.test(transactionReference) || /^\d{2,12}-\d{2,12}$/.test(transactionReference)) || (!claimToken && !email)) {
+        if (!['PADDLE', 'CREEM'].includes(provider)) return redeemJson({ ok: false, error: "This payment provider is not available yet." }, 400, corsHeaders);
+        const validReference = provider === "PADDLE"
+          ? (/^txn_[a-z\d]{26}$/.test(transactionReference) || /^\d{2,12}-\d{2,12}$/.test(transactionReference))
+          : /^(?:ch|ord|tran)_[A-Za-z\d]+$/.test(transactionReference);
+        if (!validReference || (!claimToken && !email)) {
           return redeemJson({ ok: false, error: "Enter a valid invoice number and purchase email." }, 400, corsHeaders);
         }
         await ensurePaddleTables(env);
-        let resolvedTransactionId = /^txn_/.test(transactionReference) ? transactionReference : "";
-        let rows = resolvedTransactionId ? await getPaddleEntitlements(env, resolvedTransactionId) : [];
-        if (!rows.length && env.PADDLE_API_KEY) {
+        let resolvedTransactionId = transactionReference;
+        let rows = provider === "CREEM"
+          ? await getCommerceEntitlements(env, provider, transactionReference)
+          : (/^txn_/.test(transactionReference) ? await getPaddleEntitlements(env, transactionReference) : []);
+        if (provider === "PADDLE" && !rows.length && env.PADDLE_API_KEY) {
           const transaction = await fetchPaddleTransaction(env, transactionReference);
           if (["paid", "completed"].includes(transaction?.status)) {
             resolvedTransactionId = transaction.id;
@@ -193,7 +276,8 @@ export default {
         if (!rows.length) return redeemJson({ ok: false, code: "PAYMENT_PENDING", error: "Payment is still being confirmed. Please wait a moment and try again." }, 409, corsHeaders);
         const claimHash = claimToken ? await sha256Base64Url(claimToken) : "";
         const emailHash = email ? await sha256Base64Url(email) : "";
-        const customer = rows[0].customer_id ? await getPaddleCustomer(env, rows[0].customer_id) : null;
+        resolvedTransactionId = rows[0]?.transaction_id || resolvedTransactionId;
+        const customer = rows[0].customer_id ? await getCommerceCustomer(env, provider, rows[0].customer_id) : null;
         const permitted = rows.some((row) =>
           (claimHash && row.claim_hash && safeEqual(claimHash, row.claim_hash)) ||
           (emailHash && ((row.email_hash && safeEqual(emailHash, row.email_hash)) || (customer?.email_hash && safeEqual(emailHash, customer.email_hash))))
@@ -203,13 +287,13 @@ export default {
           env,
           url.origin,
           rows.map((row) => row.sku),
-          { provider: "PADDLE", transactionId: resolvedTransactionId || rows[0]?.transaction_id }
+          { provider, transactionId: resolvedTransactionId || rows[0]?.transaction_id }
         );
         if (!downloads.length) return redeemJson({ ok: false, code: "FILE_PENDING", error: "Your payment is verified, but the file is still being prepared." }, 409, corsHeaders);
         return redeemJson({ ok: true, downloads }, 200, corsHeaders);
       } catch (error) {
         const message = String(error?.message || error);
-        console.error(JSON.stringify({ type: "paddle_redeem_error", message }));
+        console.error(JSON.stringify({ type: "commerce_redeem_error", provider: "unknown", message }));
         const statusMatch = message.match(/Paddle transaction lookup failed \((\d+)\)/);
         return redeemJson({
           ok: false,
@@ -1781,6 +1865,20 @@ async function verifyPaddleSignature(rawBody, header, secret) {
   const expected = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
   return signatures.some((signature) => safeEqual(signature, expected));
 }
+function creemMode(env) {
+  return String(env.CREEM_MODE || "test").trim().toLowerCase() === "live" ? "live" : "test";
+}
+function creemApiBase(env) {
+  return creemMode(env) === "live" ? "https://api.creem.io" : "https://test-api.creem.io";
+}
+async function verifyCreemSignature(rawBody, signature, secret) {
+  if (!secret || !/^[a-f\d]{64}$/i.test(signature)) return false;
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const computed = new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(rawBody)));
+  const provided = new Uint8Array(signature.match(/.{2}/g).map((part) => Number.parseInt(part, 16)));
+  return crypto.subtle.timingSafeEqual(computed, provided);
+}
 async function ensurePaddleTables(env) {
   await env.DB.batch([
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS commerce_customers (
@@ -1799,6 +1897,14 @@ async function ensurePaddleTables(env) {
       content TEXT NOT NULL, referrer TEXT NOT NULL, purchased_at TEXT NOT NULL,
       PRIMARY KEY (provider, transaction_id, sku)
     )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS commerce_order_aliases (
+      provider TEXT NOT NULL, alias TEXT NOT NULL, transaction_id TEXT NOT NULL,
+      PRIMARY KEY (provider, alias)
+    )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS commerce_webhook_events (
+      provider TEXT NOT NULL, event_id TEXT NOT NULL, event_type TEXT NOT NULL,
+      processed_at TEXT NOT NULL, PRIMARY KEY (provider, event_id)
+    )`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS mockup_download_totals (
       sku TEXT PRIMARY KEY, download_count INTEGER NOT NULL DEFAULT 0,
       unique_purchase_count INTEGER NOT NULL DEFAULT 0, last_downloaded_at TEXT NOT NULL
@@ -1813,6 +1919,82 @@ async function ensurePaddleTables(env) {
       PRIMARY KEY (day, sku)
     )`),
   ]);
+}
+async function saveCommerceCustomer(env, provider, customerId, email) {
+  const normalized = normalizeEmail(email);
+  if (!customerId || !normalized) return null;
+  const emailHash = await sha256Base64Url(normalized);
+  await env.DB.prepare(`INSERT INTO commerce_customers (provider, customer_id, email_hash, updated_at)
+    VALUES (?, ?, ?, ?) ON CONFLICT(provider, customer_id) DO UPDATE SET email_hash=excluded.email_hash, updated_at=excluded.updated_at`)
+    .bind(provider, customerId, emailHash, new Date().toISOString()).run();
+  await env.DB.prepare(`UPDATE commerce_entitlements SET email_hash=? WHERE provider=? AND customer_id=?`)
+    .bind(emailHash, provider, customerId).run();
+  return emailHash;
+}
+async function getCommerceCustomer(env, provider, customerId) {
+  return await env.DB.prepare(`SELECT customer_id, email_hash FROM commerce_customers WHERE provider=? AND customer_id=?`)
+    .bind(provider, customerId).first();
+}
+async function getCommerceEntitlements(env, provider, reference) {
+  const alias = await env.DB.prepare(`SELECT transaction_id FROM commerce_order_aliases WHERE provider=? AND alias=?`)
+    .bind(provider, reference).first();
+  const transactionId = alias?.transaction_id || reference;
+  const result = await env.DB.prepare(`SELECT transaction_id, sku, customer_id, email_hash, claim_hash
+    FROM commerce_entitlements WHERE provider=? AND transaction_id=? AND status='completed'`)
+    .bind(provider, transactionId).all();
+  return result.results || [];
+}
+async function saveCreemCheckout(env, checkout, eventId) {
+  if (!checkout?.id || checkout.status !== "completed" || checkout.order?.status !== "paid") return;
+  const productId = String(checkout.product?.id || checkout.order?.product || "");
+  const mappedSku = CREEM_PRODUCT_SKUS[productId];
+  const metadataSku = String(checkout.metadata?.sku || "");
+  const sku = mappedSku && (!metadataSku || metadataSku === mappedSku) ? mappedSku : "";
+  if (!sku) throw new Error("Creem product is not mapped to a LeeMockups SKU.");
+  const customerId = String(checkout.customer?.id || checkout.order?.customer || "");
+  const emailHash = await saveCommerceCustomer(env, "CREEM", customerId, checkout.customer?.email);
+  const claimToken = String(checkout.metadata?.claim_token || "");
+  const claimHash = claimToken ? await sha256Base64Url(claimToken) : null;
+  const purchasedAt = checkout.order?.created_at || new Date().toISOString();
+  await env.DB.prepare(`INSERT INTO commerce_entitlements
+    (provider, transaction_id, sku, customer_id, email_hash, claim_hash, status, event_id, purchased_at)
+    VALUES ('CREEM', ?, ?, ?, ?, ?, 'completed', ?, ?)
+    ON CONFLICT(provider, transaction_id, sku) DO UPDATE SET customer_id=excluded.customer_id,
+    email_hash=COALESCE(excluded.email_hash, commerce_entitlements.email_hash),
+    claim_hash=COALESCE(excluded.claim_hash, commerce_entitlements.claim_hash), status='completed', event_id=excluded.event_id`)
+    .bind(checkout.id, sku, customerId || null, emailHash, claimHash, eventId, purchasedAt).run();
+  const aliases = new Set([checkout.id, checkout.order?.id, checkout.order?.transaction].filter(Boolean).map(String));
+  for (const alias of aliases) {
+    await env.DB.prepare(`INSERT INTO commerce_order_aliases (provider, alias, transaction_id)
+      VALUES ('CREEM', ?, ?) ON CONFLICT(provider, alias) DO UPDATE SET transaction_id=excluded.transaction_id`)
+      .bind(alias, checkout.id).run();
+  }
+  const cleanAttribution = (value, fallback = "") => String(value || fallback).trim().slice(0, 80);
+  await env.DB.prepare(`INSERT INTO commerce_attribution
+    (provider, transaction_id, sku, source, medium, campaign, content, referrer, purchased_at)
+    VALUES ('CREEM', ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(provider, transaction_id, sku) DO UPDATE SET source=excluded.source,
+    medium=excluded.medium, campaign=excluded.campaign, content=excluded.content,
+    referrer=excluded.referrer, purchased_at=excluded.purchased_at`)
+    .bind(checkout.id, sku,
+      cleanAttribution(checkout.metadata?.utm_source, "direct"),
+      cleanAttribution(checkout.metadata?.utm_medium, "none"),
+      cleanAttribution(checkout.metadata?.utm_campaign),
+      cleanAttribution(checkout.metadata?.utm_content),
+      cleanAttribution(checkout.metadata?.referrer), purchasedAt).run();
+}
+async function revokeCreemEntitlements(env, object, eventId) {
+  const references = new Set([
+    object?.transaction?.id, object?.transaction,
+    object?.order?.id, object?.order,
+    object?.checkout?.id, object?.checkout,
+  ].filter((value) => typeof value === "string"));
+  for (const reference of references) {
+    const alias = await env.DB.prepare(`SELECT transaction_id FROM commerce_order_aliases WHERE provider='CREEM' AND alias=?`)
+      .bind(reference).first();
+    if (alias?.transaction_id) await env.DB.prepare(`UPDATE commerce_entitlements SET status='revoked', event_id=?
+      WHERE provider='CREEM' AND transaction_id=?`).bind(eventId, alias.transaction_id).run();
+  }
 }
 async function savePaddleCustomer(env, customerId, email) {
   const normalized = normalizeEmail(email);
@@ -1951,10 +2133,13 @@ function redeemCorsHeaders(origin) {
     "cache-control": "no-store",
     "vary": "Origin",
   });
-  if (REDEEM_ORIGINS.has(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
+  if (isRedeemOrigin(origin)) {
     headers.set("access-control-allow-origin", origin);
   }
   return headers;
+}
+function isRedeemOrigin(origin) {
+  return REDEEM_ORIGINS.has(origin) || /^http:\/\/(?:127\.0\.0\.1|localhost):\d+$/.test(origin);
 }
 function redeemJson(data, status, headers) {
   const responseHeaders = new Headers(headers);
