@@ -13,6 +13,11 @@ const PADDLE_PRICE_SKUS = {
 const CREEM_PRODUCT_SKUS = {
   prod_1jYFUPxAzPuJQtKJL2SEe3: "LM-VM-MUG-001",
 };
+// Creem receipts expose an ORD- reference that is not currently returned by
+// their public API. Preserve verified legacy receipt mappings for recovery.
+const CREEM_RECEIPT_ALIASES = {
+  "ORD-1A0CA4D195542817": "ch_6JD2hqRGIKkz5G24Sslymh",
+};
 const REDEEM_ORIGINS = new Set([
   "https://www.leemockups.com",
   "https://leemockups.com",
@@ -1968,7 +1973,7 @@ async function getCommerceCustomer(env, provider, customerId) {
 async function getCommerceEntitlements(env, provider, reference) {
   const alias = await env.DB.prepare(`SELECT transaction_id FROM commerce_order_aliases WHERE provider=? AND alias=?`)
     .bind(provider, reference).first();
-  const transactionId = alias?.transaction_id || reference;
+  const transactionId = alias?.transaction_id || (provider === "CREEM" ? CREEM_RECEIPT_ALIASES[reference.toUpperCase()] : "") || reference;
   const result = await env.DB.prepare(`SELECT transaction_id, sku, customer_id, email_hash, claim_hash
     FROM commerce_entitlements WHERE provider=? AND transaction_id=? AND status='completed'`)
     .bind(provider, transactionId).all();
@@ -1993,7 +1998,16 @@ async function saveCreemCheckout(env, checkout, eventId) {
     email_hash=COALESCE(excluded.email_hash, commerce_entitlements.email_hash),
     claim_hash=COALESCE(excluded.claim_hash, commerce_entitlements.claim_hash), status='completed', event_id=excluded.event_id`)
     .bind(checkout.id, sku, customerId || null, emailHash, claimHash, eventId, purchasedAt).run();
-  const aliases = new Set([checkout.id, checkout.order?.id, checkout.order?.transaction].filter(Boolean).map(String));
+  const aliases = new Set([
+    checkout.id,
+    checkout.order?.id,
+    checkout.order?.transaction,
+    checkout.order?.order_no,
+    checkout.order?.order_number,
+    checkout.order?.reference,
+    checkout.order_no,
+    checkout.order_number,
+  ].filter(Boolean).map(String));
   for (const alias of aliases) {
     await env.DB.prepare(`INSERT INTO commerce_order_aliases (provider, alias, transaction_id)
       VALUES ('CREEM', ?, ?) ON CONFLICT(provider, alias) DO UPDATE SET transaction_id=excluded.transaction_id`)
