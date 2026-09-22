@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download } from "lucide-react";
 import { initializePaddle, type Paddle } from "@paddle/paddle-js";
 import { readAttribution, trackEvent } from "@/lib/marketing-attribution";
@@ -25,8 +25,10 @@ function randomToken(){
 export function PaddleCheckoutButton({priceId,sku}:{priceId:string;sku:string}){
   const [opening,setOpening]=useState(false);
   const [checking,setChecking]=useState(true);
+  const [downloading,setDownloading]=useState(false);
   const [error,setError]=useState("");
   const [downloads,setDownloads]=useState<DownloadItem[]>([]);
+  const downloadLock=useRef(false);
   const storageKey=`leemockups-purchase:${sku}`;
 
   async function redeem(record:PurchaseRecord,retries=0){
@@ -78,6 +80,11 @@ export function PaddleCheckoutButton({priceId,sku}:{priceId:string;sku:string}){
     finally{setOpening(false)}
   }
 
-  if(downloads.length)return <div className="paddle-downloads purchased">{downloads.map((item)=><a className="button primary purchase-primary purchased" key={item.sku} href={item.url} onClick={()=>trackEvent("file_download",{item_id:item.sku})}><Download size={17}/>Download mockup</a>)}</div>;
+  function beginDownload(event:React.MouseEvent<HTMLAnchorElement>,skuToDownload:string){
+    if(downloadLock.current){event.preventDefault();return}
+    downloadLock.current=true;setDownloading(true);trackEvent("file_download",{item_id:skuToDownload});
+    window.setTimeout(()=>{downloadLock.current=false;setDownloading(false)},20000);
+  }
+  if(downloads.length)return <div className="paddle-downloads purchased">{downloading?<button className="button primary purchase-primary purchased" disabled aria-busy="true">Preparing download…</button>:downloads.map((item)=><a className="button primary purchase-primary purchased" key={item.sku} href={item.url} onClick={(event)=>beginDownload(event,item.sku)}><Download size={17}/>Download mockup</a>)}</div>;
   return <>{checking?<button className="button primary purchase-primary" disabled>Checking purchase…</button>:<button className="button primary purchase-primary" type="button" onClick={openCheckout} disabled={opening}>{opening?"Opening checkout…":"Buy now"}</button>}{error&&<small className="checkout-error" role="alert">{error}</small>}<Link className="mockup-existing-download" href="/order-download/">Already purchased? Restore download</Link></>;
 }

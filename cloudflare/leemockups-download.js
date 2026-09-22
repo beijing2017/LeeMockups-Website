@@ -1237,6 +1237,12 @@ export default {
         "/d/"
       )
     ) {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return new Response("Method not allowed", {
+          status: 405,
+          headers: { Allow: "GET, HEAD" },
+        });
+      }
       const id =
         decodeURIComponent(
           url.pathname.slice(3)
@@ -1320,10 +1326,12 @@ export default {
           }
         );
       }
+      const storageStartedAt = Date.now();
       const object =
         await env.MOCKUPS.get(
           objectKey
         );
+      const storageDurationMs = Date.now() - storageStartedAt;
       if (!object) {
         return new Response(
           "File not found in storage.",
@@ -1338,6 +1346,14 @@ export default {
         headers
       );
       headers.set(
+        "Content-Type",
+        "application/octet-stream"
+      );
+      headers.set(
+        "Content-Length",
+        String(object.size)
+      );
+      headers.set(
         "Content-Disposition",
         `attachment; filename*=UTF-8''${encodeURIComponent(
           `${id}.mockup`
@@ -1346,6 +1362,14 @@ export default {
       headers.set(
         "Cache-Control",
         "private, no-store"
+      );
+      headers.set(
+        "Server-Timing",
+        `r2;dur=${storageDurationMs}`
+      );
+      headers.set(
+        "X-LeeMockups-R2-Ms",
+        String(storageDurationMs)
       );
       if (request.method === "GET" && purchaseRef && ctx) {
         ctx.waitUntil(recordMockupDownload(env, id, purchaseRef));

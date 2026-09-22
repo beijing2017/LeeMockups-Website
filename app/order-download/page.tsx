@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, KeyRound, ShieldCheck } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { SiteNav } from "@/components/site-nav";
 import { PolicyLinks } from "@/components/policy-links";
 
@@ -11,6 +11,8 @@ export default function OrderDownloadPage() {
   const [orderNumber, setOrderNumber] = useState("");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const downloadLock = useRef(false);
   const [error, setError] = useState("");
   const [downloads, setDownloads] = useState<DownloadItem[]>([]);
 
@@ -49,7 +51,14 @@ export default function OrderDownloadPage() {
           <label>Order or invoice reference<input required autoComplete="off" value={orderNumber} onChange={(event) => setOrderNumber(event.target.value.trim())} placeholder="e.g. ord_… or 47733-10001" /></label>
           <label>Email used at checkout<input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></label>
           {downloads.length > 0
-            ? <a className="button primary" href={downloads[0].url}><Download size={17} /> Download</a>
+            ? downloading
+              ? <button className="button primary" type="button" disabled aria-busy="true">Preparing download…</button>
+              : <a className="button primary" href={downloads[0].url} onClick={(event) => {
+                if (downloadLock.current) { event.preventDefault(); return; }
+                downloadLock.current = true;
+                setDownloading(true);
+                window.setTimeout(() => { downloadLock.current = false; setDownloading(false); }, 20000);
+              }}><Download size={17} /> Download</a>
             : <button className="button primary" disabled={busy}>{busy ? "Verifying purchase…" : "Get my download"}</button>}
         </form>
         {error && <div className="order-message error" role="alert">{error}</div>}
