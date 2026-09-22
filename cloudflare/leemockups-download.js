@@ -255,7 +255,7 @@ export default {
         if (!['PADDLE', 'CREEM'].includes(provider)) return redeemJson({ ok: false, error: "This payment provider is not available yet." }, 400, corsHeaders);
         const validReference = provider === "PADDLE"
           ? (/^txn_[a-z\d]{26}$/.test(transactionReference) || /^\d{2,12}-\d{2,12}$/.test(transactionReference))
-          : /^(?:ch|ord|tran)_[A-Za-z\d]+$/.test(transactionReference);
+          : /^(?:(?:ch|ord|tran)_[A-Za-z\d]+|ORD-[A-Za-z\d]+)$/i.test(transactionReference);
         if (!validReference || (!claimToken && !email)) {
           return redeemJson({ ok: false, error: "Enter a valid invoice number and purchase email." }, 400, corsHeaders);
         }

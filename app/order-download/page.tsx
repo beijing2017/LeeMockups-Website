@@ -22,7 +22,7 @@ export default function OrderDownloadPage() {
     setError("");
     setDownloads([]);
     try {
-      const provider = /^(?:ch|ord|tran)_/i.test(orderNumber) ? "CREEM" : "PADDLE";
+      const provider = /^(?:(?:ch|ord|tran)_|ORD-)/i.test(orderNumber) ? "CREEM" : "PADDLE";
       const response = await fetch("https://downloads.leemockups.com/commerce/redeem", {
         method: "POST",
         headers: { "content-type": "application/json" },
