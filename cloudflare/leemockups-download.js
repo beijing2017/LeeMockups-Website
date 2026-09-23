@@ -66,7 +66,7 @@ export default {
         headers,
       });
     }
-    const publicMockupKey = /^\/mockups\/(LM-VM-[A-Z]{3}-\d{3})\/\1-(thumb\.webp|preview\.webm)$/.exec(url.pathname)?.[0]?.slice(1);
+    const publicMockupKey = /^\/mockups\/(LM-VM-[A-Z]{3}-\d{3})\/(?:\1-(?:thumb\.webp|preview\.webm)|gallery\/\1-etsy-01\.jpg)$/.exec(url.pathname)?.[0]?.slice(1);
     if (publicMockupKey) {
       if (request.method !== "GET" && request.method !== "HEAD") {
         return new Response("Method not allowed", {
@@ -80,7 +80,7 @@ export default {
       }
       const headers = new Headers();
       object.writeHttpMetadata(headers);
-      headers.set("Content-Type", publicMockupKey.endsWith(".webm") ? "video/webm" : "image/webp");
+      headers.set("Content-Type", publicMockupKey.endsWith(".webm") ? "video/webm" : publicMockupKey.endsWith(".jpg") ? "image/jpeg" : "image/webp");
       headers.set("Cache-Control", "public, max-age=3600");
       headers.set("X-Content-Type-Options", "nosniff");
       return new Response(request.method === "HEAD" ? null : object.body, {
@@ -147,12 +147,13 @@ export default {
         const sku = String(body?.sku || "").trim().toUpperCase();
         const name = String(body?.name || "").trim().slice(0, 160);
         const description = String(body?.description || "").trim().slice(0, 2000);
+        const imageUrl = String(body?.imageUrl || "").trim();
         const regularPriceCents = Number(body?.regularPriceCents || 999);
         const launchPriceCents = Number(body?.launchPriceCents || 349);
-        if (!/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku) || !name || !Number.isInteger(regularPriceCents) || !Number.isInteger(launchPriceCents) || launchPriceCents < 100 || regularPriceCents < launchPriceCents) {
+        if (!/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku) || !name || imageUrl !== `https://downloads.leemockups.com/mockups/${sku}/gallery/${sku}-etsy-01.jpg` || !Number.isInteger(regularPriceCents) || !Number.isInteger(launchPriceCents) || launchPriceCents < 100 || regularPriceCents < launchPriceCents) {
           return jsonResponse({ ok: false, error: "Invalid product settings." }, 400);
         }
-        const mapping = await syncCreemProduct(env, { sku, name, description, regularPriceCents, launchPriceCents });
+        const mapping = await syncCreemProduct(env, { sku, name, description, imageUrl, regularPriceCents, launchPriceCents });
         return jsonResponse({ ok: true, ...mapping });
       } catch (error) {
         console.error(JSON.stringify({ type: "creem_product_sync_error", message: String(error?.message || error) }));
@@ -1983,6 +1984,7 @@ async function syncCreemProduct(env, product) {
     body: JSON.stringify({
       name: product.name,
       description: product.description,
+      image_url: product.imageUrl,
       price: product.regularPriceCents,
       currency: "USD",
       billing_type: "onetime",
