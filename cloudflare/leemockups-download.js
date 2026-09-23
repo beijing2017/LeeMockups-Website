@@ -1977,19 +1977,27 @@ async function creemRequest(env, path, init = {}) {
   if (!response.ok) throw new Error(body?.message || body?.error || `Creem request failed (${response.status}).`);
   return body;
 }
+function creemImageMatches(actual, expected) {
+  if (actual === expected) return true;
+  try {
+    const proxy = new URL(String(actual || ""));
+    return ["creem.io", "www.creem.io"].includes(proxy.hostname) && proxy.pathname === "/api/images" && proxy.searchParams.get("url") === expected;
+  } catch {
+    return false;
+  }
+}
 async function syncCreemProduct(env, product) {
   await ensureCreemProductTable(env);
   const existing = await getCreemProductBySku(env, product.sku);
   if (existing && !(creemMode(env) === "live" && CREEM_PRODUCT_SKUS[existing.product_id])) {
-    const updated = await creemRequest(env, `/v1/products/${encodeURIComponent(existing.product_id)}`, {
+    await creemRequest(env, `/v1/products/${encodeURIComponent(existing.product_id)}`, {
       method: "PATCH",
       body: JSON.stringify({ name: product.name, description: product.description, image_url: product.imageUrl }),
     });
     const confirmed = await creemRequest(env, `/v1/products/${encodeURIComponent(existing.product_id)}`, { method: "GET" });
     const entity = confirmed?.product || confirmed;
-    if (String(entity?.id || "") !== existing.product_id || String(entity?.image_url || "") !== product.imageUrl) {
-      const patchEntity = updated?.product || updated;
-      throw new Error(`Creem image confirmation differs (patch fields: ${Object.keys(patchEntity || {}).join(",")}; retrieved image: ${String(entity?.image_url || "missing").slice(0, 200)}).`);
+    if (String(entity?.id || "") !== existing.product_id || !creemImageMatches(entity?.image_url, product.imageUrl)) {
+      throw new Error("Creem did not confirm the updated product image.");
     }
     return { sku: product.sku, productId: existing.product_id, discountCode: existing.discount_code || "", created: false, updated: true };
   }

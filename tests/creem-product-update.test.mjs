@@ -25,7 +25,7 @@ test("editing an existing Creem product patches its original ID and image", asyn
   const calls = [];
   globalThis.fetch = async (url, options) => {
     calls.push({ url: String(url), method: options.method, body: options.body ? JSON.parse(options.body) : undefined });
-    return new Response(JSON.stringify({ id: "prod_Existing123", image_url: imageUrl }), { status: 200, headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify({ id: "prod_Existing123", image_url: `https://www.creem.io/api/images?url=${encodeURIComponent(imageUrl)}` }), { status: 200, headers: { "content-type": "application/json" } });
   };
   try {
     const request = new Request("https://downloads.leemockups.com/admin/creem-product-sync", {
