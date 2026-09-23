@@ -1985,9 +1985,11 @@ async function syncCreemProduct(env, product) {
       method: "PATCH",
       body: JSON.stringify({ name: product.name, description: product.description, image_url: product.imageUrl }),
     });
-    const entity = updated?.product || updated;
+    const confirmed = await creemRequest(env, `/v1/products/${encodeURIComponent(existing.product_id)}`, { method: "GET" });
+    const entity = confirmed?.product || confirmed;
     if (String(entity?.id || "") !== existing.product_id || String(entity?.image_url || "") !== product.imageUrl) {
-      throw new Error("Creem did not confirm the updated product image.");
+      const patchEntity = updated?.product || updated;
+      throw new Error(`Creem image confirmation differs (patch fields: ${Object.keys(patchEntity || {}).join(",")}; retrieved image: ${String(entity?.image_url || "missing").slice(0, 200)}).`);
     }
     return { sku: product.sku, productId: existing.product_id, discountCode: existing.discount_code || "", created: false, updated: true };
   }

@@ -24,7 +24,7 @@ test("editing an existing Creem product patches its original ID and image", asyn
   const originalFetch = globalThis.fetch;
   const calls = [];
   globalThis.fetch = async (url, options) => {
-    calls.push({ url: String(url), method: options.method, body: JSON.parse(options.body) });
+    calls.push({ url: String(url), method: options.method, body: options.body ? JSON.parse(options.body) : undefined });
     return new Response(JSON.stringify({ id: "prod_Existing123", image_url: imageUrl }), { status: 200, headers: { "content-type": "application/json" } });
   };
   try {
@@ -40,7 +40,7 @@ test("editing an existing Creem product patches its original ID and image", asyn
     assert.deepEqual(calls, [{
       url: "https://api.creem.io/v1/products/prod_Existing123", method: "PATCH",
       body: { name: "Updated Mug", description: "Updated details", image_url: imageUrl },
-    }]);
+    }, { url: "https://api.creem.io/v1/products/prod_Existing123", method: "GET", body: undefined }]);
   } finally {
     globalThis.fetch = originalFetch;
   }
