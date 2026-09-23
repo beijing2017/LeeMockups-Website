@@ -2,57 +2,25 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { AlertTriangle, Check, Download, Monitor, Play, ShieldCheck } from "lucide-react";
 import { resolveCommerce, resolvePriceUsd } from "@/lib/commerce";
 import { productExperience } from "@/lib/product-experience";
 import { PurchaseAction } from "@/components/purchase-action";
 import { trackEvent } from "@/lib/marketing-attribution";
+import type { CatalogProduct as Product } from "@/lib/catalog-seo";
 
 const assetBase = "https://downloads.leemockups.com";
 type GalleryItem = { type:"image"|"video"; path:string; alt?:string };
-type Product = { sku:string; name:string; description:string; category:string; thumbnailPath:string; previewPath:string; gallery?:GalleryItem[]; purchaseProvider?:string; providerProductId?:string; purchaseUrl?:string; deliveryUrl?:string; etsyUrl?:string; priceUsd?:number; resolution?:string; durationSeconds?:number; isFree?:boolean; sampleUrl?:string; supportedPlatforms?:string; includedFiles?:string[]; keywords?:string[]; assetVersion?:string };
-
-export function MockupDetailClient() {
-  const sku = useSearchParams().get("sku") || "";
-  const [products, setProducts] = useState<Product[]>([]);
+export function MockupDetailClient({ sku, initialProduct }: { sku: string; initialProduct?: Product }) {
+  const [products, setProducts] = useState<Product[]>(initialProduct ? [initialProduct] : []);
   const [selectedMedia, setSelectedMedia] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialProduct);
   const [failed, setFailed] = useState(false);
-  useEffect(() => { fetch(`${assetBase}/catalog/products.json`, { cache:"no-store" }).then((response) => { if (!response.ok) throw new Error(); return response.json(); }).then((data) => setProducts(Array.isArray(data?.products) ? data.products.map((item:Product) => ({...item,assetVersion:data.updatedAt})) : [])).catch(() => setFailed(true)).finally(() => setLoading(false)); }, []);
+  useEffect(() => { fetch(`${assetBase}/catalog/products.json`, { cache:"no-store" }).then((response) => { if (!response.ok) throw new Error(); return response.json(); }).then((data) => setProducts(Array.isArray(data?.products) ? data.products.map((item:Product) => ({...item,assetVersion:data.updatedAt})) : [])).catch(() => { if (!initialProduct) setFailed(true); }).finally(() => setLoading(false)); }, [initialProduct]);
   const product = useMemo(() => products.find((item) => item.sku === sku), [products, sku]);
   const freeSample = useMemo(() => products.find((item) => item.isFree && item.sampleUrl), [products]);
   useEffect(() => {
-    if (!product) return;
-    trackEvent("view_item", { items:[{ item_id:product.sku, item_name:product.name, price:resolvePriceUsd(product) }] });
-    const canonicalUrl = `https://www.leemockups.com/mockup/?sku=${encodeURIComponent(product.sku)}`;
-    const imageUrl = `${assetBase}/${product.thumbnailPath}`;
-    const title = `${product.name} | LeeMockups`;
-    const description = product.description || `${product.name} animated product mockup for the LeeMockups desktop app.`;
-    document.title = title;
-    let descriptionMeta = document.head.querySelector<HTMLMetaElement>('meta[name="description"]');
-    if (!descriptionMeta) { descriptionMeta = document.createElement("meta"); descriptionMeta.name = "description"; document.head.appendChild(descriptionMeta); }
-    descriptionMeta.content = description;
-    const socialMeta = (property:string, content:string) => {
-      let element = document.head.querySelector<HTMLMetaElement>(`meta[property="${property}"]`);
-      if (!element) { element = document.createElement("meta"); element.setAttribute("property", property); document.head.appendChild(element); }
-      element.content = content;
-    };
-    socialMeta("og:title", title); socialMeta("og:description", description); socialMeta("og:url", canonicalUrl); socialMeta("og:image", imageUrl); socialMeta("og:type", "product");
-    let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
-    if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
-    canonical.href = canonicalUrl;
-    const structuredData = document.createElement("script");
-    structuredData.type = "application/ld+json";
-    structuredData.dataset.productSeo = product.sku;
-    structuredData.text = JSON.stringify({
-      "@context":"https://schema.org", "@type":"Product", sku:product.sku, name:product.name,
-      description, image:[imageUrl], category:product.category, brand:{"@type":"Brand",name:"LeeMockups"},
-      offers:{"@type":"Offer",url:canonicalUrl,priceCurrency:"USD",price:product.isFree?0:resolvePriceUsd(product),availability:"https://schema.org/InStock"}
-    });
-    document.head.querySelectorAll('script[data-product-seo]').forEach((element) => element.remove());
-    document.head.appendChild(structuredData);
-    return () => structuredData.remove();
+    if (product) trackEvent("view_item", { items:[{ item_id:product.sku, item_name:product.name, price:resolvePriceUsd(product) }] });
   }, [product]);
   if (loading) return <div className="mockup-detail-state shell">Loading mockup details…</div>;
   if (failed || !product) return <div className="mockup-detail-state shell"><h1>Mockup not found</h1><p>The product may have moved or the library could not be loaded.</p><Link className="button secondary" href="/mockups/">Back to Mockup Library</Link></div>;
@@ -67,6 +35,7 @@ export function MockupDetailClient() {
   return <>
     <section className="mockup-product-hero shell"><div className="mockup-gallery"><div className="mockup-gallery-thumbs" aria-label="Product media">{gallery.map((item,index)=><button type="button" className={index===selectedMedia?"selected":""} onClick={()=>setSelectedMedia(index)} aria-label={`Show ${item.type} ${index+1}`} key={`${item.path}-${index}`}>{item.type==="video"?<><video muted preload="metadata" poster={`${assetBase}/${product.thumbnailPath}?v=${encodeURIComponent(product.assetVersion||"1")}`}><source src={`${assetBase}/${item.path}?v=${encodeURIComponent(product.assetVersion||"1")}`} /></video><Play size={16}/></>:<img src={`${assetBase}/${item.path}?v=${encodeURIComponent(product.assetVersion||"1")}`} alt="" loading="lazy"/>}</button>)}</div><div className="mockup-product-media" onContextMenu={(event)=>event.preventDefault()}>{activeMedia.type==="video"?<video key={activeMedia.path} muted loop playsInline autoPlay preload="metadata" controlsList="nodownload noremoteplayback" disablePictureInPicture poster={`${assetBase}/${product.thumbnailPath}?v=${encodeURIComponent(product.assetVersion||"1")}`}><source src={`${assetBase}/${activeMedia.path}?v=${encodeURIComponent(product.assetVersion||"1")}`} /></video>:<img src={`${assetBase}/${activeMedia.path}?v=${encodeURIComponent(product.assetVersion||"1")}`} alt={activeMedia.alt||product.name}/>} {product.isFree&&<span className="mockup-free-badge">FREE</span>}</div></div><div className="mockup-product-summary"><Link className="mockup-back" href="/mockups/">← Mockup Library</Link><h1>{product.name}</h1>{purchasePanel}</div></section>
     <section className="mockup-product-content shell"><div className="mockup-info-main">
+      <p>{product.description}</p>
       <section><span className="mockup-section-kicker">WHAT YOU RECEIVE</span><h2>Everything included</h2><ul className="mockup-check-list">{included.map((item)=><li key={item}><Check size={17}/>{item}</li>)}</ul></section>
       <section><span className="mockup-section-kicker">HOW IT WORKS</span><h2>Three simple steps</h2><ol className="mockup-steps"><li><b>1</b><div><strong>Install LeeMockups</strong><p>Download the free app for {product.supportedPlatforms || productExperience.supportedPlatforms}. Installation is only needed the first time.</p></div></li><li><b>2</b><div><strong>Open the template</strong><p>Open the purchased <code>.mockup</code> file and add your PNG or JPG artwork.</p></div></li><li><b>3</b><div><strong>Generate your files</strong><p>Click Generate to create the finished video and five still images. {productExperience.typicalGenerationTime}.</p></div></li></ol></section>
       <section><span className="mockup-section-kicker">BEFORE YOU BUY</span><h2>Important product details</h2><div className="expectation-grid"><div><Monitor/><strong>{product.supportedPlatforms || productExperience.supportedPlatforms}</strong><p>The free LeeMockups desktop app is required.</p></div><div><Play/><strong>Prepared animation</strong><p>Artwork placement, camera movement, and animation are preset and are not editable.</p></div><div><ShieldCheck/><strong>Local processing</strong><p>Your artwork is processed on your computer and is not automatically uploaded to LeeMockups.</p></div></div></section>
