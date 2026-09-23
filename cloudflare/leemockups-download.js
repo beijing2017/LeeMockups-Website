@@ -66,7 +66,7 @@ export default {
         headers,
       });
     }
-    const publicMockupKey = /^\/mockups\/(LM-VM-[A-Z]{3}-\d{3})\/(?:\1-(?:thumb\.webp|preview\.webm)|gallery\/\1-etsy-01\.jpg)$/.exec(url.pathname)?.[0]?.slice(1);
+    const publicMockupKey = /^\/mockups\/(LM-VM-[A-Z]{3}-\d{3})\/(?:\1-(?:thumb\.webp|preview\.webm)|gallery\/\1-(?:etsy-(?:\d{2}\.(?:jpe?g|png)|video\.mp4)|gallery-[A-Za-z0-9-]+\.(?:webp|jpe?g|png)))$/.exec(url.pathname)?.[0]?.slice(1);
     if (publicMockupKey) {
       if (request.method !== "GET" && request.method !== "HEAD") {
         return new Response("Method not allowed", {
@@ -80,7 +80,7 @@ export default {
       }
       const headers = new Headers();
       object.writeHttpMetadata(headers);
-      headers.set("Content-Type", publicMockupKey.endsWith(".webm") ? "video/webm" : publicMockupKey.endsWith(".jpg") ? "image/jpeg" : "image/webp");
+      headers.set("Content-Type", publicMockupKey.endsWith(".webm") ? "video/webm" : publicMockupKey.endsWith(".mp4") ? "video/mp4" : /\.jpe?g$/i.test(publicMockupKey) ? "image/jpeg" : publicMockupKey.endsWith(".png") ? "image/png" : "image/webp");
       headers.set("Cache-Control", "public, max-age=3600");
       headers.set("X-Content-Type-Options", "nosniff");
       return new Response(request.method === "HEAD" ? null : object.body, {
@@ -150,7 +150,8 @@ export default {
         const imageUrl = String(body?.imageUrl || "").trim();
         const regularPriceCents = Number(body?.regularPriceCents || 999);
         const launchPriceCents = Number(body?.launchPriceCents || 349);
-        if (!/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku) || !name || imageUrl !== `https://downloads.leemockups.com/mockups/${sku}/gallery/${sku}-etsy-01.jpg` || !Number.isInteger(regularPriceCents) || !Number.isInteger(launchPriceCents) || launchPriceCents < 100 || regularPriceCents < launchPriceCents) {
+        const expectedImagePrefix = `https://downloads.leemockups.com/mockups/${sku}/gallery/`;
+        if (!/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku) || !name || !imageUrl.startsWith(expectedImagePrefix) || !/^[A-Za-z0-9._-]+\.(?:jpe?g|png)$/i.test(imageUrl.slice(expectedImagePrefix.length)) || !Number.isInteger(regularPriceCents) || !Number.isInteger(launchPriceCents) || launchPriceCents < 100 || regularPriceCents < launchPriceCents) {
           return jsonResponse({ ok: false, error: "Invalid product settings." }, 400);
         }
         const mapping = await syncCreemProduct(env, { sku, name, description, imageUrl, regularPriceCents, launchPriceCents });
@@ -1979,9 +1980,17 @@ async function creemRequest(env, path, init = {}) {
 async function syncCreemProduct(env, product) {
   await ensureCreemProductTable(env);
   const existing = await getCreemProductBySku(env, product.sku);
-  if (existing && !(creemMode(env) === "live" && CREEM_PRODUCT_SKUS[existing.product_id])) return {
-    sku: product.sku, productId: existing.product_id, discountCode: existing.discount_code || "", created: false,
-  };
+  if (existing && !(creemMode(env) === "live" && CREEM_PRODUCT_SKUS[existing.product_id])) {
+    const updated = await creemRequest(env, `/v1/products/${encodeURIComponent(existing.product_id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name: product.name, description: product.description, image_url: product.imageUrl }),
+    });
+    const entity = updated?.product || updated;
+    if (String(entity?.id || "") !== existing.product_id || String(entity?.image_url || "") !== product.imageUrl) {
+      throw new Error("Creem did not confirm the updated product image.");
+    }
+    return { sku: product.sku, productId: existing.product_id, discountCode: existing.discount_code || "", created: false, updated: true };
+  }
   const successUrl = `https://www.leemockups.com/mockup/?sku=${encodeURIComponent(product.sku)}&payment=success`;
   const productList = await creemRequest(env, "/v1/products/search?page_number=1&page_size=100", { method: "GET" });
   const matchingProduct = (productList?.items || productList?.products || []).find((item) =>
