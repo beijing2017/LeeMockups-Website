@@ -15,7 +15,6 @@ function ProductCard({ product, seoReady }: { product: Product; seoReady: boolea
   const stop = () => { const video = videoRef.current; if (video) { video.pause(); video.currentTime = 0; } };
   return <Link className="mockup-card-link" href={seoReady?`/mockup/${encodeURIComponent(product.sku)}/`:`/mockup/?sku=${encodeURIComponent(product.sku)}`} aria-label={`View ${product.name} details`}><article className="mockup-card">
     <div className="mockup-card-image" onMouseEnter={play} onMouseLeave={stop} onFocus={play} onBlur={stop} onContextMenu={(event) => event.preventDefault()} tabIndex={0}>
-      {product.isFree && <span className="mockup-free-badge">FREE</span>}
       <img src={`${assetBase}/${product.thumbnailPath}?v=${encodeURIComponent(product.assetVersion || "1")}`} alt={product.name} loading="lazy" draggable={false} />
       <video ref={videoRef} muted loop playsInline preload="metadata" controlsList="nodownload noremoteplayback" disablePictureInPicture draggable={false} onContextMenu={(event) => event.preventDefault()} poster={`${assetBase}/${product.thumbnailPath}?v=${encodeURIComponent(product.assetVersion || "1")}`} aria-label={`${product.name} animated preview`}><source src={`${assetBase}/${product.previewPath}?v=${encodeURIComponent(product.assetVersion || "1")}`} type="video/webm" /></video>
       <span className="mockup-video-guard" aria-hidden="true" />
