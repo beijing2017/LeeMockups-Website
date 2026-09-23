@@ -209,6 +209,14 @@ export default {
         if (!productId || !/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku) || !/^[a-f\d]{64}$/.test(claimToken)) {
           return redeemJson({ ok: false, error: "Invalid checkout request." }, 400, corsHeaders);
         }
+        // The public catalog is the source of truth for whether an item is still on sale.
+        // Keep its Creem mapping and past orders so existing buyers can still redeem downloads.
+        const catalogObject = await env.MOCKUPS.get("public/catalog/products.json");
+        if (!catalogObject) return redeemJson({ ok: false, error: "Checkout is temporarily unavailable." }, 503, corsHeaders);
+        const catalog = await catalogObject.json();
+        if (!Array.isArray(catalog?.products) || !catalog.products.some((product) => product.sku === sku)) {
+          return redeemJson({ ok: false, error: "This mockup is no longer available for purchase." }, 410, corsHeaders);
+        }
         const cleanAttribution = (value, fallback = "") => String(value || fallback).trim().slice(0, 80);
         const attribution = body?.attribution || {};
         const checkoutResponse = await fetch(`${creemApiBase(env)}/v1/checkouts`, {
