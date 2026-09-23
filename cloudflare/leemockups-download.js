@@ -104,6 +104,26 @@ export default {
       headers.set("X-Content-Type-Options", "nosniff");
       return new Response(request.method === "HEAD" ? null : object.body, { status: 200, headers });
     }
+    const freeSku = /^\/free\/(LM-VM-[A-Z]{3}-\d{3})$/.exec(url.pathname)?.[1];
+    if (freeSku) {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
+      }
+      if (!(await isPublishedFreeMockup(env, freeSku))) {
+        return new Response("Free mockup unavailable", { status: 404 });
+      }
+      const fileKey = `private/mockups/${freeSku}/${freeSku}.mockup`;
+      if (!(await env.MOCKUPS.head(fileKey))) {
+        return new Response("Free mockup file unavailable", { status: 404 });
+      }
+      const expiresAt = Math.floor(Date.now() / 1000) + 30 * 60;
+      const signature = await createSignature(`${freeSku}:${expiresAt}:free`, env.DOWNLOAD_SECRET);
+      const downloadUrl = new URL(`/d/${freeSku}`, url.origin);
+      downloadUrl.searchParams.set("exp", String(expiresAt));
+      downloadUrl.searchParams.set("ref", "free");
+      downloadUrl.searchParams.set("sig", signature);
+      return new Response(null, { status: 302, headers: { Location: downloadUrl.href, "Cache-Control": "no-store" } });
+    }
     if (url.pathname === "/admin/download-analytics") {
       if (request.method !== "GET") return jsonResponse({ ok: false, error: "Method not allowed." }, 405);
       const token = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
@@ -115,12 +135,14 @@ export default {
         await ensurePaddleTables(env);
         const result = await env.DB.prepare(`SELECT
           t.sku, t.download_count, t.unique_purchase_count,
-          MAX(t.download_count - t.unique_purchase_count, 0) AS repeat_download_count,
+          COALESCE(f.download_count, 0) AS free_download_count,
+          MAX(t.download_count - t.unique_purchase_count - COALESCE(f.download_count, 0), 0) AS repeat_download_count,
           t.last_downloaded_at,
           COALESCE(SUM(CASE WHEN d.day >= date('now', '-6 days') THEN d.download_count ELSE 0 END), 0) AS downloads_7d,
           COALESCE(SUM(CASE WHEN d.day >= date('now', '-29 days') THEN d.download_count ELSE 0 END), 0) AS downloads_30d
           FROM mockup_download_totals t
           LEFT JOIN mockup_download_daily d ON d.sku = t.sku
+          LEFT JOIN mockup_download_free f ON f.sku = t.sku
           GROUP BY t.sku ORDER BY t.download_count DESC, t.sku ASC`).all();
         const products = result.results || [];
         const channelResult = await env.DB.prepare(`SELECT source, medium, campaign,
@@ -1355,6 +1377,9 @@ export default {
           }
         );
       }
+      if (purchaseRef === "free" && !(await isPublishedFreeMockup(env, id))) {
+        return new Response("Free mockup unavailable", { status: 404 });
+      }
       const objectKey = FILES[id] || (/^LM-VM-[A-Z]{3}-\d{3}$/.test(id) ? `private/mockups/${id}/${id}.mockup` : null);
       if (!objectKey) {
         return new Response(
@@ -1416,7 +1441,9 @@ export default {
         headers.set("Vary", "Origin");
       }
       if (request.method === "GET" && purchaseRef && ctx) {
-        ctx.waitUntil(recordMockupDownload(env, id, purchaseRef));
+        ctx.waitUntil(purchaseRef === "free"
+          ? recordFreeMockupDownload(env, id)
+          : recordMockupDownload(env, id, purchaseRef));
       }
       return new Response(
         request.method === "HEAD" ? null : object.body,
@@ -2099,6 +2126,9 @@ async function ensurePaddleTables(env) {
       day TEXT NOT NULL, sku TEXT NOT NULL, download_count INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (day, sku)
     )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS mockup_download_free (
+      sku TEXT PRIMARY KEY, download_count INTEGER NOT NULL DEFAULT 0
+    )`),
   ]);
   const entitlementColumns = await env.DB.prepare(`PRAGMA table_info(commerce_entitlements)`).all();
   if (!(entitlementColumns.results || []).some((column) => column.name === "mode")) {
@@ -2330,6 +2360,36 @@ async function readProductCatalog(env) {
   if (!object) return { products: [] };
   const catalog = await object.json();
   return { products: Array.isArray(catalog?.products) ? catalog.products : [] };
+}
+async function recordFreeMockupDownload(env, sku) {
+  if (!env.DB || !/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku)) return;
+  try {
+    await ensurePaddleTables(env);
+    const timestamp = new Date().toISOString();
+    await env.DB.batch([
+      env.DB.prepare(`INSERT INTO mockup_download_totals
+        (sku, download_count, unique_purchase_count, last_downloaded_at) VALUES (?, 1, 0, ?)
+        ON CONFLICT(sku) DO UPDATE SET download_count=download_count+1,
+        last_downloaded_at=excluded.last_downloaded_at`).bind(sku, timestamp),
+      env.DB.prepare(`INSERT INTO mockup_download_daily (day, sku, download_count) VALUES (?, ?, 1)
+        ON CONFLICT(day, sku) DO UPDATE SET download_count=download_count+1`).bind(timestamp.slice(0, 10), sku),
+      env.DB.prepare(`INSERT INTO mockup_download_free (sku, download_count) VALUES (?, 1)
+        ON CONFLICT(sku) DO UPDATE SET download_count=download_count+1`).bind(sku),
+    ]);
+  } catch (error) {
+    console.error(JSON.stringify({ type: "free_download_analytics_error", sku, message: String(error?.message || error) }));
+  }
+}
+async function isPublishedFreeMockup(env, sku) {
+  if (!/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku)) return false;
+  const object = await env.MOCKUPS.get("public/catalog/products.json");
+  if (!object) return false;
+  try {
+    const catalog = await object.json();
+    return Array.isArray(catalog?.products) && catalog.products.some((product) => product.sku === sku && product.isFree === true);
+  } catch {
+    return false;
+  }
 }
 function redeemCorsHeaders(origin) {
   const headers = new Headers({
