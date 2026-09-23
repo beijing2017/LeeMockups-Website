@@ -5,8 +5,8 @@ import { PolicyLinks } from "@/components/policy-links";
 import { MockupDetailClient } from "./mockup-detail-client";
 
 export const metadata: Metadata = {
-  title: "Mockup details",
-  description: "Review compatibility, included files, usage instructions, and purchase details before choosing a LeeMockups template.",
+  title: "Video Mockup Details",
+  description: "Explore LeeMockups video mockup templates. Review the preview, included MP4 and still images, compatibility, and purchase details.",
   alternates: { canonical: "/mockup/" },
 };
 

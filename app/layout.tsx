@@ -9,11 +9,11 @@ const siteUrl = 'https://www.leemockups.com';
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? siteUrl),
   title: {
-    default: 'LeeMockups — Animated Product Mockup Videos',
+    default: 'Video Mockups for Product Listings | LeeMockups',
     template: '%s | LeeMockups',
   },
-  description: 'Download LeeMockups for Windows and macOS. Turn your artwork and mockup templates into polished product videos in a few clicks.',
-  keywords: ['animated mockups', 'product listing video', 'product mockup video', 'mockup generator', 'LeeMockups'],
+  description: 'Create video mockups from your artwork with LeeMockups. Choose a product template, add your design, and export an MP4 video and still images on Windows or macOS.',
+  keywords: ['video mockup', 'video mockups', 'product video mockup', 'animated mockup', 'mockup generator', 'LeeMockups'],
   alternates: { canonical: '/' },
   robots: { index: true, follow: true },
   verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
@@ -21,14 +21,14 @@ export const metadata: Metadata = {
     : undefined,
   icons: { icon: '/leemockups-symbol.png' },
   openGraph: {
-    title: 'LeeMockups — Bring Your Mockups to Life',
-    description: 'Turn your artwork and mockup templates into polished product videos in a few clicks.',
+    title: 'Video Mockups for Product Listings | LeeMockups',
+    description: 'Turn your artwork into product video mockups with LeeMockups desktop templates.',
     images: [{ url: '/og.png', width: 1536, height: 864, alt: 'LeeMockups desktop mockup software' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'LeeMockups — Bring Your Mockups to Life',
-    description: 'Your design. Beautifully in motion.',
+    title: 'Video Mockups for Product Listings | LeeMockups',
+    description: 'Turn your artwork into product video mockups with LeeMockups desktop templates.',
     images: ['/og.png'],
   },
 };

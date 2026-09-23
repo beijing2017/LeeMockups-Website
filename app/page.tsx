@@ -23,7 +23,7 @@ export default function Home() {
     applicationCategory: 'MultimediaApplication',
     operatingSystem: 'Windows, macOS',
     softwareVersion: appVersion,
-    description: 'Desktop software for turning LeeMockups templates and artwork into animated product videos and still images.',
+    description: 'Desktop software for turning LeeMockups video mockup templates and artwork into product videos and still images.',
     url: 'https://www.leemockups.com/',
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   };
@@ -35,7 +35,7 @@ export default function Home() {
     <section className="hero shell" id="top">
       <div className="hero-copy">
         <div className="eyebrow"><span><Sparkles size={13} /></span> Made for creative product sellers</div>
-        <h1>Your design.<br /><em>Beautifully in motion.</em></h1>
+        <h1>Video mockups.<br /><em>Beautifully in motion.</em></h1>
         <p>Turn a LeeMockups template and your artwork into polished product videos—right on your desktop. No editing experience needed.</p>
         <div className="hero-actions"><a className="button primary" href="#download"><Download size={18} /> Download LeeMockups</a><a className="text-link" href="#how"><Play size={15} fill="currentColor" /> See how it works</a></div>
         <div className="micro-trust"><ShieldCheck size={16} /><span>Private by design</span><b>•</b><span>Your artwork stays on your computer</span></div>
