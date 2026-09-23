@@ -2039,7 +2039,7 @@ async function ensurePaddleTables(env) {
     )`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS commerce_entitlements (
       provider TEXT NOT NULL, transaction_id TEXT NOT NULL, sku TEXT NOT NULL, customer_id TEXT,
-      email_hash TEXT, claim_hash TEXT, status TEXT NOT NULL,
+      email_hash TEXT, claim_hash TEXT, status TEXT NOT NULL, mode TEXT NOT NULL DEFAULT 'test',
       event_id TEXT, purchased_at TEXT NOT NULL,
       PRIMARY KEY (provider, transaction_id, sku)
     )`),
@@ -2071,6 +2071,14 @@ async function ensurePaddleTables(env) {
       PRIMARY KEY (day, sku)
     )`),
   ]);
+  const entitlementColumns = await env.DB.prepare(`PRAGMA table_info(commerce_entitlements)`).all();
+  if (!(entitlementColumns.results || []).some((column) => column.name === "mode")) {
+    try {
+      await env.DB.prepare(`ALTER TABLE commerce_entitlements ADD COLUMN mode TEXT NOT NULL DEFAULT 'test'`).run();
+    } catch (error) {
+      if (!/duplicate column name/i.test(String(error?.message || error))) throw error;
+    }
+  }
 }
 async function saveCommerceCustomer(env, provider, customerId, email) {
   const normalized = normalizeEmail(email);
@@ -2093,8 +2101,9 @@ async function getCommerceEntitlements(env, provider, reference) {
     .bind(provider, normalizedReference).first();
   const transactionId = alias?.transaction_id || (provider === "CREEM" ? CREEM_RECEIPT_ALIASES[normalizedReference] : "") || normalizedReference;
   const result = await env.DB.prepare(`SELECT transaction_id, sku, customer_id, email_hash, claim_hash
-    FROM commerce_entitlements WHERE provider=? AND transaction_id=? AND status='completed'`)
-    .bind(provider, transactionId).all();
+    FROM commerce_entitlements WHERE provider=? AND transaction_id=? AND status='completed'
+      AND (? != 'CREEM' OR mode=?)`)
+    .bind(provider, transactionId, provider, creemMode(env)).all();
   return result.results || [];
 }
 async function saveCreemCheckout(env, checkout, eventId) {
@@ -2110,12 +2119,12 @@ async function saveCreemCheckout(env, checkout, eventId) {
   const claimHash = claimToken ? await sha256Base64Url(claimToken) : null;
   const purchasedAt = checkout.order?.created_at || new Date().toISOString();
   await env.DB.prepare(`INSERT INTO commerce_entitlements
-    (provider, transaction_id, sku, customer_id, email_hash, claim_hash, status, event_id, purchased_at)
-    VALUES ('CREEM', ?, ?, ?, ?, ?, 'completed', ?, ?)
+    (provider, transaction_id, sku, customer_id, email_hash, claim_hash, status, mode, event_id, purchased_at)
+    VALUES ('CREEM', ?, ?, ?, ?, ?, 'completed', ?, ?, ?)
     ON CONFLICT(provider, transaction_id, sku) DO UPDATE SET customer_id=excluded.customer_id,
     email_hash=COALESCE(excluded.email_hash, commerce_entitlements.email_hash),
-    claim_hash=COALESCE(excluded.claim_hash, commerce_entitlements.claim_hash), status='completed', event_id=excluded.event_id`)
-    .bind(checkout.id, sku, customerId || null, emailHash, claimHash, eventId, purchasedAt).run();
+    claim_hash=COALESCE(excluded.claim_hash, commerce_entitlements.claim_hash), status='completed', mode=excluded.mode, event_id=excluded.event_id`)
+    .bind(checkout.id, sku, customerId || null, emailHash, claimHash, creemMode(env), eventId, purchasedAt).run();
   const aliases = new Set([
     checkout.id,
     checkout.order?.id,
