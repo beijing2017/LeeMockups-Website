@@ -11,8 +11,11 @@ export type CommerceProduct = {
   durationSeconds?: number;
 };
 
+const REGULAR_PRICE_USD = 9.99;
+const LAUNCH_PRICE_USD = 3.49;
+
 export function resolvePriceUsd(product: CommerceProduct) {
-  return Number(product.sku === "LM-VM-MUG-001" ? 3.49 : (product.priceUsd ?? 3.49));
+  return Number(product.priceUsd ?? REGULAR_PRICE_USD);
 }
 
 export function resolveCommerce(product: CommerceProduct) {
@@ -26,7 +29,7 @@ export function resolveCommerce(product: CommerceProduct) {
     available: Boolean(purchaseUrl),
     buttonLabel: "Buy now",
     price: `$${resolvePriceUsd(product).toFixed(2)}`,
-    launchSpecial: product.sku === "LM-VM-MUG-001",
+    launchSpecial: provider === "CREEM" && resolvePriceUsd(product) === LAUNCH_PRICE_USD,
     resolution: product.resolution || "2000 × 2000",
     duration: `${Number(product.durationSeconds ?? 10)} sec`,
   };
