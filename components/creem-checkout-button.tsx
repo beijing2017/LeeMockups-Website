@@ -20,6 +20,12 @@ export function CreemCheckoutButton({sku}:{sku:string}){
   const [opening,setOpening]=useState(false),[checking,setChecking]=useState(true),[error,setError]=useState(""),[downloads,setDownloads]=useState<DownloadItem[]>([]);
   const downloadLock=useRef(false);
   const storageKey=`leemockups-purchase:${sku}`;
+  useEffect(()=>{
+    // Browsers can restore this mounted page from the back-forward cache after checkout.
+    const resetOpening=()=>setOpening(false);
+    window.addEventListener("pageshow",resetOpening);
+    return()=>window.removeEventListener("pageshow",resetOpening);
+  },[]);
   async function redeem(record:PurchaseRecord,retries=0){
     for(let attempt=0;attempt<=retries;attempt++){
       const response=await fetch(redeemApi,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({provider:"CREEM",...record})});
