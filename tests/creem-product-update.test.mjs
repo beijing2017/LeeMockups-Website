@@ -15,7 +15,7 @@ function environment(requestedKeys = []) {
   return {
     CREEM_API_KEY: "fake-test-key",
     CREEM_MODE: "live",
-    DB: { prepare: () => ({ run: async () => ({}), bind() { return this; }, first: async () => ({ product_id: "prod_Existing123", discount_code: "LAUNCH", launch_active: 1 }) }) },
+    DB: { prepare: () => ({ run: async () => ({}), bind() { return this; }, first: async () => ({ product_id: "prod_Existing123", discount_code: "LAUNCH", launch_active: 1, regular_price_cents: 999, launch_price_cents: 349 }) }) },
     MOCKUPS: { get: async (key) => { requestedKeys.push(key); return { body: "jpeg-bytes", size: 10, writeHttpMetadata() {} }; } },
   };
 }
@@ -44,6 +44,16 @@ test("editing an existing Creem product patches its original ID and image", asyn
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("existing Creem prices cannot silently drift from Publisher settings", async () => {
+  const request = new Request("https://downloads.leemockups.com/admin/creem-product-sync", {
+    method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ sku, name: "Updated Mug", description: "Updated details", imageUrl, regularPriceCents: 1099, launchPriceCents: 349 }),
+  });
+  const response = await worker.fetch(request, environment(), {});
+  assert.equal(response.status, 502);
+  assert.match((await response.json()).error, /prices differ/);
 });
 
 test("the new public gallery image URL is available while private paths stay closed", async () => {

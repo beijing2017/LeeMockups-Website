@@ -172,15 +172,40 @@ export default {
         const imageUrl = String(body?.imageUrl || "").trim();
         const regularPriceCents = Number(body?.regularPriceCents || 999);
         const launchPriceCents = Number(body?.launchPriceCents || 349);
+        const launchActive = body?.launchActive !== false;
         const expectedImagePrefix = `https://downloads.leemockups.com/mockups/${sku}/gallery/`;
         if (!/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku) || !name || !imageUrl.startsWith(expectedImagePrefix) || !/^[A-Za-z0-9._-]+\.(?:jpe?g|png)$/i.test(imageUrl.slice(expectedImagePrefix.length)) || !Number.isInteger(regularPriceCents) || !Number.isInteger(launchPriceCents) || launchPriceCents < 100 || regularPriceCents < launchPriceCents) {
           return jsonResponse({ ok: false, error: "Invalid product settings." }, 400);
         }
-        const mapping = await syncCreemProduct(env, { sku, name, description, imageUrl, regularPriceCents, launchPriceCents });
+        const mapping = await syncCreemProduct(env, { sku, name, description, imageUrl, regularPriceCents, launchPriceCents, launchActive });
         return jsonResponse({ ok: true, ...mapping });
       } catch (error) {
         console.error(JSON.stringify({ type: "creem_product_sync_error", message: String(error?.message || error) }));
         return jsonResponse({ ok: false, error: String(error?.message || "Creem product sync failed.") }, 502);
+      }
+    }
+    if (url.pathname === "/admin/creem-launch-pricing") {
+      if (request.method !== "POST") return jsonResponse({ ok: false, error: "Method not allowed." }, 405);
+      if (!await isAdminRequest(request)) return jsonResponse({ ok: false, error: "Unauthorized." }, 401);
+      try {
+        const body = await request.json();
+        if (typeof body?.launchActive !== "boolean") return jsonResponse({ ok: false, error: "Invalid launch setting." }, 400);
+        const expectedSkus = body?.skus;
+        if (!Array.isArray(expectedSkus) || expectedSkus.length > 1000 || expectedSkus.some((sku) => !/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku))) {
+          return jsonResponse({ ok: false, error: "Invalid product list." }, 400);
+        }
+        await ensureCreemProductTable(env);
+        const mappings = await env.DB.prepare(`SELECT sku, discount_code FROM commerce_product_mappings WHERE provider='CREEM'`).all();
+        const rows = mappings?.results || [];
+        const mappedSkus = new Set(rows.map((row) => row.sku));
+        if (expectedSkus.some((sku) => !mappedSkus.has(sku))) return jsonResponse({ ok: false, error: "Some published Creem products have no checkout mapping." }, 409);
+        if (body.launchActive && rows.some((row) => !row.discount_code)) return jsonResponse({ ok: false, error: "Some Creem products have no launch discount code." }, 409);
+        await env.DB.prepare(`UPDATE commerce_product_mappings SET launch_active=?, updated_at=?
+          WHERE provider='CREEM'`).bind(body.launchActive ? 1 : 0, new Date().toISOString()).run();
+        return jsonResponse({ ok: true, launchActive: body.launchActive, products: rows.length });
+      } catch (error) {
+        console.error(JSON.stringify({ type: "creem_launch_pricing_error", message: String(error?.message || error) }));
+        return jsonResponse({ ok: false, error: String(error?.message || "Creem launch setting failed.") }, 502);
       }
     }
     if (url.pathname === "/paddle/webhook") {
@@ -2017,6 +2042,10 @@ async function syncCreemProduct(env, product) {
   await ensureCreemProductTable(env);
   const existing = await getCreemProductBySku(env, product.sku);
   if (existing && !(creemMode(env) === "live" && CREEM_PRODUCT_SKUS[existing.product_id])) {
+    if (Number(existing.regular_price_cents) !== product.regularPriceCents || Number(existing.launch_price_cents) !== product.launchPriceCents) {
+      throw new Error("Existing Creem prices differ from Publisher settings; changing amounts requires new product and discount setup.");
+    }
+    if (product.launchActive && !existing.discount_code) throw new Error("Existing Creem product has no launch discount code.");
     await creemRequest(env, `/v1/products/${encodeURIComponent(existing.product_id)}`, {
       method: "PATCH",
       body: JSON.stringify({ name: product.name, description: product.description, image_url: product.imageUrl }),
@@ -2026,6 +2055,8 @@ async function syncCreemProduct(env, product) {
     if (String(entity?.id || "") !== existing.product_id || !creemImageMatches(entity?.image_url, product.imageUrl)) {
       throw new Error("Creem did not confirm the updated product image.");
     }
+    await env.DB.prepare(`UPDATE commerce_product_mappings SET launch_active=?, updated_at=? WHERE provider='CREEM' AND sku=?`)
+      .bind(product.launchActive ? 1 : 0, new Date().toISOString(), product.sku).run();
     return { sku: product.sku, productId: existing.product_id, discountCode: existing.discount_code || "", created: false, updated: true };
   }
   const successUrl = `https://www.leemockups.com/mockup/?sku=${encodeURIComponent(product.sku)}&payment=success`;
@@ -2069,11 +2100,11 @@ async function syncCreemProduct(env, product) {
   }
   await env.DB.prepare(`INSERT INTO commerce_product_mappings
     (sku, provider, product_id, regular_price_cents, launch_price_cents, discount_code, launch_active, updated_at)
-    VALUES (?, 'CREEM', ?, ?, ?, ?, 1, ?)
+    VALUES (?, 'CREEM', ?, ?, ?, ?, ?, ?)
     ON CONFLICT(sku) DO UPDATE SET provider='CREEM', product_id=excluded.product_id,
     regular_price_cents=excluded.regular_price_cents, launch_price_cents=excluded.launch_price_cents,
-    discount_code=excluded.discount_code, launch_active=1, updated_at=excluded.updated_at`)
-    .bind(product.sku, productId, product.regularPriceCents, product.launchPriceCents, discountCode || null, new Date().toISOString()).run();
+    discount_code=excluded.discount_code, launch_active=excluded.launch_active, updated_at=excluded.updated_at`)
+    .bind(product.sku, productId, product.regularPriceCents, product.launchPriceCents, discountCode || null, product.launchActive ? 1 : 0, new Date().toISOString()).run();
   return { sku: product.sku, productId, discountCode, created: true };
 }
 function creemApiBase(env) {
