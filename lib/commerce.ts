@@ -29,6 +29,7 @@ export function resolveCommerce(product: CommerceProduct) {
     available: Boolean(purchaseUrl),
     buttonLabel: "Buy now",
     price: `$${resolvePriceUsd(product).toFixed(2)}`,
+    regularPrice: `$${REGULAR_PRICE_USD.toFixed(2)}`,
     launchSpecial: provider === "CREEM" && resolvePriceUsd(product) === LAUNCH_PRICE_USD,
     resolution: product.resolution || "2000 × 2000",
     duration: `${Number(product.durationSeconds ?? 10)} sec`,
