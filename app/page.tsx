@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import { AlertTriangle, Check, Download, ImagePlus, Play, ShieldCheck, Sparkles } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
@@ -5,6 +6,16 @@ import { PolicyLinks } from "@/components/policy-links";
 import { DownloadOptions } from "@/components/download-options";
 import { MockupCatalog } from "@/app/mockups/mockup-catalog";
 import { getSeoCatalog } from "@/lib/catalog-seo";
+
+const homeTitle = "Video Mockups for POD Sellers | LeeMockups";
+const homeDescription = "Create T-shirt, mug, and other product video mockups for print-on-demand listings. Add your design and export videos and still images for Etsy, Shopify, and your own store.";
+
+export const metadata: Metadata = {
+  title: { absolute: homeTitle },
+  description: homeDescription,
+  openGraph: { title: homeTitle, description: homeDescription },
+  twitter: { title: homeTitle, description: homeDescription },
+};
 
 const appVersion = "1.13.81";
 // Public Worker endpoints. The Worker streams private R2 objects and never redirects
@@ -36,9 +47,9 @@ export default async function Home() {
 
     <section className="hero product-first-hero shell" id="top">
       <div className="hero-copy">
-        <div className="eyebrow"><span><Sparkles size={13} /></span> Made for creative product sellers</div>
+        <div className="eyebrow"><span><Sparkles size={13} /></span> Made for print-on-demand sellers</div>
         <h1>Video mockups.<br /><em>Ready for your designs.</em></h1>
-        <p>Explore animated product mockups for your next listing. Choose a template, add your artwork, and create polished videos on your desktop.</p>
+        <p>Show your designs on T-shirts, mugs, and more. Create product videos and still images for Etsy listings, Shopify product pages, and your own store—without filming every item.</p>
         <div className="hero-actions"><a className="button primary" href="#library">Browse Mockups</a><a className="text-link" href="#how"><Play size={15} fill="currentColor" /> See how it works</a></div>
         <div className="micro-trust"><ShieldCheck size={16} /><span>Private by design</span><b>•</b><span>Your artwork stays on your computer</span></div>
       </div>
@@ -60,7 +71,7 @@ export default async function Home() {
     <section className="steps shell" id="how"><div className="section-heading"><span>SIMPLE ON PURPOSE</span><h2>From download to listing video<br />in three calm steps.</h2></div><div className="step-grid">
       <article><span className="step-num">01</span><div className="step-icon"><Download /></div><h3>Open your mockup</h3><p>Download your mockup, then drag the <code>.mockup</code> file into LeeMockups.</p></article>
       <article><span className="step-num">02</span><div className="step-icon coral"><ImagePlus /></div><h3>Add your artwork</h3><p>Choose a PNG or JPG. See it mapped into the scene instantly, including motion and perspective.</p></article>
-      <article><span className="step-num">03</span><div className="step-icon green"><Play /></div><h3>Export and sell</h3><p>Create a polished MP4 listing video plus ready-to-use still images in a few clicks.</p></article>
+      <article><span className="step-num">03</span><div className="step-icon green"><Play /></div><h3>Export for your shop</h3><p>Save an MP4 video and ready-to-use still images, then upload them to your product listings.</p></article>
     </div></section>
 
     <section className="feature-band" id="features"><div className="shell feature-grid"><div className="feature-copy"><span className="section-tag">THE QUIETLY POWERFUL PART</span><h2>Professional results.<br />None of the learning curve.</h2><p>LeeMockups handles perspective, motion, and export settings for you. Your only creative decision is the artwork.</p><ul><li><Check /> Real-time video preview</li><li><Check /> High-resolution MP4 and stills</li><li><Check /> Works completely offline after download</li><li><Check /> Your files never leave your device</li></ul></div><div className="feature-visual"><div className="frame-stack back" /><div className="frame-stack middle" /><div className="frame-stack front"><Image src="/room-mockup.webp" fill sizes="480px" alt="Interior wall art mockup" /></div><div className="badge"><Sparkles />Ready for your shop</div></div></div></section>
