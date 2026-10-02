@@ -58,7 +58,7 @@ export default async function Home() {
         <div className="eyebrow">Made for print-on-demand sellers</div>
         <h1>Video mockups.<br /><em>Ready for your designs.</em></h1>
         <p>Create product videos and still images for your print-on-demand (POD) listings on Etsy, Shopify, and your own store—without filming every item.</p>
-        <div className="hero-actions"><a className="button primary" href="#library">Browse Mockups</a><a className="text-link" href="#how"><Play size={15} fill="currentColor" /> See how it works</a></div>
+        <div className="hero-actions"><a className="button primary" href="#library">Browse Mockups</a></div>
       </div>
     </section>
 
