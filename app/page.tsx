@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { AlertTriangle, Check, Download, ImagePlus, Play, ShieldCheck, Sparkles } from "lucide-react";
+import { AlertTriangle, Check, Download, ImagePlus, Play, Sparkles } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
 import { PolicyLinks } from "@/components/policy-links";
 import { DownloadOptions } from "@/components/download-options";
@@ -46,18 +46,19 @@ export default async function Home() {
     <SiteNav />
 
     <section className="hero product-first-hero shell" id="top">
+      <svg className="hero-logo-watermark" viewBox="0 0 1600 680" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+        <defs><linearGradient id="hero-logo-gradient" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#8255f3" /><stop offset="1" stopColor="#ff7771" /></linearGradient></defs>
+        <rect x="322" y="-54" width="870" height="584" rx="74" transform="rotate(-17 757 238)" fill="none" stroke="#8255f3" strokeOpacity=".12" strokeWidth="6" />
+        <rect x="487" y="24" width="870" height="584" rx="74" transform="rotate(-12 922 316)" fill="none" stroke="#a778ee" strokeOpacity=".11" strokeWidth="6" />
+        <rect x="611" y="74" width="870" height="584" rx="74" transform="rotate(-9 1046 366)" fill="none" stroke="url(#hero-logo-gradient)" strokeOpacity=".16" strokeWidth="7" />
+        <circle cx="1258" cy="223" r="55" fill="url(#hero-logo-gradient)" opacity=".09" />
+        <path d="M934 647 1134 366l129 161 112-130 126 170" fill="none" stroke="url(#hero-logo-gradient)" strokeOpacity=".09" strokeWidth="95" strokeLinejoin="round" strokeLinecap="round" />
+      </svg>
       <div className="hero-copy">
-        <div className="eyebrow"><span><Sparkles size={13} /></span> Made for print-on-demand sellers</div>
+        <div className="eyebrow">Made for print-on-demand sellers</div>
         <h1>Video mockups.<br /><em>Ready for your designs.</em></h1>
-        <p>Built for <strong>print-on-demand (POD) sellers</strong>: turn your T-shirt, mug, and other designs into product videos and still images for Etsy listings, Shopify product pages, and your own store.</p>
+        <p>Create product videos and still images for your print-on-demand (POD) listings on Etsy, Shopify, and your own store—without filming every item.</p>
         <div className="hero-actions"><a className="button primary" href="#library">Browse Mockups</a><a className="text-link" href="#how"><Play size={15} fill="currentColor" /> See how it works</a></div>
-        <div className="micro-trust"><ShieldCheck size={16} /><span>Private by design</span><b>•</b><span>Your artwork stays on your computer</span></div>
-      </div>
-
-      <div className="product-first-stack" aria-label="Frame, mug, and T-shirt mockup previews">
-        <div className="product-stack-card product-stack-frame"><Image src="/room-mockup.webp" width={2048} height={2048} alt="Wall art frame mockup in a room" /><span className="product-stack-label">Wall Frames</span></div>
-        <div className="product-stack-card product-stack-mug"><Image src="/hero-mockups/mug.jpg" width={900} height={900} alt="Ceramic mug mockup preview" /><span className="product-stack-label">Mugs</span></div>
-        <a className="product-stack-card product-stack-shirt" href="/mockups/" aria-label="Browse T-shirt video mockups"><Image src="/hero-mockups/tshirt.jpg" width={900} height={900} priority alt="White T-shirt video mockup preview" /><span className="product-stack-label">T-Shirt Video Mockups →</span></a>
       </div>
     </section>
 
