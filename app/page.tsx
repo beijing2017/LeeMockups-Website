@@ -41,7 +41,7 @@ export default async function Home() {
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   };
 
-  return <main>
+  return <main className="home-page">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
     <SiteNav />
 
