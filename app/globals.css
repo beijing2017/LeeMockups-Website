@@ -82,6 +82,7 @@
 .product-first-hero h1 em{white-space:nowrap}
 .product-first-hero .hero-copy>p{max-width:850px;margin:26px auto 0;font-size:16px}
 .product-first-hero .hero-actions{justify-content:center;margin-top:32px}
+.product-first-hero .hero-actions .button{justify-content:center;min-width:260px;min-height:64px;padding:17px 28px;border-radius:17px;font-size:16px}
 .home-library{padding-block:32px 26px;background:radial-gradient(circle at 90% 0,#fff0ed 0,transparent 31%),#fbfafd}
 .home-library-heading{display:flex;justify-content:space-between;align-items:end;gap:24px}
 .home-library-heading h2{margin:9px 0 7px;font-size:clamp(30px,3vw,42px);letter-spacing:-.05em}
