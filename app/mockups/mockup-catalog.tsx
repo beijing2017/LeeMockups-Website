@@ -34,11 +34,19 @@ function CatalogSkeleton() {
   </div>;
 }
 
-export function MockupCatalog({ seoSkus }: { seoSkus: string[] }) {
+const categoryPriority: Record<string, number> = { SHI: 0, MUG: 1 };
+
+export function MockupCatalog({ seoSkus, previewLimit }: { seoSkus: string[]; previewLimit?: number }) {
   const [products, setProducts] = useState<Product[]>([]), [selectedCategory, setSelectedCategory] = useState("ALL"), [loading, setLoading] = useState(true), [failed, setFailed] = useState(false);
   useEffect(() => { fetch(`${assetBase}/catalog/products.json`, { cache: "no-store" }).then((response) => { if (!response.ok) throw new Error(); return response.json(); }).then((data) => setProducts(Array.isArray(data?.products) ? data.products.map((product: Product) => ({ ...product, assetVersion: data.updatedAt })) : [])).catch(() => setFailed(true)).finally(() => setLoading(false)); }, []);
-  const categories = useMemo(() => [...new Set(products.map((product) => product.category).filter(Boolean))].sort(), [products]);
+  const categories = useMemo(() => [...new Set(products.map((product) => product.category).filter(Boolean))].sort((a, b) => (categoryPriority[a] ?? 99) - (categoryPriority[b] ?? 99) || a.localeCompare(b)), [products]);
   const categoryNames = Object.fromEntries(products.map((product) => [product.category, product.categoryName || categoryLabels[product.category] || product.category]));
-  const visible = selectedCategory === "ALL" ? products : products.filter((product) => product.category === selectedCategory);
-  return <section className="catalog shell" aria-label="Mockup catalog">{loading ? <CatalogSkeleton /> : <>{categories.length > 0 && <div className="catalog-categories" aria-label="Filter mockups by category"><button type="button" className={selectedCategory === "ALL" ? "selected" : ""} onClick={() => setSelectedCategory("ALL")}>All</button>{categories.map((category) => <button type="button" className={selectedCategory === category ? "selected" : ""} onClick={() => setSelectedCategory(category)} key={category}>{categoryNames[category]}</button>)}</div>}{failed ? <div className="catalog-no-results"><h2>Unable to load the library</h2><p>Please refresh the page in a moment.</p></div> : !products.length ? <div className="catalog-no-results"><h2>New mockups are on the way</h2></div> : <div className="mockup-grid">{visible.map((product) => <ProductCard product={product} seoReady={seoSkus.includes(product.sku)} key={product.sku} />)}</div>}</>}</section>;
+  const hasFreeSample = products.some((product) => product.isFree);
+  const visible = selectedCategory === "FREE"
+    ? products.filter((product) => product.isFree)
+    : selectedCategory === "ALL"
+      ? [...products].sort((a, b) => (categoryPriority[a.category] ?? 99) - (categoryPriority[b.category] ?? 99))
+      : products.filter((product) => product.category === selectedCategory);
+  const displayed = previewLimit ? visible.slice(0, previewLimit) : visible;
+  return <section className="catalog shell" aria-label="Mockup catalog">{loading ? <CatalogSkeleton /> : <>{categories.length > 0 && <div className="catalog-categories" aria-label="Filter mockups by category"><button type="button" className={selectedCategory === "ALL" ? "selected" : ""} onClick={() => setSelectedCategory("ALL")}>All</button>{categories.map((category) => <button type="button" className={selectedCategory === category ? "selected" : ""} onClick={() => setSelectedCategory(category)} key={category}>{categoryNames[category]}</button>)}{hasFreeSample && <button type="button" className={selectedCategory === "FREE" ? "selected" : ""} onClick={() => setSelectedCategory("FREE")}>Free Sample</button>}</div>}{failed ? <div className="catalog-no-results"><h2>Unable to load the library</h2><p>Please refresh the page in a moment.</p></div> : !products.length ? <div className="catalog-no-results"><h2>New mockups are on the way</h2></div> : <div className="mockup-grid">{displayed.map((product) => <ProductCard product={product} seoReady={seoSkus.includes(product.sku)} key={product.sku} />)}</div>}</>}</section>;
 }

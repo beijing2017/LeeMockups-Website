@@ -3,7 +3,8 @@ import { AlertTriangle, Check, Download, ImagePlus, Play, ShieldCheck, Sparkles 
 import { SiteNav } from "@/components/site-nav";
 import { PolicyLinks } from "@/components/policy-links";
 import { DownloadOptions } from "@/components/download-options";
-import { HeroProductPreview } from "@/components/hero-product-preview";
+import { MockupCatalog } from "@/app/mockups/mockup-catalog";
+import { getSeoCatalog } from "@/lib/catalog-seo";
 
 const appVersion = "1.13.81";
 // Public Worker endpoints. The Worker streams private R2 objects and never redirects
@@ -15,7 +16,8 @@ const downloads = {
   macX64: `${downloadBase}/mac-x64`,
 };
 
-export default function Home() {
+export default async function Home() {
+  const seoSkus = (await getSeoCatalog()).map((product) => product.sku);
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
@@ -32,16 +34,21 @@ export default function Home() {
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
     <SiteNav />
 
-    <section className="hero shell" id="top">
+    <section className="hero product-first-hero shell" id="top">
       <div className="hero-copy">
         <div className="eyebrow"><span><Sparkles size={13} /></span> Made for creative product sellers</div>
-        <h1>Video mockups.<br /><em>Beautifully in motion.</em></h1>
-        <p>Turn a LeeMockups template and your artwork into polished product videos—right on your desktop. No editing experience needed.</p>
-        <div className="hero-actions"><a className="button primary" href="#download"><Download size={18} /> Download LeeMockups</a><a className="text-link" href="#how"><Play size={15} fill="currentColor" /> See how it works</a></div>
+        <h1>Video mockups.<br /><em>Ready for your designs.</em></h1>
+        <p>Explore animated product mockups for your next listing. Choose a template, add your artwork, and create polished videos on your desktop.</p>
+        <div className="hero-actions"><a className="button primary" href="#library">Browse Mockups</a><a className="text-link" href="#how"><Play size={15} fill="currentColor" /> See how it works</a></div>
         <div className="micro-trust"><ShieldCheck size={16} /><span>Private by design</span><b>•</b><span>Your artwork stays on your computer</span></div>
       </div>
 
-      <HeroProductPreview />
+      <a className="product-first-visual" href="/mockups/" aria-label="Browse T-shirt video mockups"><Image src="/hero-mockups/tshirt.jpg" width={900} height={900} priority alt="White T-shirt video mockup preview" /><span>T-Shirt Video Mockups →</span></a>
+    </section>
+
+    <section className="home-library" id="library" aria-labelledby="home-library-title">
+      <div className="shell home-library-heading"><div><span className="section-tag">THE MOCKUP LIBRARY</span><h2 id="home-library-title">Find your next mockup</h2><p>Start with a T-shirt mockup, explore every category, or try a free sample.</p></div><a href="/mockups/">View full library →</a></div>
+      <MockupCatalog seoSkus={seoSkus} previewLimit={4} />
     </section>
 
     <section className="proof"><div className="shell proof-inner"><span>Built for the way you sell</span><b>PRODUCT LISTING READY</b><i /><b>WINDOWS &amp; macOS</b><i /><b>NO SUBSCRIPTION</b><i /><b>LOCAL &amp; PRIVATE</b></div></section>
