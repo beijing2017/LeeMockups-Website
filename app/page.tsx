@@ -43,7 +43,11 @@ export default async function Home() {
         <div className="micro-trust"><ShieldCheck size={16} /><span>Private by design</span><b>•</b><span>Your artwork stays on your computer</span></div>
       </div>
 
-      <a className="product-first-visual" href="/mockups/" aria-label="Browse T-shirt video mockups"><Image src="/hero-mockups/tshirt.jpg" width={900} height={900} priority alt="White T-shirt video mockup preview" /><span>T-Shirt Video Mockups →</span></a>
+      <div className="product-first-stack" aria-label="Frame, mug, and T-shirt mockup previews">
+        <div className="product-stack-card product-stack-frame"><Image src="/room-mockup.webp" width={2048} height={2048} alt="Wall art frame mockup in a room" /><span className="product-stack-label">Wall Frames</span></div>
+        <div className="product-stack-card product-stack-mug"><Image src="/hero-mockups/mug.jpg" width={900} height={900} alt="Ceramic mug mockup preview" /><span className="product-stack-label">Mugs</span></div>
+        <a className="product-stack-card product-stack-shirt" href="/mockups/" aria-label="Browse T-shirt video mockups"><Image src="/hero-mockups/tshirt.jpg" width={900} height={900} priority alt="White T-shirt video mockup preview" /><span className="product-stack-label">T-Shirt Video Mockups →</span></a>
+      </div>
     </section>
 
     <section className="home-library" id="library" aria-labelledby="home-library-title">
