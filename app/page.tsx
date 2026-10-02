@@ -8,7 +8,7 @@ import { MockupCatalog } from "@/app/mockups/mockup-catalog";
 import { getSeoCatalog } from "@/lib/catalog-seo";
 
 const homeTitle = "Video Mockups for POD Sellers | LeeMockups";
-const homeDescription = "Create T-shirt, mug, and other product video mockups for print-on-demand listings. Add your design and export videos and still images for Etsy, Shopify, and your own store.";
+const homeDescription = "Create T-shirt, mug, and other video mockups for print-on-demand (POD) product listings. Export videos and still images for Etsy, Shopify, and your own store.";
 
 export const metadata: Metadata = {
   title: { absolute: homeTitle },
@@ -49,7 +49,7 @@ export default async function Home() {
       <div className="hero-copy">
         <div className="eyebrow"><span><Sparkles size={13} /></span> Made for print-on-demand sellers</div>
         <h1>Video mockups.<br /><em>Ready for your designs.</em></h1>
-        <p>Show your designs on T-shirts, mugs, and more. Create product videos and still images for Etsy listings, Shopify product pages, and your own store—without filming every item.</p>
+        <p>Built for <strong>print-on-demand (POD) sellers</strong>: turn your T-shirt, mug, and other designs into product videos and still images for Etsy listings, Shopify product pages, and your own store.</p>
         <div className="hero-actions"><a className="button primary" href="#library">Browse Mockups</a><a className="text-link" href="#how"><Play size={15} fill="currentColor" /> See how it works</a></div>
         <div className="micro-trust"><ShieldCheck size={16} /><span>Private by design</span><b>•</b><span>Your artwork stays on your computer</span></div>
       </div>
@@ -62,7 +62,7 @@ export default async function Home() {
     </section>
 
     <section className="home-library" id="library" aria-labelledby="home-library-title">
-      <div className="shell home-library-heading"><div><span className="section-tag">THE MOCKUP LIBRARY</span><h2 id="home-library-title">Find your next mockup</h2><p>Start with a T-shirt mockup, explore every category, or try a free sample.</p></div><a href="/mockups/">View full library →</a></div>
+      <div className="shell home-library-heading"><div><span className="section-tag">THE MOCKUP LIBRARY</span><h2 id="home-library-title">Find your next mockup</h2><p>Explore T-shirt, mug, and other video mockups for print-on-demand (POD) product listings—or try a free sample.</p></div><a href="/mockups/">View full library →</a></div>
       <MockupCatalog seoSkus={seoSkus} previewLimit={4} />
     </section>
 
