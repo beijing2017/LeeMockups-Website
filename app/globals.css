@@ -76,6 +76,13 @@
 .home-page .nav::before{content:"";position:absolute;z-index:-1;inset:0 auto 0 50%;width:100vw;transform:translateX(-50%);background:linear-gradient(to bottom,rgba(255,255,255,.3),rgba(255,255,255,0));pointer-events:none}
 .product-first-hero{position:relative;isolation:isolate;display:flex;justify-content:center;min-height:610px;padding-block:96px 108px;text-align:center}
 .hero-logo-watermark{position:absolute;z-index:0;top:calc(-1 * var(--home-nav-height));left:50%;width:100vw;height:calc(100% + var(--home-nav-height));transform:translateX(-50%);pointer-events:none}
+.hero-mark-layer{animation:hero-mark-float 18s ease-in-out infinite alternate;will-change:transform}
+.hero-mark-back{--drift-x:-12px;--drift-y:9px;animation-duration:21s;animation-delay:-6s}
+.hero-mark-middle{--drift-x:9px;--drift-y:-11px;animation-duration:17s;animation-delay:-9s}
+.hero-mark-front{--drift-x:-8px;--drift-y:-7px;animation-duration:23s;animation-delay:-3s}
+.hero-mark-detail{--drift-x:7px;--drift-y:10px;animation-duration:15s;animation-delay:-7s}
+@keyframes hero-mark-float{to{transform:translate3d(var(--drift-x),var(--drift-y),0)}}
+@media(prefers-reduced-motion:reduce){.hero-mark-layer{animation:none;will-change:auto}}
 .product-first-hero .hero-copy{width:100%}
 .product-first-hero .eyebrow{margin-bottom:27px}
 .product-first-hero h1{font-size:clamp(44px,5.5vw,78px);line-height:1.04}
