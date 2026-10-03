@@ -48,11 +48,10 @@ export default async function Home() {
     <section className="hero product-first-hero shell" id="top">
       <svg className="hero-logo-watermark" viewBox="0 0 1600 680" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
         <defs><linearGradient id="hero-logo-gradient" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#8255f3" /><stop offset="1" stopColor="#ff7771" /></linearGradient></defs>
-        <rect x="322" y="-54" width="870" height="584" rx="74" transform="rotate(-17 757 238)" fill="none" stroke="#8255f3" strokeOpacity=".12" strokeWidth="6" />
-        <rect x="487" y="24" width="870" height="584" rx="74" transform="rotate(-12 922 316)" fill="none" stroke="#a778ee" strokeOpacity=".11" strokeWidth="6" />
-        <rect x="611" y="74" width="870" height="584" rx="74" transform="rotate(-9 1046 366)" fill="none" stroke="url(#hero-logo-gradient)" strokeOpacity=".16" strokeWidth="7" />
-        <circle cx="1258" cy="223" r="55" fill="url(#hero-logo-gradient)" opacity=".09" />
-        <path d="M934 647 1134 366l129 161 112-130 126 170" fill="none" stroke="url(#hero-logo-gradient)" strokeOpacity=".09" strokeWidth="95" strokeLinejoin="round" strokeLinecap="round" />
+        <g className="hero-mark-layer hero-mark-back"><rect x="322" y="-54" width="870" height="584" rx="74" transform="rotate(-17 757 238)" fill="none" stroke="#8255f3" strokeOpacity=".12" strokeWidth="6" /></g>
+        <g className="hero-mark-layer hero-mark-middle"><rect x="487" y="24" width="870" height="584" rx="74" transform="rotate(-12 922 316)" fill="none" stroke="#a778ee" strokeOpacity=".11" strokeWidth="6" /></g>
+        <g className="hero-mark-layer hero-mark-front"><rect x="611" y="74" width="870" height="584" rx="74" transform="rotate(-9 1046 366)" fill="none" stroke="url(#hero-logo-gradient)" strokeOpacity=".16" strokeWidth="7" /></g>
+        <g className="hero-mark-layer hero-mark-detail"><circle cx="1258" cy="223" r="55" fill="url(#hero-logo-gradient)" opacity=".09" /><path d="M934 647 1134 366l129 161 112-130 126 170" fill="none" stroke="url(#hero-logo-gradient)" strokeOpacity=".09" strokeWidth="95" strokeLinejoin="round" strokeLinecap="round" /></g>
       </svg>
       <div className="hero-copy">
         <div className="eyebrow">Made for print-on-demand sellers</div>
