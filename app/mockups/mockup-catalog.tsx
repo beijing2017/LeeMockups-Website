@@ -24,10 +24,10 @@ function ProductCard({ product, seoReady }: { product: Product; seoReady: boolea
   </article></Link>;
 }
 
-function CatalogSkeleton() {
+function CatalogSkeleton({ count = 4 }: { count?: number }) {
   return <div className="catalog-loading" role="status" aria-live="polite" aria-label="Loading mockups">
     <div className="catalog-loading-label"><span className="catalog-loading-spinner" aria-hidden="true" />Loading mockups…</div>
-    <div className="mockup-grid" aria-hidden="true">{Array.from({ length: 4 }, (_, index) => <article className="mockup-card mockup-card-skeleton" key={index}>
+    <div className="mockup-grid" aria-hidden="true">{Array.from({ length: count }, (_, index) => <article className="mockup-card mockup-card-skeleton" key={index}>
       <div className="mockup-card-image" />
       <div className="mockup-card-body"><span className="skeleton-line skeleton-price" /></div>
     </article>)}</div>
@@ -36,9 +36,21 @@ function CatalogSkeleton() {
 
 const categoryPriority: Record<string, number> = { SHI: 0, MUG: 1 };
 
+function interleaveCategories(products: Product[], categories: string[]): Product[] {
+  if (!categories.length) return products;
+  const buckets = categories.map((category) => products.filter((product) => product.category === category));
+  const uncategorized = products.filter((product) => !categories.includes(product.category));
+  if (uncategorized.length) buckets.push(uncategorized);
+  const result: Product[] = [];
+  for (let index = 0; result.length < products.length; index++) {
+    for (const bucket of buckets) if (bucket[index]) result.push(bucket[index]);
+  }
+  return result;
+}
+
 export function MockupCatalog({ seoSkus, previewLimit }: { seoSkus: string[]; previewLimit?: number }) {
-  const [products, setProducts] = useState<Product[]>([]), [selectedCategory, setSelectedCategory] = useState("ALL"), [loading, setLoading] = useState(true), [failed, setFailed] = useState(false);
-  useEffect(() => { fetch(`${assetBase}/catalog/products.json`, { cache: "no-store" }).then((response) => { if (!response.ok) throw new Error(); return response.json(); }).then((data) => setProducts(Array.isArray(data?.products) ? data.products.map((product: Product) => ({ ...product, assetVersion: data.updatedAt })) : [])).catch(() => setFailed(true)).finally(() => setLoading(false)); }, []);
+  const [products, setProducts] = useState<Product[]>([]), [homeFeaturedSkus, setHomeFeaturedSkus] = useState<string[]>([]), [selectedCategory, setSelectedCategory] = useState("ALL"), [loading, setLoading] = useState(true), [failed, setFailed] = useState(false);
+  useEffect(() => { fetch(`${assetBase}/catalog/products.json`, { cache: "no-store" }).then((response) => { if (!response.ok) throw new Error(); return response.json(); }).then((data) => { setProducts(Array.isArray(data?.products) ? data.products.map((product: Product) => ({ ...product, assetVersion: data.updatedAt })) : []); setHomeFeaturedSkus(Array.isArray(data?.homeFeaturedSkus) ? [...new Set<string>(data.homeFeaturedSkus.filter((sku: unknown): sku is string => typeof sku === "string"))].slice(0, 8) : []); }).catch(() => setFailed(true)).finally(() => setLoading(false)); }, []);
   const categories = useMemo(() => [...new Set(products.map((product) => product.category).filter(Boolean))].sort((a, b) => (categoryPriority[a] ?? 99) - (categoryPriority[b] ?? 99) || a.localeCompare(b)), [products]);
   const categoryNames = Object.fromEntries(products.map((product) => [product.category, product.categoryName || categoryLabels[product.category] || product.category]));
   const hasFreeSample = products.some((product) => product.isFree);
@@ -47,6 +59,8 @@ export function MockupCatalog({ seoSkus, previewLimit }: { seoSkus: string[]; pr
     : selectedCategory === "ALL"
       ? [...products].sort((a, b) => (categoryPriority[a.category] ?? 99) - (categoryPriority[b.category] ?? 99))
       : products.filter((product) => product.category === selectedCategory);
-  const displayed = previewLimit ? visible.slice(0, previewLimit) : visible;
-  return <section className="catalog shell" aria-label="Mockup catalog">{loading ? <CatalogSkeleton /> : <>{categories.length > 0 && <div className="catalog-categories" aria-label="Filter mockups by category"><button type="button" className={selectedCategory === "ALL" ? "selected" : ""} onClick={() => setSelectedCategory("ALL")}>All</button>{categories.map((category) => <button type="button" className={selectedCategory === category ? "selected" : ""} onClick={() => setSelectedCategory(category)} key={category}>{categoryNames[category]}</button>)}{hasFreeSample && <button type="button" className={selectedCategory === "FREE" ? "selected" : ""} onClick={() => setSelectedCategory("FREE")}>Free Sample</button>}</div>}{failed ? <div className="catalog-no-results"><h2>Unable to load the library</h2><p>Please refresh the page in a moment.</p></div> : !products.length ? <div className="catalog-no-results"><h2>New mockups are on the way</h2></div> : <div className="mockup-grid">{displayed.map((product) => <ProductCard product={product} seoReady={seoSkus.includes(product.sku)} key={product.sku} />)}</div>}</>}</section>;
+  const homepageOrder = previewLimit ? interleaveCategories(visible, categories) : visible;
+  const featured = homeFeaturedSkus.flatMap((sku) => homepageOrder.find((product) => product.sku === sku) || []);
+  const displayed = previewLimit ? [...featured, ...homepageOrder.filter((product) => !homeFeaturedSkus.includes(product.sku))].slice(0, previewLimit) : visible;
+  return <section className="catalog shell" aria-label="Mockup catalog">{loading ? <CatalogSkeleton count={previewLimit} /> : <>{!previewLimit && categories.length > 0 && <div className="catalog-categories" aria-label="Filter mockups by category"><button type="button" className={selectedCategory === "ALL" ? "selected" : ""} onClick={() => setSelectedCategory("ALL")}>All</button>{categories.map((category) => <button type="button" className={selectedCategory === category ? "selected" : ""} onClick={() => setSelectedCategory(category)} key={category}>{categoryNames[category]}</button>)}{hasFreeSample && <button type="button" className={selectedCategory === "FREE" ? "selected" : ""} onClick={() => setSelectedCategory("FREE")}>Free Sample</button>}</div>}{failed ? <div className="catalog-no-results"><h2>Unable to load the library</h2><p>Please refresh the page in a moment.</p></div> : !products.length ? <div className="catalog-no-results"><h2>New mockups are on the way</h2></div> : <div className="mockup-grid">{displayed.map((product) => <ProductCard product={product} seoReady={seoSkus.includes(product.sku)} key={product.sku} />)}</div>}</>}</section>;
 }
