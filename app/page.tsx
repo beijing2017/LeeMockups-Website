@@ -63,7 +63,7 @@ export default async function Home() {
 
     <section className="home-library" id="library" aria-labelledby="home-library-title">
       <div className="shell home-library-heading"><div><span className="section-tag">THE MOCKUP LIBRARY</span><h2 id="home-library-title">Find your next mockup</h2><p>Explore T-shirt, mug, and other video mockups for print-on-demand (POD) product listings—or try a free sample.</p></div><a href="/mockups/">View full library →</a></div>
-      <MockupCatalog seoSkus={seoSkus} previewLimit={4} />
+      <MockupCatalog seoSkus={seoSkus} previewLimit={8} />
     </section>
 
     <section className="proof"><div className="shell proof-inner"><span>Built for the way you sell</span><b>PRODUCT LISTING READY</b><i /><b>WINDOWS &amp; macOS</b><i /><b>NO SUBSCRIPTION</b><i /><b>LOCAL &amp; PRIVATE</b></div></section>
