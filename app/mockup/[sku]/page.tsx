@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SiteNav } from "@/components/site-nav";
 import { PolicyLinks } from "@/components/policy-links";
@@ -30,8 +31,15 @@ export async function generateMetadata({ params }: { params: Promise<{ sku: stri
 
 export default async function ProductPage({ params }: { params: Promise<{ sku: string }> }) {
   const { sku } = await params;
-  const product = (await getSeoCatalog()).find((item) => item.sku === sku);
+  const catalog = await getSeoCatalog();
+  const product = catalog.find((item) => item.sku === sku);
   if (!product) notFound();
+  const sameCategory = catalog.filter((item) => item.category === product.category);
+  const productIndex = sameCategory.findIndex((item) => item.sku === sku);
+  const relatedProducts = Array.from({ length: Math.min(3, sameCategory.length - 1) }, (_, offset) =>
+    sameCategory[(productIndex + offset + 1) % sameCategory.length]
+  );
+  const categoryLabel = product.category === "SHI" ? "T-shirt" : product.category === "MUG" ? "mug" : "product";
   const url = productUrl(sku);
   const description = product.description || `Create a ${product.name.toLowerCase()} with your design in LeeMockups.`;
   const structuredData = {
@@ -55,6 +63,13 @@ export default async function ProductPage({ params }: { params: Promise<{ sku: s
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
     <SiteNav current="mockups" />
     <MockupDetailClient sku={sku} initialProduct={product} />
+    {relatedProducts.length > 0 && <section className="related-mockups shell" aria-labelledby="related-mockups-title">
+      <div className="related-mockups-heading"><div><span className="mockup-section-kicker">EXPLORE MORE</span><h2 id="related-mockups-title">More {categoryLabel} video mockups</h2><p>Compare scenes for your print-on-demand listings on Etsy, Shopify, or your own store.</p></div><Link href="/mockups/">View the full library →</Link></div>
+      <div className="related-mockups-grid">{relatedProducts.map((item) => <Link className="related-mockup-card" href={`/mockup/${encodeURIComponent(item.sku)}/`} key={item.sku}>
+        <img src={`${catalogAssetBase}/${item.thumbnailPath}?v=${encodeURIComponent(item.assetVersion || "1")}`} alt={item.name} loading="lazy" />
+        <span>{item.name}</span>
+      </Link>)}</div>
+    </section>}
     <footer className="legal-footer shell"><strong>LeeMockups</strong><PolicyLinks /><span>© 2026 LeeMockups</span></footer>
   </main>;
 }
