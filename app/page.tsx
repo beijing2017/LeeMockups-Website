@@ -5,7 +5,7 @@ import { SiteNav } from "@/components/site-nav";
 import { PolicyLinks } from "@/components/policy-links";
 import { DownloadOptions } from "@/components/download-options";
 import { MockupCatalog } from "@/app/mockups/mockup-catalog";
-import { getSeoCatalog } from "@/lib/catalog-seo";
+import { getSeoCatalogData } from "@/lib/catalog-seo";
 
 const homeTitle = "Video Mockups for POD Sellers | LeeMockups";
 const homeDescription = "Create T-shirt, mug, and other video mockups for print-on-demand (POD) product listings. Export videos and still images for Etsy, Shopify, and your own store.";
@@ -28,7 +28,8 @@ const downloads = {
 };
 
 export default async function Home() {
-  const seoSkus = (await getSeoCatalog()).map((product) => product.sku);
+  const { products, homeFeaturedSkus } = await getSeoCatalogData();
+  const seoSkus = products.map((product) => product.sku);
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
@@ -63,7 +64,7 @@ export default async function Home() {
 
     <section className="home-library" id="library" aria-labelledby="home-library-title">
       <div className="shell home-library-heading"><div><span className="section-tag">THE MOCKUP LIBRARY</span><h2 id="home-library-title">Find your next mockup</h2><p>Explore T-shirt, mug, and other video mockups for print-on-demand (POD) product listings—or try a free sample.</p></div><a href="/mockups/">View full library →</a></div>
-      <MockupCatalog seoSkus={seoSkus} previewLimit={8} />
+      <MockupCatalog seoSkus={seoSkus} initialProducts={products} initialHomeFeaturedSkus={homeFeaturedSkus} previewLimit={8} />
     </section>
 
     <section className="proof"><div className="shell proof-inner"><span>Built for the way you sell</span><b>PRODUCT LISTING READY</b><i /><b>WINDOWS &amp; macOS</b><i /><b>NO SUBSCRIPTION</b><i /><b>LOCAL &amp; PRIVATE</b></div></section>

@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { resolveCommerce } from "@/lib/commerce";
+import type { CatalogProduct } from "@/lib/catalog-seo";
 import { MockupPrice } from "@/components/mockup-price";
 
 const assetBase = "https://downloads.leemockups.com";
-type Product = { sku: string; name: string; description: string; category: string; categoryName?: string; thumbnailPath: string; previewPath: string; purchaseProvider?: string; purchaseUrl?: string; deliveryUrl?: string; etsyUrl?: string; priceUsd?: number; resolution?: string; durationSeconds?: number; isFree?: boolean; keywords?: string[]; assetVersion?: string };
+type Product = CatalogProduct;
 const categoryLabels: Record<string, string> = { MUG: "Mugs", FRM: "Frames", TSH: "T-Shirts" };
 
 function ProductCard({ product, seoReady }: { product: Product; seoReady: boolean }) {
@@ -48,9 +49,9 @@ function interleaveCategories(products: Product[], categories: string[]): Produc
   return result;
 }
 
-export function MockupCatalog({ seoSkus, previewLimit }: { seoSkus: string[]; previewLimit?: number }) {
-  const [products, setProducts] = useState<Product[]>([]), [homeFeaturedSkus, setHomeFeaturedSkus] = useState<string[]>([]), [selectedCategory, setSelectedCategory] = useState("ALL"), [loading, setLoading] = useState(true), [failed, setFailed] = useState(false);
-  useEffect(() => { fetch(`${assetBase}/catalog/products.json`, { cache: "no-store" }).then((response) => { if (!response.ok) throw new Error(); return response.json(); }).then((data) => { setProducts(Array.isArray(data?.products) ? data.products.map((product: Product) => ({ ...product, assetVersion: data.updatedAt })) : []); setHomeFeaturedSkus(Array.isArray(data?.homeFeaturedSkus) ? [...new Set<string>(data.homeFeaturedSkus.filter((sku: unknown): sku is string => typeof sku === "string"))].slice(0, 8) : []); }).catch(() => setFailed(true)).finally(() => setLoading(false)); }, []);
+export function MockupCatalog({ seoSkus, initialProducts, initialHomeFeaturedSkus, previewLimit }: { seoSkus: string[]; initialProducts: Product[]; initialHomeFeaturedSkus: string[]; previewLimit?: number }) {
+  const [products, setProducts] = useState<Product[]>(initialProducts), [homeFeaturedSkus, setHomeFeaturedSkus] = useState<string[]>(initialHomeFeaturedSkus), [selectedCategory, setSelectedCategory] = useState("ALL"), [loading, setLoading] = useState(initialProducts.length === 0), [failed, setFailed] = useState(false);
+  useEffect(() => { fetch(`${assetBase}/catalog/products.json`, { cache: "no-store" }).then((response) => { if (!response.ok) throw new Error(); return response.json(); }).then((data) => { setProducts(Array.isArray(data?.products) ? data.products.map((product: Product) => ({ ...product, assetVersion: data.updatedAt })) : []); setHomeFeaturedSkus(Array.isArray(data?.homeFeaturedSkus) ? [...new Set<string>(data.homeFeaturedSkus.filter((sku: unknown): sku is string => typeof sku === "string"))].slice(0, 8) : []); }).catch(() => { if (!initialProducts.length) setFailed(true); }).finally(() => setLoading(false)); }, [initialProducts.length]);
   const categories = useMemo(() => [...new Set(products.map((product) => product.category).filter(Boolean))].sort((a, b) => (categoryPriority[a] ?? 99) - (categoryPriority[b] ?? 99) || a.localeCompare(b)), [products]);
   const categoryNames = Object.fromEntries(products.map((product) => [product.category, product.categoryName || categoryLabels[product.category] || product.category]));
   const hasFreeSample = products.some((product) => product.isFree);
