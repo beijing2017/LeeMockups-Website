@@ -10,7 +10,7 @@ const assetBase = "https://downloads.leemockups.com";
 type Product = CatalogProduct;
 const categoryLabels: Record<string, string> = { MUG: "Mugs", FRM: "Frames", TSH: "T-Shirts" };
 
-function ProductCard({ product, seoReady }: { product: Product; seoReady: boolean }) {
+export function ProductCard({ product, seoReady }: { product: Product; seoReady: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const commerce = resolveCommerce(product);
   const play = () => videoRef.current?.play().catch(() => undefined);

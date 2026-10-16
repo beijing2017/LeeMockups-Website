@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { SiteNav } from "@/components/site-nav";
 import { PolicyLinks } from "@/components/policy-links";
 import { MockupDetailClient } from "../mockup-detail-client";
+import { ProductCard } from "@/app/mockups/mockup-catalog";
 import { catalogAssetBase, getSeoCatalog, productUrl } from "@/lib/catalog-seo";
 
 export const dynamicParams = false;
@@ -65,10 +66,7 @@ export default async function ProductPage({ params }: { params: Promise<{ sku: s
     <MockupDetailClient sku={sku} initialProduct={product} />
     {relatedProducts.length > 0 && <section className="related-mockups shell" aria-labelledby="related-mockups-title">
       <div className="related-mockups-heading"><div><span className="mockup-section-kicker">EXPLORE MORE</span><h2 id="related-mockups-title">More {categoryLabel} video mockups</h2><p>Compare scenes for your print-on-demand listings on Etsy, Shopify, or your own store.</p></div><Link href="/mockups/">View the full library →</Link></div>
-      <div className="related-mockups-grid">{relatedProducts.map((item) => <Link className="related-mockup-card" href={`/mockup/${encodeURIComponent(item.sku)}/`} key={item.sku}>
-        <img src={`${catalogAssetBase}/${item.thumbnailPath}?v=${encodeURIComponent(item.assetVersion || "1")}`} alt={item.name} loading="lazy" />
-        <span>{item.name}</span>
-      </Link>)}</div>
+      <div className="mockup-grid">{relatedProducts.map((item) => <ProductCard product={item} seoReady key={item.sku} />)}</div>
     </section>}
     <footer className="legal-footer shell"><strong>LeeMockups</strong><PolicyLinks /><span>© 2026 LeeMockups</span></footer>
   </main>;
