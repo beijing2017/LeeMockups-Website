@@ -4,11 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { resolveCommerce } from "@/lib/commerce";
 import type { CatalogProduct } from "@/lib/catalog-seo";
+import { matchesMockupCategory, type MockupCategory } from "@/lib/mockup-categories";
 import { MockupPrice } from "@/components/mockup-price";
 
 const assetBase = "https://downloads.leemockups.com";
 type Product = CatalogProduct;
-const categoryLabels: Record<string, string> = { MUG: "Mugs", FRM: "Frames", TSH: "T-Shirts" };
 
 export function ProductCard({ product, seoReady }: { product: Product; seoReady: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -35,7 +35,7 @@ function CatalogSkeleton({ count = 4 }: { count?: number }) {
   </div>;
 }
 
-const categoryPriority: Record<string, number> = { SHI: 0, MUG: 1 };
+const categoryPriority: Record<string, number> = { SHI: 0, TSH: 0, HOO: 0, MUG: 1 };
 
 function interleaveCategories(products: Product[], categories: string[]): Product[] {
   if (!categories.length) return products;
@@ -49,19 +49,17 @@ function interleaveCategories(products: Product[], categories: string[]): Produc
   return result;
 }
 
-export function MockupCatalog({ seoSkus, initialProducts, initialHomeFeaturedSkus, previewLimit }: { seoSkus: string[]; initialProducts: Product[]; initialHomeFeaturedSkus: string[]; previewLimit?: number }) {
-  const [products, setProducts] = useState<Product[]>(initialProducts), [homeFeaturedSkus, setHomeFeaturedSkus] = useState<string[]>(initialHomeFeaturedSkus), [selectedCategory, setSelectedCategory] = useState("ALL"), [loading, setLoading] = useState(initialProducts.length === 0), [failed, setFailed] = useState(false);
+export function MockupCatalog({ seoSkus, initialProducts, initialHomeFeaturedSkus, previewLimit, categoryGroup }: { seoSkus: string[]; initialProducts: Product[]; initialHomeFeaturedSkus: string[]; previewLimit?: number; categoryGroup?: MockupCategory }) {
+  const [products, setProducts] = useState<Product[]>(initialProducts), [homeFeaturedSkus, setHomeFeaturedSkus] = useState<string[]>(initialHomeFeaturedSkus), [freeOnly, setFreeOnly] = useState(false), [loading, setLoading] = useState(initialProducts.length === 0), [failed, setFailed] = useState(false);
   useEffect(() => { fetch(`${assetBase}/catalog/products.json`, { cache: "no-store" }).then((response) => { if (!response.ok) throw new Error(); return response.json(); }).then((data) => { setProducts(Array.isArray(data?.products) ? data.products.map((product: Product) => ({ ...product, assetVersion: data.updatedAt })) : []); setHomeFeaturedSkus(Array.isArray(data?.homeFeaturedSkus) ? [...new Set<string>(data.homeFeaturedSkus.filter((sku: unknown): sku is string => typeof sku === "string"))].slice(0, 8) : []); }).catch(() => { if (!initialProducts.length) setFailed(true); }).finally(() => setLoading(false)); }, [initialProducts.length]);
-  const categories = useMemo(() => [...new Set(products.map((product) => product.category).filter(Boolean))].sort((a, b) => (categoryPriority[a] ?? 99) - (categoryPriority[b] ?? 99) || a.localeCompare(b)), [products]);
-  const categoryNames = Object.fromEntries(products.map((product) => [product.category, product.categoryName || categoryLabels[product.category] || product.category]));
-  const hasFreeSample = products.some((product) => product.isFree);
-  const visible = selectedCategory === "FREE"
-    ? products.filter((product) => product.isFree)
-    : selectedCategory === "ALL"
-      ? [...products].sort((a, b) => (categoryPriority[a.category] ?? 99) - (categoryPriority[b.category] ?? 99))
-      : products.filter((product) => product.category === selectedCategory);
+  const categoryProducts = categoryGroup ? products.filter((product) => matchesMockupCategory(product, categoryGroup)) : products;
+  const categories = useMemo(() => [...new Set(categoryProducts.map((product) => product.category).filter(Boolean))].sort((a, b) => (categoryPriority[a] ?? 99) - (categoryPriority[b] ?? 99) || a.localeCompare(b)), [categoryProducts]);
+  const hasFreeSample = categoryProducts.some((product) => product.isFree);
+  const visible = freeOnly
+    ? categoryProducts.filter((product) => product.isFree)
+    : [...categoryProducts].sort((a, b) => (categoryPriority[a.category] ?? 99) - (categoryPriority[b.category] ?? 99));
   const homepageOrder = previewLimit ? interleaveCategories(visible, categories) : visible;
   const featured = homeFeaturedSkus.flatMap((sku) => homepageOrder.find((product) => product.sku === sku) || []);
   const displayed = previewLimit ? [...featured, ...homepageOrder.filter((product) => !homeFeaturedSkus.includes(product.sku))].slice(0, previewLimit) : visible;
-  return <section className="catalog shell" aria-label="Mockup catalog">{loading ? <CatalogSkeleton count={previewLimit} /> : <>{!previewLimit && categories.length > 0 && <div className="catalog-categories" aria-label="Filter mockups by category"><button type="button" className={selectedCategory === "ALL" ? "selected" : ""} onClick={() => setSelectedCategory("ALL")}>All</button>{categories.map((category) => <button type="button" className={selectedCategory === category ? "selected" : ""} onClick={() => setSelectedCategory(category)} key={category}>{categoryNames[category]}</button>)}{hasFreeSample && <button type="button" className={selectedCategory === "FREE" ? "selected" : ""} onClick={() => setSelectedCategory("FREE")}>Free Sample</button>}</div>}{failed ? <div className="catalog-no-results"><h2>Unable to load the library</h2><p>Please refresh the page in a moment.</p></div> : !products.length ? <div className="catalog-no-results"><h2>New mockups are on the way</h2></div> : <div className="mockup-grid">{displayed.map((product) => <ProductCard product={product} seoReady={seoSkus.includes(product.sku)} key={product.sku} />)}</div>}</>}</section>;
+  return <section className="catalog shell" aria-label="Mockup catalog">{loading ? <CatalogSkeleton count={previewLimit} /> : <>{!previewLimit && <div className="catalog-categories" aria-label="Browse mockups by category"><Link href="/mockups/" className={!categoryGroup && !freeOnly ? "selected" : ""}>All</Link><Link href="/mockups/apparel/" className={categoryGroup === "apparel" && !freeOnly ? "selected" : ""}>Apparel</Link><Link href="/mockups/mugs/" className={categoryGroup === "mugs" && !freeOnly ? "selected" : ""}>Mugs</Link>{hasFreeSample && <button type="button" className={freeOnly ? "selected" : ""} onClick={() => setFreeOnly((value) => !value)}>Free Sample</button>}</div>}{failed ? <div className="catalog-no-results"><h2>Unable to load the library</h2><p>Please refresh the page in a moment.</p></div> : !categoryProducts.length ? <div className="catalog-no-results"><h2>New mockups are on the way</h2></div> : !displayed.length ? <div className="catalog-no-results"><h2>No free samples in this category yet</h2></div> : <div className="mockup-grid">{displayed.map((product) => <ProductCard product={product} seoReady={seoSkus.includes(product.sku)} key={product.sku} />)}</div>}</>}</section>;
 }
