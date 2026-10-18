@@ -1,32 +1,32 @@
 {
   "schemaVersion": 1,
-  "version": "1.13.89",
+  "version": "1.13.90",
   "downloadPage": "https://leemockups.com/#download",
   "releaseNotes": "https://leemockups.com/help",
-  "publishedAt": "2026-10-17T17:49:18.469Z",
+  "publishedAt": "2026-10-18T02:54:51.025Z",
   "required": false,
   "platforms": {
     "windows-x64": {
       "url": "https://downloads.leemockups.com/d/windows",
-      "fileName": "LeeMockups-Windows-1.13.89-Portable.zip",
+      "fileName": "LeeMockups-Windows-1.13.90-Portable.zip",
       "format": "zip",
       "minimumOs": "Windows 10",
-      "size": 196080312,
-      "sha256": "5649ade973742bc35aa2f6ee9165772aad0a87304532a714ebdcd76c2f4c6964"
+      "size": 196102212,
+      "sha256": "60cecad664fa2d7618847187196f4b566f8b93d8718cba415373cbf68b148803"
     },
     "macos-arm64": {
       "url": "https://downloads.leemockups.com/d/mac-arm64",
-      "fileName": "LeeMockups-macOS-1.13.89-arm64.zip",
+      "fileName": "LeeMockups-macOS-1.13.90-arm64.zip",
       "format": "zip",
-      "size": 130008117,
-      "sha256": "70bab1bcaea11ef912a32b2b01196c8010ce66a098fba373f3a15e9a5f178494"
+      "size": 130008846,
+      "sha256": "4191acbd86d06f37c35fe3a4665f3af0ff29202601c9355cc08559d7d6c1513c"
     },
     "macos-x64": {
       "url": "https://downloads.leemockups.com/d/mac-x64",
-      "fileName": "LeeMockups-macOS-1.13.89-x64.zip",
+      "fileName": "LeeMockups-macOS-1.13.90-x64.zip",
       "format": "zip",
-      "size": 142557080,
-      "sha256": "1ab9057b0c4c04328051e5cc3489a8a0fa59f4141d8937d4c028640eebe0eb34"
+      "size": 142557799,
+      "sha256": "a6aed57dc96f71e1c85776ee38ff62ddb91027da3bb0d2ff2928c2e47ca9e30d"
     }
   }
 }
