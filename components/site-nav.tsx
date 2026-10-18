@@ -9,14 +9,14 @@ export function SiteNav({ current }: SiteNavProps) {
     <Link className="brand" href="/"><Image src="/leemockups-symbol.png" width={38} height={38} alt="" /><span>LeeMockups</span><span className="beta-badge" title="Preview release">BETA</span></Link>
     <div className="nav-links">
       <div className="nav-library">
-        <details className="nav-library-menu">
-          <summary>Mockup Library <ChevronDown size={14} aria-hidden="true" /></summary>
+        <div className="nav-library-menu">
+          <button className="nav-library-trigger" type="button" aria-haspopup="true">Mockup Library <ChevronDown size={14} aria-hidden="true" /></button>
           <div className="nav-library-options">
             <Link href="/mockups/">All</Link>
             <Link href="/mockups/apparel/">Apparel</Link>
             <Link href="/mockups/mugs/">Mugs</Link>
           </div>
-        </details>
+        </div>
       </div>
       <Link href="/#how">How it works</Link>
       <Link href="/#features">Features</Link>
