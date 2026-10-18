@@ -4,23 +4,23 @@ import { notFound } from "next/navigation";
 import { SiteNav } from "@/components/site-nav";
 import { PolicyLinks } from "@/components/policy-links";
 import { getSeoCatalogData } from "@/lib/catalog-seo";
-import { matchesMockupCategory, mockupCategories, type MockupCategory } from "@/lib/mockup-categories";
+import { getMockupCategories, matchesMockupCategory } from "@/lib/mockup-categories";
 import { MockupCatalog } from "../mockup-catalog";
 
 type PageProps = { params: Promise<{ category: string }> };
 
-function isMockupCategory(value: string): value is MockupCategory {
-  return value === "apparel" || value === "mugs";
-}
+export const dynamicParams = false;
 
-export function generateStaticParams() {
-  return Object.keys(mockupCategories).map((category) => ({ category }));
+export async function generateStaticParams() {
+  const { products } = await getSeoCatalogData();
+  return getMockupCategories(products).map(({ slug }) => ({ category: slug }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { category } = await params;
-  if (!isMockupCategory(category)) return {};
-  const config = mockupCategories[category];
+  const { products } = await getSeoCatalogData();
+  const config = getMockupCategories(products).find(({ slug }) => slug === category);
+  if (!config) return {};
   return {
     title: config.title,
     description: config.description,
@@ -30,10 +30,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function MockupCategoryPage({ params }: PageProps) {
   const { category } = await params;
-  if (!isMockupCategory(category)) notFound();
-  const config = mockupCategories[category];
-  const [headingStart, headingEnd] = config.title.split(" for ");
   const { products, homeFeaturedSkus } = await getSeoCatalogData();
+  const config = getMockupCategories(products).find(({ slug }) => slug === category);
+  if (!config) notFound();
+  const [headingStart, headingEnd] = config.title.split(" for ");
   const categoryProducts = products.filter((product) => matchesMockupCategory(product, category));
   return <main className="mockups-page">
     <SiteNav current="mockups" />

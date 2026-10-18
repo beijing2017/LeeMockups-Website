@@ -1,13 +1,14 @@
 import type { CatalogProduct } from "@/lib/catalog-seo";
 
-export type MockupCategory = "apparel" | "mugs";
-
-export const mockupCategories: Record<MockupCategory, {
+export type MockupCategory = {
+  slug: string;
   label: string;
   title: string;
   description: string;
   intro: string;
-}> = {
+};
+
+const establishedCategories: Record<string, Omit<MockupCategory, "slug">> = {
   apparel: {
     label: "Apparel",
     title: "Apparel Video Mockups for POD Sellers",
@@ -22,8 +23,43 @@ export const mockupCategories: Record<MockupCategory, {
   },
 };
 
-export function matchesMockupCategory(product: CatalogProduct, category: MockupCategory): boolean {
-  if (category === "mugs") return product.category === "MUG";
-  return ["SHI", "TSH", "HOO"].includes(product.category) ||
-    /\b(apparel|t-?shirts?|hoodies?|sweatshirts?)\b/i.test(product.categoryName ?? "");
+export function mockupCategorySlug(product: CatalogProduct): string {
+  const code = product.category.toUpperCase();
+  // Preserve the existing Shirts → Apparel route; every other new code gets its own category.
+  if (["SHI", "TSH"].includes(code)) return "apparel";
+  if (code === "MUG") return "mugs";
+
+  const slug = (product.categoryName || code).normalize("NFKD").toLowerCase()
+    .replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  // Keep custom categories distinct from the two established groups and the All route.
+  return slug && !["all", "apparel", "mugs"].includes(slug) ? slug : `${slug || "category"}-${code.toLowerCase()}`;
+}
+
+export function getMockupCategories(products: CatalogProduct[]): MockupCategory[] {
+  const categories = new Map<string, MockupCategory>();
+  for (const product of products) {
+    const slug = mockupCategorySlug(product);
+    if (categories.has(slug)) continue;
+    if (establishedCategories[slug]) {
+      categories.set(slug, { slug, ...establishedCategories[slug] });
+      continue;
+    }
+
+    const label = product.categoryName?.trim() || product.category;
+    categories.set(slug, {
+      slug,
+      label,
+      title: `${label} Video Mockups for POD Sellers`,
+      description: `Browse ${label.toLowerCase()} video mockups for print-on-demand sellers. Create product videos and still images for marketplace listings and online stores.`,
+      intro: `Explore ${label.toLowerCase()} video mockups for your print-on-demand products. Add your artwork and create videos and still images for Etsy, eBay, Shopify, WooCommerce, and your own store—without filming every item.`,
+    });
+  }
+  const priority: Record<string, number> = { apparel: 0, mugs: 1 };
+  return [...categories.values()].sort((a, b) =>
+    (priority[a.slug] ?? 2) - (priority[b.slug] ?? 2) || a.label.localeCompare(b.label)
+  );
+}
+
+export function matchesMockupCategory(product: CatalogProduct, slug: string): boolean {
+  return mockupCategorySlug(product) === slug;
 }

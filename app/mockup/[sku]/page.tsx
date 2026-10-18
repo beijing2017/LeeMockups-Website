@@ -6,7 +6,7 @@ import { PolicyLinks } from "@/components/policy-links";
 import { MockupDetailClient } from "../mockup-detail-client";
 import { ProductCard } from "@/app/mockups/mockup-catalog";
 import { catalogAssetBase, getSeoCatalog, productUrl } from "@/lib/catalog-seo";
-import { matchesMockupCategory } from "@/lib/mockup-categories";
+import { getMockupCategories, matchesMockupCategory } from "@/lib/mockup-categories";
 
 export const dynamicParams = false;
 
@@ -41,12 +41,11 @@ export default async function ProductPage({ params }: { params: Promise<{ sku: s
   const relatedProducts = Array.from({ length: Math.min(3, sameCategory.length - 1) }, (_, offset) =>
     sameCategory[(productIndex + offset + 1) % sameCategory.length]
   );
-  const categoryLabel = product.category === "SHI" ? "T-shirt" : product.category === "MUG" ? "mug" : "product";
-  const categoryLink = matchesMockupCategory(product, "apparel")
-    ? { href: "/mockups/apparel/", label: "View all apparel mockups" }
-    : matchesMockupCategory(product, "mugs")
-      ? { href: "/mockups/mugs/", label: "View all mug mockups" }
-      : { href: "/mockups/", label: "View the full library" };
+  const category = getMockupCategories(catalog).find(({ slug }) => matchesMockupCategory(product, slug));
+  const categoryLabel = product.category === "SHI" ? "T-shirt" : product.category === "MUG" ? "mug" : category?.label.toLowerCase() || "product";
+  const categoryLink = category
+    ? { href: `/mockups/${category.slug}/`, label: `View all ${category.label.toLowerCase()} mockups` }
+    : { href: "/mockups/", label: "View the full library" };
   const url = productUrl(sku);
   const description = product.description || `Create a ${product.name.toLowerCase()} with your design in LeeMockups.`;
   const structuredData = {

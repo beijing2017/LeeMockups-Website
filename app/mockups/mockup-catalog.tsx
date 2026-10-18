@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { resolveCommerce } from "@/lib/commerce";
 import type { CatalogProduct } from "@/lib/catalog-seo";
-import { matchesMockupCategory, type MockupCategory } from "@/lib/mockup-categories";
+import { getMockupCategories, matchesMockupCategory } from "@/lib/mockup-categories";
 import { MockupPrice } from "@/components/mockup-price";
 
 const assetBase = "https://downloads.leemockups.com";
@@ -49,16 +49,17 @@ function interleaveCategories(products: Product[], categories: string[]): Produc
   return result;
 }
 
-export function MockupCatalog({ seoSkus, initialProducts, initialHomeFeaturedSkus, previewLimit, categoryGroup }: { seoSkus: string[]; initialProducts: Product[]; initialHomeFeaturedSkus: string[]; previewLimit?: number; categoryGroup?: MockupCategory }) {
+export function MockupCatalog({ seoSkus, initialProducts, initialHomeFeaturedSkus, previewLimit, categoryGroup }: { seoSkus: string[]; initialProducts: Product[]; initialHomeFeaturedSkus: string[]; previewLimit?: number; categoryGroup?: string }) {
   const [products, setProducts] = useState<Product[]>(initialProducts), [homeFeaturedSkus, setHomeFeaturedSkus] = useState<string[]>(initialHomeFeaturedSkus), [loading, setLoading] = useState(initialProducts.length === 0), [failed, setFailed] = useState(false);
   useEffect(() => { fetch(`${assetBase}/catalog/products.json`, { cache: "no-store" }).then((response) => { if (!response.ok) throw new Error(); return response.json(); }).then((data) => { setProducts(Array.isArray(data?.products) ? data.products.map((product: Product) => ({ ...product, assetVersion: data.updatedAt })) : []); setHomeFeaturedSkus(Array.isArray(data?.homeFeaturedSkus) ? [...new Set<string>(data.homeFeaturedSkus.filter((sku: unknown): sku is string => typeof sku === "string"))].slice(0, 8) : []); }).catch(() => { if (!initialProducts.length) setFailed(true); }).finally(() => setLoading(false)); }, [initialProducts.length]);
   const categoryProducts = categoryGroup ? products.filter((product) => matchesMockupCategory(product, categoryGroup)) : products;
-  const categories = useMemo(() => [...new Set(categoryProducts.map((product) => product.category).filter(Boolean))].sort((a, b) => (categoryPriority[a] ?? 99) - (categoryPriority[b] ?? 99) || a.localeCompare(b)), [categoryProducts]);
+  const categoryCodes = useMemo(() => [...new Set(categoryProducts.map((product) => product.category).filter(Boolean))].sort((a, b) => (categoryPriority[a] ?? 99) - (categoryPriority[b] ?? 99) || a.localeCompare(b)), [categoryProducts]);
+  const categories = useMemo(() => getMockupCategories(products), [products]);
   const visible = [...categoryProducts].sort((a, b) => categoryGroup
     ? Number(b.isFree) - Number(a.isFree) || (categoryPriority[a.category] ?? 99) - (categoryPriority[b.category] ?? 99)
     : (categoryPriority[a.category] ?? 99) - (categoryPriority[b.category] ?? 99) || Number(b.isFree) - Number(a.isFree));
-  const homepageOrder = previewLimit ? interleaveCategories(visible, categories) : visible;
+  const homepageOrder = previewLimit ? interleaveCategories(visible, categoryCodes) : visible;
   const featured = homeFeaturedSkus.flatMap((sku) => homepageOrder.find((product) => product.sku === sku) || []);
   const displayed = previewLimit ? [...featured, ...homepageOrder.filter((product) => !homeFeaturedSkus.includes(product.sku))].slice(0, previewLimit) : visible;
-  return <section className="catalog shell" aria-label="Mockup catalog">{loading ? <CatalogSkeleton count={previewLimit} /> : <>{!previewLimit && <div className="catalog-categories" aria-label="Browse mockups by category"><Link href="/mockups/" className={!categoryGroup ? "selected" : ""}>All</Link><Link href="/mockups/apparel/" className={categoryGroup === "apparel" ? "selected" : ""}>Apparel</Link><Link href="/mockups/mugs/" className={categoryGroup === "mugs" ? "selected" : ""}>Mugs</Link></div>}{failed ? <div className="catalog-no-results"><h2>Unable to load the library</h2><p>Please refresh the page in a moment.</p></div> : !categoryProducts.length ? <div className="catalog-no-results"><h2>New mockups are on the way</h2></div> : <div className="mockup-grid">{displayed.map((product) => <ProductCard product={product} seoReady={seoSkus.includes(product.sku)} key={product.sku} />)}</div>}</>}</section>;
+  return <section className="catalog shell" aria-label="Mockup catalog">{loading ? <CatalogSkeleton count={previewLimit} /> : <>{!previewLimit && <div className="catalog-categories" aria-label="Browse mockups by category"><Link href="/mockups/" className={!categoryGroup ? "selected" : ""}>All</Link>{categories.map(({ slug, label }) => <Link href={`/mockups/${slug}/`} className={categoryGroup === slug ? "selected" : ""} key={slug}>{label}</Link>)}</div>}{failed ? <div className="catalog-no-results"><h2>Unable to load the library</h2><p>Please refresh the page in a moment.</p></div> : !categoryProducts.length ? <div className="catalog-no-results"><h2>New mockups are on the way</h2></div> : <div className="mockup-grid">{displayed.map((product) => <ProductCard product={product} seoReady={seoSkus.includes(product.sku)} key={product.sku} />)}</div>}</>}</section>;
 }
