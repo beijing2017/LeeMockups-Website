@@ -10,15 +10,15 @@ export const mockupCategories: Record<MockupCategory, {
 }> = {
   apparel: {
     label: "Apparel",
-    title: "Apparel Video Mockups",
-    description: "Explore apparel video mockups for print-on-demand listings. Preview T-shirt designs in motion and create product videos and still images with LeeMockups.",
-    intro: "Show your apparel designs in motion. Browse video mockups for T-shirts and create product videos and still images for your listings without filming each item.",
+    title: "Apparel Video Mockups for POD Sellers",
+    description: "T-shirt and apparel video mockups for print-on-demand (POD) sellers. Show your designs in Etsy listings and Shopify stores with product videos and still images.",
+    intro: "Show your print-on-demand T-shirt designs in motion. Create product videos and still images for Etsy listings, Shopify stores, or your own storefront—without filming every item.",
   },
   mugs: {
     label: "Mugs",
-    title: "Mug Video Mockups",
-    description: "Explore mug video mockups for print-on-demand listings. Add your artwork and create product videos and still images with LeeMockups.",
-    intro: "Preview your artwork on mugs in motion. Choose a video mockup and create product videos and still images for your listings without filming each item.",
+    title: "Mug Video Mockups for POD Sellers",
+    description: "Mug video mockups for print-on-demand (POD) sellers. Create product videos and still images to present your designs in Etsy listings and Shopify stores.",
+    intro: "Present your print-on-demand mug designs with video mockups. Turn your artwork into product videos and still images for Etsy listings and Shopify stores—without a product shoot.",
   },
 };
 

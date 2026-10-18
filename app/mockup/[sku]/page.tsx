@@ -6,6 +6,7 @@ import { PolicyLinks } from "@/components/policy-links";
 import { MockupDetailClient } from "../mockup-detail-client";
 import { ProductCard } from "@/app/mockups/mockup-catalog";
 import { catalogAssetBase, getSeoCatalog, productUrl } from "@/lib/catalog-seo";
+import { matchesMockupCategory } from "@/lib/mockup-categories";
 
 export const dynamicParams = false;
 
@@ -41,6 +42,11 @@ export default async function ProductPage({ params }: { params: Promise<{ sku: s
     sameCategory[(productIndex + offset + 1) % sameCategory.length]
   );
   const categoryLabel = product.category === "SHI" ? "T-shirt" : product.category === "MUG" ? "mug" : "product";
+  const categoryLink = matchesMockupCategory(product, "apparel")
+    ? { href: "/mockups/apparel/", label: "View all apparel mockups" }
+    : matchesMockupCategory(product, "mugs")
+      ? { href: "/mockups/mugs/", label: "View all mug mockups" }
+      : { href: "/mockups/", label: "View the full library" };
   const url = productUrl(sku);
   const description = product.description || `Create a ${product.name.toLowerCase()} with your design in LeeMockups.`;
   const structuredData = {
@@ -65,7 +71,7 @@ export default async function ProductPage({ params }: { params: Promise<{ sku: s
     <SiteNav current="mockups" />
     <MockupDetailClient sku={sku} initialProduct={product} />
     {relatedProducts.length > 0 && <section className="related-mockups shell" aria-labelledby="related-mockups-title">
-      <div className="related-mockups-heading"><div><span className="mockup-section-kicker">EXPLORE MORE</span><h2 id="related-mockups-title">More {categoryLabel} video mockups</h2><p>Compare scenes for your print-on-demand listings on Etsy, Shopify, or your own store.</p></div><Link href="/mockups/">View the full library →</Link></div>
+      <div className="related-mockups-heading"><div><span className="mockup-section-kicker">EXPLORE MORE</span><h2 id="related-mockups-title">More {categoryLabel} video mockups</h2><p>Compare scenes for your print-on-demand listings on Etsy, Shopify, or your own store.</p></div><Link href={categoryLink.href}>{categoryLink.label} →</Link></div>
       <div className="mockup-grid">{relatedProducts.map((item) => <ProductCard product={item} seoReady key={item.sku} />)}</div>
     </section>}
     <footer className="legal-footer shell"><strong>LeeMockups</strong><PolicyLinks /><span>© 2026 LeeMockups</span></footer>
