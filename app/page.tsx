@@ -8,7 +8,7 @@ import { MockupCatalog } from "@/app/mockups/mockup-catalog";
 import { getSeoCatalogData } from "@/lib/catalog-seo";
 
 const homeTitle = "Video Mockups for POD Sellers | LeeMockups";
-const homeDescription = "Create T-shirt, mug, and other video mockups for print-on-demand (POD) product listings. Export videos and still images for Etsy, Shopify, and your own store.";
+const homeDescription = "Create T-shirt and mug video mockups for print-on-demand sellers. Make videos and still images for Etsy and eBay listings, Shopify and WooCommerce stores, and social posts.";
 
 export const metadata: Metadata = {
   title: { absolute: homeTitle },
@@ -57,7 +57,7 @@ export default async function Home() {
       <div className="hero-copy">
         <div className="eyebrow">Made for print-on-demand sellers</div>
         <h1>Video mockups.<br /><em>Ready for your designs.</em></h1>
-        <p>Create product videos and still images for your print-on-demand (POD) listings on Etsy, Shopify, and your own store—without filming every item.</p>
+        <p>Create product videos and still images for print-on-demand (POD) shops—from Etsy and eBay listings to Shopify and WooCommerce storefronts—without filming every item.</p>
         <div className="hero-actions"><a className="button primary" href="#library">Browse Mockups</a></div>
       </div>
     </section>
