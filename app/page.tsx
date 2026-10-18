@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   twitter: { title: homeTitle, description: homeDescription },
 };
 
-const appVersion = "1.13.90";
+const appVersion = "1.13.91";
 // Public Worker endpoints. The Worker streams private R2 objects and never redirects
 // the browser to a bucket hostname or exposes predictable object keys.
 const downloadBase = "https://downloads.leemockups.com/d";
