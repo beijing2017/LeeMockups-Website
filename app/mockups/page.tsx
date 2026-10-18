@@ -17,7 +17,7 @@ export default async function MockupsPage() {
   return <main className="mockups-page mockups-all-page">
     <SiteNav current="mockups" />
     <section className="mockups-hero">
-      <div className="shell mockups-hero-layout"><div className="mockups-hero-copy"><span className="mockups-eyebrow">LEEMOCKUPS COLLECTION</span><h1>Video Mockups for POD Sellers</h1><p>Explore T-shirt and mug video mockups for print-on-demand products. Create videos and still images for marketplace listings, your own storefront, and social promotion—without filming every item.</p></div><div className="mockups-hero-art" aria-hidden="true"><Image src="/mockup-library-hero.png" width={1200} height={1200} alt="" priority /></div></div>
+      <div className="shell mockups-hero-layout"><div className="mockups-hero-copy"><span className="mockups-eyebrow">LEEMOCKUPS COLLECTION</span><h1>Video Mockups<br />{" for POD Sellers"}</h1><p>Explore T-shirt and mug video mockups for print-on-demand products. Create videos and still images for marketplace listings, your own storefront, and social promotion—without filming every item.</p></div><div className="mockups-hero-art" aria-hidden="true"><Image src="/mockup-library-hero.png" width={1200} height={1200} alt="" priority /></div></div>
     </section>
     <MockupCatalog seoSkus={seoSkus} initialProducts={products} initialHomeFeaturedSkus={homeFeaturedSkus} />
     <section className="sales-channels shell" aria-labelledby="sales-channels-title">
