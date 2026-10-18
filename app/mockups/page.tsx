@@ -6,7 +6,7 @@ import { PolicyLinks } from "@/components/policy-links";
 import { getSeoCatalogData } from "@/lib/catalog-seo";
 
 export const metadata: Metadata = {
-  title: "Video Mockups for POD Sellers",
+  title: "T-Shirt & Mug Video Mockup Library for POD Sellers",
   description: "Browse T-shirt and mug video mockups for print-on-demand sellers. Create product videos and still images for marketplaces, independent stores, and social promotion.",
   alternates: { canonical: "/mockups/" },
 };
