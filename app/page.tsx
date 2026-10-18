@@ -56,7 +56,7 @@ export default async function Home() {
       <section className="hero product-first-hero shell" id="top">
         <div className="hero-copy">
           <div className="eyebrow">Made for print-on-demand sellers</div>
-          <h1>Video mockups.<br /><em>Ready for your designs.</em></h1>
+          <h1>Video mockups. <br /><em>Ready for your designs.</em></h1>
           <p>Create product videos and still images for print-on-demand (POD) shops—from Etsy and eBay listings to Shopify and WooCommerce storefronts—without filming every item.</p>
           <div className="hero-actions"><a className="button primary" href="#library">Browse Mockups</a></div>
         </div>
