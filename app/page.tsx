@@ -44,28 +44,28 @@ export default async function Home() {
 
   return <main className="home-page">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
-    <SiteNav />
-
-    <section className="hero product-first-hero shell" id="top">
-      <svg className="hero-logo-watermark" viewBox="0 0 1600 680" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+    <div className="home-showcase">
+      <svg className="hero-logo-watermark" viewBox="0 0 1600 1100" preserveAspectRatio="xMidYMin slice" aria-hidden="true" focusable="false">
         <defs><linearGradient id="hero-logo-gradient" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#8255f3" /><stop offset="1" stopColor="#ff7771" /></linearGradient></defs>
-        <g className="hero-mark-layer hero-mark-back"><rect x="322" y="-54" width="870" height="584" rx="74" transform="rotate(-17 757 238)" fill="none" stroke="#8255f3" strokeOpacity=".12" strokeWidth="6" /></g>
-        <g className="hero-mark-layer hero-mark-middle"><rect x="487" y="24" width="870" height="584" rx="74" transform="rotate(-12 922 316)" fill="none" stroke="#a778ee" strokeOpacity=".11" strokeWidth="6" /></g>
-        <g className="hero-mark-layer hero-mark-front"><rect x="611" y="74" width="870" height="584" rx="74" transform="rotate(-9 1046 366)" fill="none" stroke="url(#hero-logo-gradient)" strokeOpacity=".16" strokeWidth="7" /></g>
-        <g className="hero-mark-layer hero-mark-detail"><circle cx="1258" cy="223" r="55" fill="url(#hero-logo-gradient)" opacity=".09" /><path d="M934 647 1134 366l129 161 112-130 126 170" fill="none" stroke="url(#hero-logo-gradient)" strokeOpacity=".09" strokeWidth="95" strokeLinejoin="round" strokeLinecap="round" /></g>
+        <g className="hero-mark-layer hero-mark-back"><rect x="270" y="-80" width="920" height="1080" rx="84" transform="rotate(-15 730 460)" fill="none" stroke="#8255f3" strokeOpacity=".10" strokeWidth="6" /></g>
+        <g className="hero-mark-layer hero-mark-middle"><rect x="470" y="10" width="920" height="1050" rx="84" transform="rotate(-11 930 535)" fill="none" stroke="#a778ee" strokeOpacity=".10" strokeWidth="6" /></g>
+        <g className="hero-mark-layer hero-mark-front"><rect x="620" y="60" width="900" height="1010" rx="84" transform="rotate(-8 1070 565)" fill="none" stroke="url(#hero-logo-gradient)" strokeOpacity=".13" strokeWidth="7" /></g>
+        <g className="hero-mark-layer hero-mark-detail"><circle cx="1270" cy="215" r="55" fill="url(#hero-logo-gradient)" opacity=".07" /><path d="M915 1035 1120 690l142 180 125-143 143 221" fill="none" stroke="url(#hero-logo-gradient)" strokeOpacity=".06" strokeWidth="110" strokeLinejoin="round" strokeLinecap="round" /></g>
       </svg>
-      <div className="hero-copy">
-        <div className="eyebrow">Made for print-on-demand sellers</div>
-        <h1>Video mockups.<br /><em>Ready for your designs.</em></h1>
-        <p>Create product videos and still images for print-on-demand (POD) shops—from Etsy and eBay listings to Shopify and WooCommerce storefronts—without filming every item.</p>
-        <div className="hero-actions"><a className="button primary" href="#library">Browse Mockups</a></div>
-      </div>
-    </section>
+      <SiteNav />
+      <section className="hero product-first-hero shell" id="top">
+        <div className="hero-copy">
+          <div className="eyebrow">Made for print-on-demand sellers</div>
+          <h1>Video mockups.<br /><em>Ready for your designs.</em></h1>
+          <p>Create product videos and still images for print-on-demand (POD) shops—from Etsy and eBay listings to Shopify and WooCommerce storefronts—without filming every item.</p>
+          <div className="hero-actions"><a className="button primary" href="#library">Browse Mockups</a></div>
+        </div>
+      </section>
 
-    <section className="home-library" id="library" aria-labelledby="home-library-title">
-      <div className="shell home-library-heading"><div><span className="section-tag">THE MOCKUP LIBRARY</span><h2 id="home-library-title">Find your next mockup</h2><p>Explore T-shirt, mug, and other video mockups for print-on-demand (POD) product listings—or try a free sample.</p></div><a href="/mockups/">View full library →</a></div>
-      <MockupCatalog seoSkus={seoSkus} initialProducts={products} initialHomeFeaturedSkus={homeFeaturedSkus} previewLimit={8} />
-    </section>
+      <div className="home-library" id="library">
+        <MockupCatalog seoSkus={seoSkus} initialProducts={products} initialHomeFeaturedSkus={homeFeaturedSkus} previewLimit={8} />
+      </div>
+    </div>
 
     <section className="proof"><div className="shell proof-inner"><span>Built for the way you sell</span><b>PRODUCT LISTING READY</b><i /><b>WINDOWS &amp; macOS</b><i /><b>NO SUBSCRIPTION</b><i /><b>LOCAL &amp; PRIVATE</b></div></section>
 
