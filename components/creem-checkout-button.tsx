@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Download } from "lucide-react";
 import { readAttribution, trackEvent } from "@/lib/marketing-attribution";
 import { savePrivateDownload } from "@/lib/private-download";
+import { recordDownloadClick } from "@/lib/download-click";
 
 type DownloadItem={sku:string;name:string;url:string};
 type PurchaseRecord={transactionId:string;claimToken:string;email?:string};
@@ -67,7 +68,7 @@ export function CreemCheckoutButton({sku}:{sku:string}){
   }
   async function beginDownload(item:DownloadItem){
     if(downloadLock.current)return;
-    downloadLock.current=true;setError("");trackEvent("file_download",{item_id:item.sku});
+    downloadLock.current=true;setError("");trackEvent("file_download",{item_id:item.sku});recordDownloadClick("paid-mockup",item.sku);
     try{await savePrivateDownload(item.url,`${item.sku}.mockup`)}
     catch(reason){if((reason as DOMException)?.name!=="AbortError")setError(reason instanceof Error?reason.message:"The download could not be completed.")}
     finally{downloadLock.current=false}

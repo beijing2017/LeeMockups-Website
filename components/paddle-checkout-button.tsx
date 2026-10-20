@@ -6,6 +6,7 @@ import { Download } from "lucide-react";
 import { initializePaddle, type Paddle } from "@paddle/paddle-js";
 import { readAttribution, trackEvent } from "@/lib/marketing-attribution";
 import { savePrivateDownload } from "@/lib/private-download";
+import { recordDownloadClick } from "@/lib/download-click";
 
 type DownloadItem={sku:string;name:string;url:string};
 type CheckoutEvent={name?:string;data?:{transaction_id?:string;customer?:{email?:string|null}}};
@@ -82,7 +83,7 @@ export function PaddleCheckoutButton({priceId,sku}:{priceId:string;sku:string}){
 
   async function beginDownload(item:DownloadItem){
     if(downloadLock.current)return;
-    downloadLock.current=true;setError("");trackEvent("file_download",{item_id:item.sku});
+    downloadLock.current=true;setError("");trackEvent("file_download",{item_id:item.sku});recordDownloadClick("paid-mockup",item.sku);
     try{await savePrivateDownload(item.url,`${item.sku}.mockup`)}
     catch(reason){if((reason as DOMException)?.name!=="AbortError")setError(reason instanceof Error?reason.message:"The download could not be completed.")}
     finally{downloadLock.current=false}

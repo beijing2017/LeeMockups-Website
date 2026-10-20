@@ -20,44 +20,11 @@ jobs:
       SCRIPT_NAME: leemockups-download
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
       - name: Verify the dedicated deployment credentials and existing bindings
         run: |
           set -euo pipefail
           test -n "$CLOUDFLARE_WORKER_DEPLOY_TOKEN"
           test -n "$CLOUDFLARE_ACCOUNT_ID"
-          curl --fail-with-body --silent --show-error \
-            --header "Authorization: Bearer ${CLOUDFLARE_WORKER_DEPLOY_TOKEN}" \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${SCRIPT_NAME}/settings" \
-            | jq -e '(["DB", "DOWNLOAD_SECRET", "MOCKUPS"] - [.result.bindings[].name] | length) == 0'
-      - name: Migrate the existing analytics verifier to a Worker secret before deployment
-        run: |
-          node --input-type=module <<'NODE'
-          import { execFileSync } from 'node:child_process';
-
-          const base = `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${process.env.SCRIPT_NAME}`;
-          const headers = { Authorization: `Bearer ${process.env.CLOUDFLARE_WORKER_DEPLOY_TOKEN}` };
-          const settingsResponse = await fetch(`${base}/settings`, { headers });
-          const settings = await settingsResponse.json();
-          if (!settingsResponse.ok || !settings.success) throw new Error('Could not inspect Worker settings.');
-          if (settings.result.bindings.some(({ name }) => name === 'ANALYTICS_ACCESS_HASH')) {
-            console.log('Analytics verifier secret is already configured.');
-            process.exit(0);
-          }
-
-          const previousSource = execFileSync('git', ['show', 'HEAD^:cloudflare/leemockups-download.js'], { encoding: 'utf8' });
-          const match = previousSource.match(/^const ANALYTICS_ACCESS_HASH = "([A-Za-z0-9_-]{43})";$/m);
-          if (!match) throw new Error('The previous analytics verifier was not found; deployment stopped.');
-          const response = await fetch(`${base}/secrets`, {
-            method: 'PUT',
-            headers: { ...headers, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: 'ANALYTICS_ACCESS_HASH', text: match[1], type: 'secret_text' }),
-          });
-          const result = await response.json();
-          if (!response.ok || !result.success) throw new Error(`Could not configure analytics verifier secret (${response.status}); deployment stopped.`);
-          console.log('Existing analytics verifier moved to a Worker secret.');
-          NODE
           curl --fail-with-body --silent --show-error \
             --header "Authorization: Bearer ${CLOUDFLARE_WORKER_DEPLOY_TOKEN}" \
             "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${SCRIPT_NAME}/settings" \

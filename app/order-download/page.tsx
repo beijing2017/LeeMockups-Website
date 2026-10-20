@@ -5,6 +5,7 @@ import { FormEvent, useRef, useState } from "react";
 import { SiteNav } from "@/components/site-nav";
 import { PolicyLinks } from "@/components/policy-links";
 import { savePrivateDownload } from "@/lib/private-download";
+import { recordDownloadClick } from "@/lib/download-click";
 
 type DownloadItem = { sku: string; name: string; url: string };
 const lastOrderKey = "leemockups:last-order-reference";
@@ -47,6 +48,7 @@ export default function OrderDownloadPage() {
     if (downloadLock.current) return;
     downloadLock.current = true;
     setError("");
+    recordDownloadClick("paid-mockup", item.sku);
     try {
       await savePrivateDownload(item.url, `${item.sku}.mockup`);
     } catch (reason) {
