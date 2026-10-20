@@ -6,7 +6,6 @@ const ETSY_REDIRECT_URI =
 const ETSY_SCOPES =
   "transactions_r listings_r shops_r";
 const PRODUCT_CATALOG_KEY = "private/catalog/products.json";
-const ANALYTICS_ACCESS_HASH = "Yij76R-lFUEKHKJ2rthMg3uVbHtB5zoN_rkwHDcElJU";
 const PADDLE_PRICE_SKUS = {
   pri_01m2xdd5251y7e4j71bd4gkg1z: "LM-VM-MUG-001",
 };
@@ -124,11 +123,41 @@ export default {
       downloadUrl.searchParams.set("sig", signature);
       return new Response(null, { status: 302, headers: { Location: downloadUrl.href, "Cache-Control": "no-store" } });
     }
+    if (url.pathname === "/events/download-click") {
+      if (request.method !== "POST") return new Response("Method not allowed", { status: 405, headers: { Allow: "POST" } });
+      const origin = request.headers.get("origin") || "";
+      if (!REDEEM_ORIGINS.has(origin)) return new Response("Forbidden", { status: 403 });
+      if (request.cf?.verifiedBotCategory) return new Response(null, { status: 204 });
+      const form = await request.formData().catch(() => null);
+      const kind = String(form?.get("kind") || "");
+      const item = String(form?.get("item") || "");
+      const visitorId = String(form?.get("visitorId") || "");
+      const clickId = String(form?.get("clickId") || "");
+      if (!/^(free-mockup|paid-mockup|desktop-app)$/.test(kind) || !/^[0-9a-f-]{36}$/i.test(visitorId) || !/^[0-9a-f-]{36}$/i.test(clickId) ||
+        (kind === "desktop-app" ? !CLIENT_DOWNLOADS[`/d/${item}`] : !/^LM-VM-[A-Z]{3}-\d{3}$/.test(item))) {
+        return new Response("Invalid download event", { status: 400 });
+      }
+      if (kind !== "desktop-app" && !(await isPublishedMockup(env, item, kind === "free-mockup"))) {
+        return new Response("Mockup unavailable", { status: 404 });
+      }
+      if (!env.DB || !env.DOWNLOAD_SECRET) return new Response("Analytics unavailable", { status: 503 });
+      const visitorHash = await sha256Base64Url(`${env.DOWNLOAD_SECRET}:${visitorId}`);
+      try {
+        await ensurePaddleTables(env);
+        await env.DB.prepare(`INSERT INTO site_download_clicks
+          (click_id, kind, item, visitor_hash, clicked_at) VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(click_id) DO NOTHING`).bind(clickId, kind, item, visitorHash, new Date().toISOString()).run();
+        return new Response(null, { status: 204 });
+      } catch (error) {
+        console.error(JSON.stringify({ type: "download_click_error", kind, item, message: String(error?.message || error) }));
+        return new Response("Analytics unavailable", { status: 503 });
+      }
+    }
     if (url.pathname === "/admin/download-analytics") {
       if (request.method !== "GET") return jsonResponse({ ok: false, error: "Method not allowed." }, 405);
       const token = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
       const tokenHash = token ? await sha256Base64Url(token) : "";
-      if (!tokenHash || !safeEqual(tokenHash, ANALYTICS_ACCESS_HASH)) {
+      if (!tokenHash || !env.ANALYTICS_ACCESS_HASH || !safeEqual(tokenHash, env.ANALYTICS_ACCESS_HASH)) {
         return jsonResponse({ ok: false, error: "Unauthorized." }, 401);
       }
       try {
@@ -145,6 +174,12 @@ export default {
           LEFT JOIN mockup_download_free f ON f.sku = t.sku
           GROUP BY t.sku ORDER BY t.download_count DESC, t.sku ASC`).all();
         const products = result.results || [];
+        const clickResult = await env.DB.prepare(`SELECT kind, item,
+          COUNT(*) AS click_count, COUNT(DISTINCT visitor_hash) AS browser_count,
+          SUM(CASE WHEN substr(clicked_at, 1, 10) >= date('now', '-6 days') THEN 1 ELSE 0 END) AS clicks_7d,
+          SUM(CASE WHEN substr(clicked_at, 1, 10) >= date('now', '-29 days') THEN 1 ELSE 0 END) AS clicks_30d
+          FROM site_download_clicks GROUP BY kind, item ORDER BY click_count DESC, kind, item`).all();
+        const distinctClickBrowsers = await env.DB.prepare(`SELECT COUNT(DISTINCT visitor_hash) AS browser_count FROM site_download_clicks`).first();
         const channelResult = await env.DB.prepare(`SELECT source, medium, campaign,
           COUNT(DISTINCT transaction_id) AS purchases, COUNT(DISTINCT sku) AS products
           FROM commerce_attribution GROUP BY source, medium, campaign
@@ -154,7 +189,9 @@ export default {
           purchases: summary.purchases + Number(row.unique_purchase_count || 0),
           downloads7d: summary.downloads7d + Number(row.downloads_7d || 0),
         }), { downloads: 0, purchases: 0, downloads7d: 0 });
-        return jsonResponse({ ok: true, updatedAt: new Date().toISOString(), totals, products, channels: channelResult.results || [] });
+        totals.downloadClicks = (clickResult.results || []).reduce((sum, row) => sum + Number(row.click_count || 0), 0);
+        totals.downloadBrowsers = Number(distinctClickBrowsers?.browser_count || 0);
+        return jsonResponse({ ok: true, updatedAt: new Date().toISOString(), totals, products, downloadClicks: clickResult.results || [], channels: channelResult.results || [] });
       } catch (error) {
         console.error(JSON.stringify({ type: "download_analytics_read_error", message: String(error?.message || error) }));
         return jsonResponse({ ok: false, error: "Analytics are temporarily unavailable." }, 503);
@@ -162,7 +199,7 @@ export default {
     }
     if (url.pathname === "/admin/creem-product-sync") {
       if (request.method !== "POST") return jsonResponse({ ok: false, error: "Method not allowed." }, 405);
-      if (!await isAdminRequest(request)) return jsonResponse({ ok: false, error: "Unauthorized." }, 401);
+      if (!await isAdminRequest(request, env)) return jsonResponse({ ok: false, error: "Unauthorized." }, 401);
       if (!env.CREEM_API_KEY) return jsonResponse({ ok: false, error: "Creem is not configured." }, 503);
       try {
         const body = await request.json();
@@ -186,7 +223,7 @@ export default {
     }
     if (url.pathname === "/admin/creem-launch-pricing") {
       if (request.method !== "POST") return jsonResponse({ ok: false, error: "Method not allowed." }, 405);
-      if (!await isAdminRequest(request)) return jsonResponse({ ok: false, error: "Unauthorized." }, 401);
+      if (!await isAdminRequest(request, env)) return jsonResponse({ ok: false, error: "Unauthorized." }, 401);
       try {
         const body = await request.json();
         if (typeof body?.launchActive !== "boolean") return jsonResponse({ ok: false, error: "Invalid launch setting." }, 400);
@@ -1988,9 +2025,9 @@ async function verifyPaddleSignature(rawBody, header, secret) {
 function creemMode(env) {
   return String(env.CREEM_MODE || "test").trim().toLowerCase() === "live" ? "live" : "test";
 }
-async function isAdminRequest(request) {
+async function isAdminRequest(request, env) {
   const token = (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-  return Boolean(token) && safeEqual(await sha256Base64Url(token), ANALYTICS_ACCESS_HASH);
+  return Boolean(token && env.ANALYTICS_ACCESS_HASH) && safeEqual(await sha256Base64Url(token), env.ANALYTICS_ACCESS_HASH);
 }
 async function ensureCreemProductTable(env) {
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS commerce_product_mappings (
@@ -2159,6 +2196,10 @@ async function ensurePaddleTables(env) {
     )`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS mockup_download_free (
       sku TEXT PRIMARY KEY, download_count INTEGER NOT NULL DEFAULT 0
+    )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS site_download_clicks (
+      click_id TEXT PRIMARY KEY, kind TEXT NOT NULL, item TEXT NOT NULL, visitor_hash TEXT NOT NULL,
+      clicked_at TEXT NOT NULL
     )`),
   ]);
   const entitlementColumns = await env.DB.prepare(`PRAGMA table_info(commerce_entitlements)`).all();
@@ -2412,12 +2453,15 @@ async function recordFreeMockupDownload(env, sku) {
   }
 }
 async function isPublishedFreeMockup(env, sku) {
+  return isPublishedMockup(env, sku, true);
+}
+async function isPublishedMockup(env, sku, isFree) {
   if (!/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku)) return false;
   const object = await env.MOCKUPS.get("public/catalog/products.json");
   if (!object) return false;
   try {
     const catalog = await object.json();
-    return Array.isArray(catalog?.products) && catalog.products.some((product) => product.sku === sku && product.isFree === true);
+    return Array.isArray(catalog?.products) && catalog.products.some((product) => product.sku === sku && product.isFree === isFree);
   } catch {
     return false;
   }

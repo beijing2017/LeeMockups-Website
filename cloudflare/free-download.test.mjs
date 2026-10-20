@@ -55,3 +55,44 @@ test("an unpublished or missing file cannot be downloaded for free", async () =>
   hasFile = false;
   assert.equal((await request(`/free/${sku}`, "HEAD")).status, 404);
 });
+
+test("only a site-origin, non-crawler button click creates a separate download event", async () => {
+  isFree = true;
+  published = true;
+  const inserts = [];
+  env.DB = {
+    async batch() {},
+    prepare(sql) {
+      return {
+        bind(...values) { this.values = values; return this; },
+        async all() { return { results: sql.startsWith("PRAGMA") ? [{ name: "mode" }] : [] }; },
+        async run() { inserts.push({ sql, values: this.values }); },
+      };
+    },
+  };
+  const fields = {
+    kind: "free-mockup",
+    item: sku,
+    visitorId: "11111111-1111-4111-8111-111111111111",
+    clickId: "22222222-2222-4222-8222-222222222222",
+  };
+  const createRequest = (origin, overrides = {}) => new Request("https://downloads.leemockups.com/events/download-click", {
+    method: "POST", headers: { Origin: origin }, body: new URLSearchParams({ ...fields, ...overrides }),
+  });
+  assert.equal((await worker.fetch(createRequest("https://other.example"), env)).status, 403);
+  const crawler = createRequest("https://www.leemockups.com");
+  Object.defineProperty(crawler, "cf", { value: { verifiedBotCategory: "Search Engine Crawler" } });
+  assert.equal((await worker.fetch(crawler, env)).status, 204);
+  assert.equal(inserts.length, 0);
+  assert.equal((await worker.fetch(createRequest("https://www.leemockups.com"), env)).status, 204);
+  assert.equal(inserts.length, 1);
+  assert.deepEqual(inserts[0].values.slice(1, 3), ["free-mockup", sku]);
+  assert.notEqual(inserts[0].values[3], fields.visitorId);
+
+  isFree = false;
+  assert.equal((await worker.fetch(createRequest("https://www.leemockups.com", { kind: "paid-mockup" }), env)).status, 204);
+  assert.equal(inserts.length, 2);
+  assert.equal((await worker.fetch(createRequest("https://www.leemockups.com", { kind: "desktop-app", item: "windows" }), env)).status, 204);
+  assert.equal(inserts.length, 3);
+  assert.equal((await worker.fetch(createRequest("https://www.leemockups.com", { kind: "desktop-app", item: "unknown" }), env)).status, 400);
+});
