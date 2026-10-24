@@ -96,3 +96,31 @@ test("only a site-origin, non-crawler button click creates a separate download e
   assert.equal(inserts.length, 3);
   assert.equal((await worker.fetch(createRequest("https://www.leemockups.com", { kind: "desktop-app", item: "unknown" }), env)).status, 400);
 });
+
+test("browser access streams only a published free package to the official site without caching", async () => {
+  isFree = true;
+  published = true;
+  hasFile = true;
+  const browserRequest = (origin, method = "GET") => worker.fetch(new Request(
+    `https://downloads.leemockups.com/browser/free/${sku}`,
+    { method, headers: origin ? { Origin: origin } : {} },
+  ), env);
+  assert.equal((await browserRequest("https://other.example")).status, 403);
+  assert.equal((await browserRequest("")).status, 403);
+  const response = await browserRequest("https://www.leemockups.com");
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("access-control-allow-origin"), "https://www.leemockups.com");
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(response.headers.get("content-type"), "application/octet-stream");
+  assert.equal(await response.text(), "test");
+  const head = await browserRequest("https://leemockups.com", "HEAD");
+  assert.equal(head.status, 200);
+  assert.equal(head.body, null);
+  assert.equal((await browserRequest("https://www.leemockups.com", "POST")).status, 405);
+  isFree = false;
+  assert.equal((await browserRequest("https://www.leemockups.com")).status, 404);
+  isFree = true;
+  hasFile = false;
+  assert.equal((await browserRequest("https://www.leemockups.com")).status, 404);
+  hasFile = true;
+});
