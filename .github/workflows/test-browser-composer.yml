@@ -1,0 +1,25 @@
+name: Test browser composer website
+
+on:
+  pull_request:
+    paths:
+      - app/mockup/mockup-detail-client.tsx
+      - public/composer/**
+      - .github/workflows/test-browser-composer.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:pages
+      - run: test -s out/composer/index.html
+      - run: test -s out/composer/vendor/mediabunny.min.mjs

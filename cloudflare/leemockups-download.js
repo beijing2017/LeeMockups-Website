@@ -103,6 +103,29 @@ export default {
       headers.set("X-Content-Type-Options", "nosniff");
       return new Response(request.method === "HEAD" ? null : object.body, { status: 200, headers });
     }
+    const browserFreeSku = /^\/browser\/free\/(LM-VM-[A-Z]{3}-\d{3})$/.exec(url.pathname)?.[1];
+    if (browserFreeSku) {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
+      }
+      const origin = request.headers.get("origin") || "";
+      if (!REDEEM_ORIGINS.has(origin)) return new Response("Origin not allowed", { status: 403 });
+      if (!(await isPublishedFreeMockup(env, browserFreeSku))) {
+        return new Response("Free mockup unavailable", { status: 404 });
+      }
+      const fileKey = "private/mockups/" + browserFreeSku + "/" + browserFreeSku + ".mockup";
+      const object = await env.MOCKUPS.get(fileKey);
+      if (!object) return new Response("Free mockup file unavailable", { status: 404 });
+      const headers = new Headers({
+        "Content-Type": "application/octet-stream",
+        "Content-Length": String(object.size),
+        "Cache-Control": "no-store",
+        "Access-Control-Allow-Origin": origin,
+        "Vary": "Origin",
+        "X-Content-Type-Options": "nosniff",
+      });
+      return new Response(request.method === "HEAD" ? null : object.body, { status: 200, headers });
+    }
     const freeSku = /^\/free\/(LM-VM-[A-Z]{3}-\d{3})$/.exec(url.pathname)?.[1];
     if (freeSku) {
       if (request.method !== "GET" && request.method !== "HEAD") {

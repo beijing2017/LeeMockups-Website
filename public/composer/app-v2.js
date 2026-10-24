@@ -1,0 +1,346 @@
+import { createGpuRenderer } from './gpu.js';
+import { readMockupPackage } from './package-reader.mjs';
+import { ALL_FORMATS, BlobSource, BufferTarget, CanvasSource, Input, Mp4OutputFormat, Output, VideoSampleSink } from './vendor/mediabunny.min.mjs';
+
+const $=id=>document.getElementById(id);
+const canvas=$('canvas');
+const videos=[$('black'),$('white'),$('base')];
+const requestedSku=new URLSearchParams(location.search).get('sku');
+if(requestedSku&&requestedSku!=='LM-VM-MUG-002')location.replace(`/mockup/?sku=${encodeURIComponent(requestedSku)}`);
+const sampleId='mug-v2-package';
+const packageMode=sampleId==='mug-v2-package';
+const assetRoot=sampleId==='v10'?'./assets':`./assets/${sampleId}`;
+const sampleLabel={v10:'V10 Frame','mug-v1':'Mug v1','mug-v2':'Matte Black Coffee Mug','mug-v2-package':'Matte Black Coffee Mug','shirt-v3-f':'Shirt v3 F','mug-v1-enc':'Mug v1'}[sampleId];
+$('sampleName').textContent=sampleLabel;
+$('cover').alt=`${sampleLabel} default preview`;
+let hasRenderedFrame=false;
+function showCover(src){
+  const cover=$('cover');
+  cover.onload=()=>{if(!hasRenderedFrame)cover.hidden=false;$('previewPlaceholder').hidden=true;};
+  cover.onerror=()=>{cover.hidden=true;$('previewPlaceholder').textContent='The preview could not be loaded.';};
+  cover.src=src;
+}
+if(sampleId==='mug-v1-enc')showCover('https://downloads.leemockups.com/mockups/LM-VM-MUG-001/LM-VM-MUG-001-thumb.webp');
+else if(!packageMode)showCover(`${assetRoot}/thumbnail.png`);
+if(sampleId!=='mug-v1-enc'&&!packageMode)for(let i=0;i<videos.length;i++)videos[i].src=`${assetRoot}/${['black-layer.mp4','white-layer.mp4','base-layer.mp4'][i]}`;
+let meshes,meshBuffer,trianglesPerFrame,manifest,artwork,draw,busy=false,previousUrl;
+let packageLayers,packageDefaultDisplay;
+let decryptionKey;
+const decryptedAssets=new Map();
+const packageObjectUrls=new Set();
+function packageObjectUrl(data,type){
+  const url=URL.createObjectURL(new Blob([data],{type}));
+  packageObjectUrls.add(url);
+  return url;
+}
+function releaseTemporaryResources(){
+  clearStills();
+  if(previousUrl){URL.revokeObjectURL(previousUrl);previousUrl=undefined;}
+  for(const video of videos){video.pause();video.removeAttribute('src');video.load();}
+  $('cover').removeAttribute('src');
+  for(const url of packageObjectUrls)URL.revokeObjectURL(url);
+  packageObjectUrls.clear();
+  decryptedAssets.clear();
+  indexedChunkFrames=undefined;
+  floatChunkBuffer=undefined;
+  meshes=undefined;
+  meshBuffer=undefined;
+  packageLayers=undefined;
+  packageDefaultDisplay=undefined;
+  artwork=undefined;
+  draw=undefined;
+  decryptionKey=undefined;
+}
+window.addEventListener('pagehide',releaseTemporaryResources,{once:true});
+window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();});
+const stillFrameNumbers=[30,90,150,210,270];
+let stillUrls=[];
+function clearStills(){
+  for(const url of stillUrls)URL.revokeObjectURL(url);
+  stillUrls=[];$('stillsGrid').replaceChildren();$('stillsPanel').hidden=true;
+}
+function showStills(stills){
+  clearStills();
+  for(const [position,still] of stills.entries()){
+    const url=URL.createObjectURL(still.blob);stillUrls.push(url);
+    const card=document.createElement('div');card.className='still-card';
+    const image=document.createElement('img');image.src=url;image.alt=`Video still ${position+1}, frame ${still.frame}`;
+    const link=document.createElement('a');link.href=url;link.download=`LeeMockups-${sampleId}-still-${position+1}.png`;
+    link.textContent=`Save still ${position+1}`;
+    card.append(image,link);$('stillsGrid').append(card);
+  }
+  $('stillsPanel').hidden=false;
+}
+const captureStill=()=>new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Could not save a still image.')),'image/png'));
+let indexedChunkIndex=-1,indexedChunkFrames;
+let floatChunkIndex=-1,floatChunkBuffer;
+const status=(message,progress=0)=>{$('status').textContent=message;$('meterFill').style.width=`${Math.round(progress*100)}%`;};
+const wait=(target,event)=>new Promise((resolve,reject)=>{target.addEventListener(event,resolve,{once:true});target.addEventListener('error',()=>reject(new Error(`${event} failed`)),{once:true});});
+async function loadDecryptionKey(){
+  const productUrl='https://www.leemockups.com/mockup/?sku=LM-VM-MUG-001';
+  const returnToPurchase=()=>location.replace(productUrl);
+  const fragment=new URLSearchParams(location.hash.slice(1));
+  let encoded=fragment.get('key');
+  const ticket=fragment.get('ticket');
+  if(ticket){
+    history.replaceState(null,'',location.pathname+location.search);
+    status('Verifying your purchase…',.02);
+    try{
+      const response=await fetch('https://downloads.leemockups.com/commerce/render-key',{
+        method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({mockup:sampleId,ticket}),
+        cache:'no-store',
+      });
+      const result=await response.json();
+      if(response.status===401||response.status===403){returnToPurchase();throw new Error('The access ticket has expired or is invalid.');}
+      if(!response.ok||!result.ok||result.mockup!==sampleId)throw new Error(result.error||'Access could not be verified.');
+      encoded=result.key;
+    }catch(error){
+      $('purchaseReturn').hidden=false;
+      throw new Error(`Access expired or could not be verified. Your purchase is still valid. Return to your purchased mockup and choose Create video again. (${error.message})`);
+    }
+  }
+  if(!encoded){returnToPurchase();throw new Error('Open this mockup from your purchased product page.');}
+  const base64=encoded.replace(/-/g,'+').replace(/_/g,'/');
+  const raw=Uint8Array.from(atob(base64.padEnd(Math.ceil(base64.length/4)*4,'=')),character=>character.charCodeAt(0));
+  if(raw.length!==32||!crypto.subtle)throw new Error('The test key is invalid or this browser cannot decrypt the assets.');
+  return crypto.subtle.importKey('raw',raw,'AES-GCM',false,['decrypt']);
+}
+async function fetchAsset(name){
+  if(decryptedAssets.has(name))return decryptedAssets.get(name);
+  const sealed=manifest.browserEncryption?.files.includes(name);
+  const response=await fetch(`${assetRoot}/${name}${sealed?'.enc':''}`);
+  if(!response.ok)throw new Error(`Could not load ${name}.`);
+  const bytes=await response.arrayBuffer();
+  if(!sealed)return bytes;
+  const data=new Uint8Array(bytes);
+  if(data.length<34||new TextDecoder().decode(data.subarray(0,6))!=='LMENC1')throw new Error(`${name} has an invalid encrypted format.`);
+  let plain;
+  try{
+    plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:data.subarray(6,18),additionalData:new TextEncoder().encode(name)},decryptionKey,data.subarray(18));
+  }catch{throw new Error(`Could not decrypt ${name}. Check the private test link.`);}
+  decryptedAssets.set(name,plain);
+  return plain;
+}
+async function seek(video,seconds){if(Math.abs(video.currentTime-seconds)<.01&&video.readyState>=2)return;const ready=wait(video,'seeked');video.currentTime=seconds;await ready;}
+async function loadIndexedFrame(index){
+  const {chunkFrames}=manifest.browserMesh;
+  const chunkIndex=Math.floor(index/chunkFrames);
+  if(indexedChunkIndex!==chunkIndex){
+    const response=await fetch(`${assetRoot}/mesh-${String(chunkIndex).padStart(2,'0')}.bin.gz`);
+    if(!response.ok||!response.body)throw new Error(`Could not load mesh segment ${chunkIndex+1}.`);
+    const buffer=await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    const view=new DataView(buffer);
+    const frames=[];
+    let offset=0;
+    for(let frame=0;frame<chunkFrames;frame++){
+      if(offset+48>buffer.byteLength)throw new Error('Mockup mesh data is incomplete.');
+      const vertices=view.getUint32(offset,true),triangles=view.getUint32(offset+4,true);
+      const min=[],span=[];
+      for(let field=0;field<5;field++){
+        min[field]=view.getFloat32(offset+8+field*8,true);
+        span[field]=view.getFloat32(offset+12+field*8,true)-min[field];
+      }
+      offset+=48;
+      if(!vertices||!triangles||offset+vertices*10+triangles*6>buffer.byteLength)
+        throw new Error('Mockup mesh data has an invalid length.');
+      const packed=new Uint16Array(buffer,offset,vertices*5);offset+=vertices*10;
+      const positions=new Float32Array(vertices*5);
+      for(let vertex=0;vertex<vertices;vertex++)for(let field=0;field<5;field++)
+        positions[vertex*5+field]=min[field]+span[field]*packed[vertex*5+field]/65535;
+      const indices=new Uint16Array(buffer,offset,triangles*3);offset+=triangles*6;
+      frames.push({vertices:positions,indices});
+    }
+    if(offset!==buffer.byteLength)throw new Error('Mockup mesh data has extra bytes.');
+    indexedChunkFrames=frames;
+    indexedChunkIndex=chunkIndex;
+  }
+  return indexedChunkFrames[index%chunkFrames];
+}
+async function loadFloatChunkFrame(index){
+  const {chunkFrames}=manifest.browserMesh;
+  const chunkIndex=Math.floor(index/chunkFrames);
+  if(floatChunkIndex!==chunkIndex){
+    const response=await fetch(`${assetRoot}/mesh-${String(chunkIndex).padStart(2,'0')}.bin.gz`);
+    if(!response.ok||!response.body)throw new Error(`Could not load mesh segment ${chunkIndex+1}.`);
+    const buffer=await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    if(buffer.byteLength!==chunkFrames*trianglesPerFrame*3*5*4)throw new Error('Mockup mesh data has an invalid length.');
+    floatChunkBuffer=buffer;
+    floatChunkIndex=chunkIndex;
+  }
+  return new Float32Array(floatChunkBuffer,(index%chunkFrames)*trianglesPerFrame*3*5*4,trianglesPerFrame*3*5);
+}
+async function render(index,sources=videos){
+  const mesh=manifest.browserMesh?.encoding==='gzip-indexed-u16-chunks'
+    ? await loadIndexedFrame(index)
+    : manifest.browserMesh?.encoding==='gzip-f32-chunks'
+      ? await loadFloatChunkFrame(index)
+    : meshBuffer
+      ? new Float32Array(meshBuffer,index*trianglesPerFrame*3*5*4,trianglesPerFrame*3*5)
+      : meshes[index];
+  draw(mesh,sources);hasRenderedFrame=true;$('cover').hidden=true;
+}
+
+async function preview(){
+  if(!artwork||!manifest||busy)return;
+  busy=true;$('previewBtn').disabled=$('exportBtn').disabled=true;
+  try{status('Rendering a full-resolution preview…',.2);await Promise.all(videos.map(v=>seek(v,9.85)));await render(299);status('Preview ready (2000 × 2000). Your artwork stays on this device.',1);}
+  catch(error){status(`Preview failed: ${error.message}`);}
+  finally{busy=false;$('previewBtn').disabled=$('exportBtn').disabled=false;}
+}
+
+$('file').addEventListener('change',async event=>{
+  const file=event.target.files?.[0];if(!file)return;
+  if(!manifest){status('Please wait for the mockup to load before choosing an image.');return;}
+  clearStills();
+  $('download').hidden=true;
+  if(previousUrl){URL.revokeObjectURL(previousUrl);previousUrl=undefined;}
+  $('metrics').textContent='';
+  $('filename').textContent=file.name;
+  try{
+    const bitmap=await createImageBitmap(file);
+    const c=document.createElement('canvas');c.width=manifest.slot.recommendedWidth;c.height=manifest.slot.recommendedHeight;
+    const ctx=c.getContext('2d');ctx.imageSmoothingQuality='high';ctx.drawImage(bitmap,0,0,c.width,c.height);
+    artwork=ctx.getImageData(0,0,c.width,c.height);bitmap.close();c.width=c.height=1;
+    draw=createGpuRenderer(canvas,artwork);
+    $('previewBtn').disabled=$('exportBtn').disabled=false;
+    await preview();
+  }catch(error){status(`Could not read the image: ${error.message}`);}
+});
+$('previewBtn').addEventListener('click',preview);
+
+async function openLayers(){
+  const paths=['black-layer.mp4','white-layer.mp4','base-layer.mp4'];
+  const inputs=[];
+  try{
+    for(let i=0;i<paths.length;i++){
+      status(`Loading video layer ${i+1} of 3…`,.02+i*.03);
+      const source=packageMode?packageLayers[i]:manifest.browserEncryption
+        ? new Blob([await fetchAsset(paths[i])],{type:'video/mp4'})
+        : await (async()=>{const response=await fetch(`${assetRoot}/${paths[i]}`);if(!response.ok)throw new Error(`Could not load ${paths[i]}.`);return response.blob();})();
+      const input=new Input({source:new BlobSource(source),formats:ALL_FORMATS});
+      inputs.push(input);
+    }
+    const tracks=await Promise.all(inputs.map(input=>input.getPrimaryVideoTrack()));
+    if(tracks.some(track=>!track))throw new Error('A mockup video layer has no video track.');
+    return {inputs,sinks:tracks.map(track=>new VideoSampleSink(track,{hardwareAcceleration:'prefer-software'}))};
+  }catch(error){inputs.forEach(input=>input.dispose());throw error;}
+}
+
+$('exportBtn').addEventListener('click',async()=>{
+  if(!draw||busy)return;
+  if(!window.VideoEncoder||!window.VideoDecoder){status('This browser cannot encode the video. Please use a recent version of Chrome or Edge.');return;}
+  busy=true;$('previewBtn').disabled=$('exportBtn').disabled=true;$('download').hidden=true;
+  if(previousUrl){URL.revokeObjectURL(previousUrl);previousUrl=undefined;}
+  clearStills();
+  let layerData,output;
+  try{
+    layerData=await openLayers();
+    output=new Output({format:new Mp4OutputFormat(),target:new BufferTarget()});
+    const videoSource=new CanvasSource(canvas,{codec:'avc',bitrate:12_000_000});
+    output.addVideoTrack(videoSource,{frameRate:30});
+    await output.start();
+    const started=performance.now();
+    const stills=[];
+    for(let index=0;index<300;index++){
+      const timestamp=(index+.1)/30;
+      const samples=await Promise.all(layerData.sinks.map(sink=>sink.getSample(timestamp)));
+      try{
+        if(samples.some(sample=>!sample))throw new Error(`Could not decode frame ${index+1}.`);
+        await render(index,samples);
+        if(stillFrameNumbers.includes(index+1))stills.push({frame:index+1,blob:await captureStill()});
+        await videoSource.add(index/30,1/30,{keyFrame:index%30===0});
+      }finally{samples.forEach(sample=>sample?.close());}
+      if(index%5===0||index===299){
+        const elapsed=Math.round((performance.now()-started)/1000);
+        status(`Compositing frame ${index+1} of 300 · ${elapsed} sec elapsed`,(index+1)/300);
+        await new Promise(resolve=>setTimeout(resolve,0));
+      }
+    }
+    status('All 300 frames are ready. Finalizing the MP4…',.99);
+    await output.finalize();
+    const data=output.target.buffer;
+    if(!data?.byteLength)throw new Error('The video encoder produced no data.');
+    const blob=new Blob([data],{type:'video/mp4'});
+    previousUrl=URL.createObjectURL(blob);
+    const link=$('download');link.href=previousUrl;link.download='LeeMockups-Mug-v2.mp4';link.hidden=false;
+    showStills(stills);
+    status(`Video and 5 still images ready · 2000 × 2000 · ${(blob.size/1024/1024).toFixed(1)} MB MP4`,1);
+    $('metrics').textContent=`Created in ${Math.round((performance.now()-started)/1000)} seconds. Video length: 10 seconds.`;
+  }catch(error){status(`Video generation failed: ${error.message}`);}
+  finally{layerData?.inputs.forEach(input=>input.dispose());busy=false;$('previewBtn').disabled=$('exportBtn').disabled=false;}
+});
+
+try{
+  if(packageMode){
+    status('Downloading your free mockup…',.01);
+    const response=await fetch('https://downloads.leemockups.com/browser/free/LM-VM-MUG-002',{cache:'no-store'});
+    if(!response.ok)throw new Error(`Could not download the free mockup (${response.status}).`);
+    const packageBlob=await response.blob();
+    const unpacked=await readMockupPackage(packageBlob,status);
+    manifest=unpacked.manifest;
+    meshes=unpacked.meshes;
+    packageLayers=unpacked.layers;
+    packageDefaultDisplay=unpacked.defaultDisplay;
+    showCover(packageObjectUrl(unpacked.thumbnail,'image/png'));
+    for(let i=0;i<videos.length;i++)videos[i].src=packageObjectUrl(packageLayers[i],'video/mp4');
+  }else{
+  const metadata=await fetch(`${assetRoot}/manifest.json`);
+  if(!metadata.ok)throw new Error('Could not load the mockup details.');
+  manifest=await metadata.json();
+  }
+  if(manifest.frameEnd-manifest.frameStart+1!==300||manifest.fps!==30
+      ||manifest.output.width!==2000||manifest.output.height!==2000)throw new Error('This mockup has an unsupported format.');
+  if(!packageMode)$('recommendedSize').textContent=`Recommended: ${manifest.slot.recommendedWidth} × ${manifest.slot.recommendedHeight} px`;
+  if(!packageMode&&manifest.browserEncryption){
+    if(manifest.browserEncryption.algorithm!=='AES-256-GCM'||manifest.browserEncryption.format!=='LMENC1')throw new Error('This encrypted mockup format is not supported.');
+    decryptionKey=await loadDecryptionKey();
+    status('Loading and decrypting your mockup…',.03);
+    const names=['thumbnail.png','black-layer.mp4','white-layer.mp4','base-layer.mp4'];
+    const decoded=await Promise.all(names.map(fetchAsset));
+    showCover(packageObjectUrl(decoded[0],'image/png'));
+    for(let i=0;i<videos.length;i++)videos[i].src=packageObjectUrl(decoded[i+1],'video/mp4');
+  }
+  if(packageMode){
+    if(meshes.length!==300||meshes.some(mesh=>!(mesh instanceof Float32Array)))throw new Error('The package mesh is incomplete.');
+  }else if(manifest.browserMesh?.encoding==='gzip-indexed-u16-chunks'){
+    if(manifest.browserMesh.chunkFrames!==30||manifest.browserMesh.chunks!==10
+        ||typeof DecompressionStream!=='function')throw new Error('This browser cannot decode the fabric mesh.');
+  }else if(manifest.browserMesh?.encoding==='gzip-f32-chunks'){
+    if(manifest.browserMesh.chunkFrames!==30||manifest.browserMesh.chunks!==10
+        ||typeof DecompressionStream!=='function')throw new Error('This browser cannot decode the mockup mesh.');
+    trianglesPerFrame=manifest.browserMesh.trianglesPerFrame;
+  }else if(manifest.browserMesh){
+    trianglesPerFrame=manifest.browserMesh.trianglesPerFrame;
+    meshBuffer=manifest.browserEncryption?await fetchAsset('meshes.bin')
+      :await (async()=>{const response=await fetch(`${assetRoot}/meshes.bin`);if(!response.ok)throw new Error('Could not load the mockup mesh.');return response.arrayBuffer();})();
+    if(meshBuffer.byteLength!==300*trianglesPerFrame*3*5*4)throw new Error('Mockup mesh data has an invalid length.');
+  }else{
+    const response=await fetch(`${assetRoot}/meshes.json`);if(!response.ok)throw new Error('Could not load the mockup mesh.');
+    meshes=await response.json();if(meshes.length!==300)throw new Error('The mockup has an invalid frame count.');
+  }
+  decryptedAssets.clear();
+  await Promise.all(videos.map(v=>v.readyState>=1?null:wait(v,'loadedmetadata')));
+  if(packageMode){
+    const bitmap=await createImageBitmap(packageDefaultDisplay);
+    const design=document.createElement('canvas');
+    design.width=manifest.slot.recommendedWidth;design.height=manifest.slot.recommendedHeight;
+    const context=design.getContext('2d');context.imageSmoothingQuality='high';
+    context.drawImage(bitmap,0,0,design.width,design.height);
+    artwork=context.getImageData(0,0,design.width,design.height);
+    bitmap.close();design.width=design.height=1;
+    packageDefaultDisplay=undefined;
+    draw=createGpuRenderer(canvas,artwork);
+    await preview();
+    $('previewBtn').disabled=$('exportBtn').disabled=true;
+    status('Mockup ready. Choose a design to begin.');
+  }else status('Mockup ready. Choose a design to begin.');
+}catch(error){
+  if($('cover').hidden){
+    $('previewPlaceholder').hidden=false;
+    $('previewPlaceholder').textContent=sampleId==='mug-v1-enc'
+      ? 'The product preview is unavailable. Return to the purchased mockup page to try again.'
+      : 'The mockup preview could not be loaded.';
+  }
+  status(`Could not load this mockup: ${error.message}`);
+}
