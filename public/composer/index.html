@@ -9,10 +9,10 @@
   <link rel="stylesheet" href="./style.css?v=seam-progress-4">
   <style id="composer-muted-surfaces">
     :root{--composer-muted:#f9f7fa}
-    .canvas-wrap,.progress-overlay,.still-placeholder,.still-card img,.still-zoom,aside .drop,aside .drop:hover,#previewBtn{background:var(--composer-muted)}
+    .canvas-wrap,.progress-overlay,.still-placeholder,.still-card img,.still-zoom,aside .drop,aside .drop:hover{background:var(--composer-muted)}
     .progress-overlay.has-preview{background:rgba(249,247,250,.78)}
     .progress-overlay.is-exporting{background:var(--composer-muted)}
-    #previewBtn:disabled{opacity:1;color:#b3aabb}
+    #exportBtn[hidden]{display:none}
   </style>
   <style>#download[hidden]{display:none}</style>
   <style>#purchaseReturn{display:inline-block;margin:4px 0 14px;color:#6748c4;font-size:14px;font-weight:700}#purchaseReturn[hidden]{display:none}</style>
@@ -25,7 +25,7 @@
       <div class="visual-column">
         <div class="canvas-wrap">
           <canvas id="canvas" width="2000" height="2000" aria-label="Mockup preview"></canvas>
-          <video id="resultVideo" class="result-video" controls playsinline muted loop preload="metadata" hidden aria-label="Generated mockup video"></video>
+          <video id="resultVideo" class="result-video" controls autoplay playsinline muted loop preload="metadata" hidden aria-label="Generated mockup video"></video>
           <img id="cover" hidden alt="Default mockup preview">
           <div id="progressOverlay" class="progress-overlay">
             <div class="progress-panel">
@@ -55,16 +55,14 @@
       <label class="drop" for="file"><span class="upload">↑</span><strong>Choose a PNG or JPG</strong><small id="recommendedSize"></small><span id="filename"></span></label>
       <input id="file" type="file" accept="image/png,image/jpeg" hidden>
       <section class="uv-editor" aria-label="Artwork placement">
-        <div class="uv-editor-head"><strong>Artwork &amp; UV area</strong><small id="uvHint">Loading the usable UV area…</small></div>
-        <div class="uv-board"><canvas id="uvCanvas" width="512" height="512" tabindex="0" aria-label="Artwork placement in the mockup UV area"></canvas></div>
-        <div class="uv-editor-foot"><span>Drag to move · corners resize evenly · sides stretch</span><button id="uvReset" type="button" disabled>Reset</button></div>
+        <div class="uv-editor-head"><strong>Artwork placement</strong><small id="uvHint">Loading the design area…</small></div>
+        <div class="uv-board"><canvas id="uvCanvas" width="512" height="512" tabindex="0" aria-label="Artwork placement on the mockup"></canvas></div>
+        <div class="uv-editor-foot"><span>Drag to move · corners resize evenly · sides stretch</span></div>
       </section>
       <div class="info"><div><small>Video duration</small><strong>10 seconds</strong></div><div><small>Output resolution</small><strong id="outputSize">2000 × 2000 px</strong></div></div>
       <div class="actions">
-        <button id="previewBtn" disabled>Preview design</button>
-        <button id="exportBtn" class="primary" disabled>Create video and 5 stills</button>
-        <button id="playResult" type="button" hidden>Play generated video</button>
-        <a id="download" hidden>Download MP4 video</a>
+        <button id="exportBtn" class="primary" disabled>Create video</button>
+        <a id="download" hidden>Download video</a>
         <p id="metrics" class="metrics"></p>
         <p class="note">Keep this page open while your video is being created.</p>
       </div>
@@ -73,6 +71,6 @@
   <video id="white" preload="auto" muted playsinline hidden></video>
   <video id="base" preload="auto" muted playsinline hidden></video>
   <script src="./vendor/fflate.min.js"></script>
-  <script type="module" src="./app-v3.js"></script>
+  <script type="module" src="./app-v4.js"></script>
 </body>
 </html>
