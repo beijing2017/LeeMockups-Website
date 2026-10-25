@@ -64,3 +64,13 @@ aside .note{margin-top:18px}
   .stills-head{display:block}
   .stills-head small{margin-top:5px}
 }
+
+/* One shared muted surface, matched to the Preview design button's displayed color. */
+:root{--composer-muted:#f9f7fa}
+.canvas-wrap{background:var(--composer-muted)}
+.progress-overlay{background:rgba(249,247,250,.96)}
+.progress-overlay.has-preview{background:linear-gradient(to top,rgba(249,247,250,.86),transparent 46%)}
+.still-placeholder,.still-card img,.still-zoom{background:var(--composer-muted)}
+aside .drop,aside .drop:hover{background:var(--composer-muted)}
+#previewBtn{background:var(--composer-muted)}
+#previewBtn:disabled{opacity:1;color:#b3aabb}
