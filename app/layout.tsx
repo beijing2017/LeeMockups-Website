@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import { GoogleAnalytics } from '@/components/google-analytics';
-import { FeedbackWidget } from '@/components/feedback-widget';
 import { MarketingAttributionTracker } from '@/components/marketing-attribution';
 import './globals.css';
 
@@ -40,7 +40,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}<MarketingAttributionTracker /><FeedbackWidget /><GoogleAnalytics /></body>
+      <body>{children}<MarketingAttributionTracker /><GoogleAnalytics /><Script src="https://trtc.io/knocket-sdk/sdk.js?identifier=b9b0861f7897ffb683&v=1792859357282" strategy="lazyOnload" /></body>
     </html>
   );
 }
