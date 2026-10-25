@@ -74,3 +74,23 @@ aside .note{margin-top:18px}
 aside .drop,aside .drop:hover{background:var(--composer-muted)}
 #previewBtn{background:var(--composer-muted)}
 #previewBtn:disabled{opacity:1;color:#b3aabb}
+
+/* Artwork placement follows the mockup mesh UVs. */
+aside .drop{flex:none;min-height:112px;padding:14px 12px;gap:3px;margin-bottom:15px}
+aside .drop .upload{font-size:19px;line-height:1}
+aside .drop strong{font-size:13px}
+aside .drop small{font-size:11px}
+.uv-editor{display:flex;flex-direction:column;gap:9px;min-width:0;padding:12px;border:1px solid #ece7f0;border-radius:16px}
+.uv-editor-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.uv-editor-head strong{font-size:13px}
+.uv-editor-head small{max-width:58%;color:#857b91;font-size:10px;text-align:right}
+.uv-board{display:grid;place-items:center;min-height:245px;overflow:hidden;border-radius:11px;background:var(--composer-muted)}
+.uv-board canvas{display:block;max-width:100%;max-height:min(34vh,350px);width:auto;height:auto;touch-action:none;cursor:default}
+.uv-board canvas:focus-visible{outline:2px solid #7448ef;outline-offset:-3px}
+.uv-size-row,.uv-editor-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px}
+.uv-size-row output{font-variant-numeric:tabular-nums;color:#6849ae;font-weight:700}
+.uv-editor input[type=range]{width:100%;margin:0;accent-color:#7448ef}
+.uv-editor-foot{color:#857b91;font-size:10px}
+.uv-editor-foot button{width:auto;margin:0;padding:5px 10px;border-radius:7px;font-size:11px;background:var(--composer-muted)}
+@media(max-width:880px){.uv-board canvas{max-height:350px}}
+@media(max-width:470px){.uv-board{min-height:220px}.uv-board canvas{max-height:260px}}

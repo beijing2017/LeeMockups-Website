@@ -16,7 +16,8 @@ void main(){gl_Position=vec4(position*depth,depth-2.*nearDepth,depth);designUv=u
 const fragmentArt = `#version 300 es
 precision highp float;
 uniform sampler2D baseLayer,blackLayer,whiteLayer,design;
-uniform vec2 resolution;
+uniform vec2 resolution, designCenter;
+uniform float designScale;
 in vec2 designUv;
 out vec4 outputColor;
 vec3 lin(vec3 c){return mix(c/12.92,pow((c+.055)/1.055,vec3(2.4)),step(vec3(.04045),c));}
@@ -26,7 +27,9 @@ void main(){
   vec3 base=lin(texture(baseLayer,at).rgb);
   vec3 black=lin(texture(blackLayer,at).rgb);
   vec3 white=lin(texture(whiteLayer,at).rgb);
-  vec4 art=texture(design,clamp(designUv,0.,1.));
+  vec2 artUv=(designUv-designCenter)/designScale+vec2(.5);
+  vec4 art=texture(design,clamp(artUv,0.,1.));
+  if(any(lessThan(artUv,vec2(0.)))||any(greaterThan(artUv,vec2(1.)))) art.a=0.;
   vec3 replacement=black+lin(art.rgb)*(white-black);
   outputColor=vec4(srgb(mix(base,replacement,art.a)),1.);
 }`;
@@ -66,6 +69,8 @@ export function createGpuRenderer(canvas,artwork) {
   const baseProgram=program(gl,vertexBase,fragmentBase);
   const artProgram=program(gl,vertexArt,fragmentArt);
   const nearDepthLocation=gl.getUniformLocation(artProgram,'nearDepth');
+  const designCenterLocation=gl.getUniformLocation(artProgram,'designCenter');
+  const designScaleLocation=gl.getUniformLocation(artProgram,'designScale');
   for(const p of [baseProgram,artProgram]){
     gl.useProgram(p);
     for(const [name,unit] of [['blackLayer',0],['whiteLayer',1],['baseLayer',2],['design',3]]){
@@ -77,7 +82,7 @@ export function createGpuRenderer(canvas,artwork) {
   gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
   const meshBuffer=gl.createBuffer();
   const meshIndices=gl.createBuffer();
-  return (triangles,sources) => {
+  const renderFrame = (triangles,sources) => {
     gl.viewport(0,0,w,h);
     for(let i=0;i<sources.length;i++){
       const c=layers[i],ctx=c.getContext('2d');
@@ -121,4 +126,11 @@ export function createGpuRenderer(canvas,artwork) {
     gl.disable(gl.DEPTH_TEST);
     gl.flush();
   };
+  renderFrame.setDesignTransform=(centerU=.5,centerV=.5,scale=1)=>{
+    gl.useProgram(artProgram);
+    gl.uniform2f(designCenterLocation,centerU,centerV);
+    gl.uniform1f(designScaleLocation,scale);
+  };
+  renderFrame.setDesignTransform();
+  return renderFrame;
 }

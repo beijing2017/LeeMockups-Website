@@ -5,6 +5,7 @@ on:
     paths:
       - app/mockup/mockup-detail-client.tsx
       - public/composer/**
+      - tests/uv-editor.test.mjs
       - .github/workflows/test-browser-composer.yml
 
 permissions:
@@ -20,6 +21,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: node --test tests/uv-editor.test.mjs
       - run: npm run build:pages
       - run: test -s out/composer/index.html
+      - run: test -s out/composer/uv-editor.mjs
       - run: test -s out/composer/vendor/mediabunny.min.mjs

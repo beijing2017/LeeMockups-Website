@@ -6,7 +6,7 @@
   <meta name="referrer" content="no-referrer">
   <meta name="description" content="Create your LeeMockups video and five full-resolution still images in your browser.">
   <title>LeeMockups · Create your mockup</title>
-  <link rel="stylesheet" href="./style.css?v=4a4eeec8">
+  <link rel="stylesheet" href="./style.css?v=uv-editor-1">
   <style id="composer-muted-surfaces">
     :root{--composer-muted:#f9f7fa}
     .canvas-wrap,.progress-overlay,.still-placeholder,.still-card img,.still-zoom,aside .drop,aside .drop:hover,#previewBtn{background:var(--composer-muted)}
@@ -52,6 +52,13 @@
       <p class="muted">Your artwork stays in this browser. It is not uploaded to LeeMockups.</p>
       <label class="drop" for="file"><span class="upload">↑</span><strong>Choose a PNG or JPG</strong><small id="recommendedSize"></small><span id="filename"></span></label>
       <input id="file" type="file" accept="image/png,image/jpeg" hidden>
+      <section class="uv-editor" aria-label="Artwork placement">
+        <div class="uv-editor-head"><strong>Artwork &amp; UV area</strong><small id="uvHint">Loading the usable UV area…</small></div>
+        <div class="uv-board"><canvas id="uvCanvas" width="512" height="512" tabindex="0" aria-label="Artwork placement in the mockup UV area"></canvas></div>
+        <div class="uv-size-row"><label for="uvScale">Artwork size</label><output id="uvScaleValue" for="uvScale">100%</output></div>
+        <input id="uvScale" type="range" min="5" max="400" step="1" value="100" disabled>
+        <div class="uv-editor-foot"><span>Drag the image to move it in the UV area</span><button id="uvReset" type="button" disabled>Reset</button></div>
+      </section>
       <div class="info"><div><small>Video duration</small><strong>10 seconds</strong></div><div><small>Output resolution</small><strong id="outputSize">2000 × 2000 px</strong></div></div>
       <div class="actions">
         <button id="previewBtn" disabled>Preview design</button>
@@ -65,6 +72,6 @@
   <video id="white" preload="auto" muted playsinline hidden></video>
   <video id="base" preload="auto" muted playsinline hidden></video>
   <script src="./vendor/fflate.min.js"></script>
-  <script type="module" src="./app-v2.js"></script>
+  <script type="module" src="./app-v2.js?v=uv-editor-1"></script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 import { createGpuRenderer } from './gpu.js';
+import { createUvEditor } from './uv-editor.mjs';
 import { readMockupPackage } from './package-reader.mjs';
 import { ALL_FORMATS, BlobSource, BufferTarget, CanvasSource, Input, Mp4OutputFormat, Output, VideoSampleSink } from './vendor/mediabunny.min.mjs';
 
@@ -25,6 +26,21 @@ else if(!packageMode)showCover(`${assetRoot}/thumbnail.png`);
 if(sampleId!=='mug-v1-enc'&&!packageMode)for(let i=0;i<videos.length;i++)videos[i].src=`${assetRoot}/${['black-layer.mp4','white-layer.mp4','base-layer.mp4'][i]}`;
 let meshes,meshBuffer,trianglesPerFrame,manifest,artwork,draw,busy=false,previousUrl;
 let packageLayers,packageDefaultDisplay;
+let uvPreviewTimer;
+const uvEditor=createUvEditor({
+  canvas:$('uvCanvas'),scaleInput:$('uvScale'),scaleValue:$('uvScaleValue'),
+  resetButton:$('uvReset'),hint:$('uvHint'),
+  onChange:({centerU,centerV,scale})=>{
+    draw?.setDesignTransform(centerU,centerV,scale);
+    if(hasRenderedFrame&&!busy){
+      clearTimeout(uvPreviewTimer);
+      uvPreviewTimer=setTimeout(async()=>{
+        if(busy||!draw||!artwork)return;
+        try{await render(299);}catch(error){showError(`Preview failed: ${error.message}`);}
+      },90);
+    }
+  }
+});
 let decryptionKey;
 const decryptedAssets=new Map();
 const packageObjectUrls=new Set();
@@ -34,6 +50,8 @@ function packageObjectUrl(data,type){
   return url;
 }
 function releaseTemporaryResources(){
+  clearTimeout(uvPreviewTimer);
+  uvEditor.dispose();
   clearStills();
   if(previousUrl){URL.revokeObjectURL(previousUrl);previousUrl=undefined;}
   for(const video of videos){video.pause();video.removeAttribute('src');video.load();}
@@ -246,15 +264,17 @@ async function loadFloatChunkFrame(index){
   }
   return new Float32Array(floatChunkBuffer,(index%chunkFrames)*trianglesPerFrame*3*5*4,trianglesPerFrame*3*5);
 }
-async function render(index,sources=videos){
-  const mesh=manifest.browserMesh?.encoding==='gzip-indexed-u16-chunks'
+async function meshForFrame(index){
+  return manifest.browserMesh?.encoding==='gzip-indexed-u16-chunks'
     ? await loadIndexedFrame(index)
     : manifest.browserMesh?.encoding==='gzip-f32-chunks'
       ? await loadFloatChunkFrame(index)
-    : meshBuffer
-      ? new Float32Array(meshBuffer,index*trianglesPerFrame*3*5*4,trianglesPerFrame*3*5)
-      : meshes[index];
-  draw(mesh,sources);hasRenderedFrame=true;$('cover').hidden=true;
+      : meshBuffer
+        ? new Float32Array(meshBuffer,index*trianglesPerFrame*3*5*4,trianglesPerFrame*3*5)
+        : meshes[index];
+}
+async function render(index,sources=videos){
+  draw(await meshForFrame(index),sources);hasRenderedFrame=true;$('cover').hidden=true;
 }
 
 async function preview(){
@@ -276,9 +296,13 @@ $('file').addEventListener('change',async event=>{
   try{
     const bitmap=await createImageBitmap(file);
     const c=document.createElement('canvas');c.width=manifest.slot.recommendedWidth;c.height=manifest.slot.recommendedHeight;
-    const ctx=c.getContext('2d');ctx.imageSmoothingQuality='high';ctx.drawImage(bitmap,0,0,c.width,c.height);
-    artwork=ctx.getImageData(0,0,c.width,c.height);bitmap.close();c.width=c.height=1;
+    const ctx=c.getContext('2d');ctx.imageSmoothingQuality='high';
+    const fit=Math.min(c.width/bitmap.width,c.height/bitmap.height);
+    const width=bitmap.width*fit,height=bitmap.height*fit;
+    ctx.drawImage(bitmap,(c.width-width)/2,(c.height-height)/2,width,height);
+    artwork=ctx.getImageData(0,0,c.width,c.height);c.width=c.height=1;
     draw=createGpuRenderer(canvas,artwork);
+    uvEditor.setArtwork(bitmap);
     $('previewBtn').disabled=$('exportBtn').disabled=false;
     await preview();
   }catch(error){showError(`Could not read the image: ${error.message}`);}
@@ -307,6 +331,7 @@ $('exportBtn').addEventListener('click',async()=>{
   if(!draw||busy)return;
   if(!window.VideoEncoder||!window.VideoDecoder){showError('This browser cannot encode the video. Please use a recent version of Chrome or Edge.');return;}
   busy=true;$('previewBtn').disabled=$('exportBtn').disabled=true;$('download').hidden=true;
+   clearTimeout(uvPreviewTimer);uvEditor.setLocked(true);$('file').disabled=true;
   if(previousUrl){URL.revokeObjectURL(previousUrl);previousUrl=undefined;}
   clearStills();
   let layerData,output;
@@ -345,7 +370,7 @@ $('exportBtn').addEventListener('click',async()=>{
     $('metrics').textContent=`Created in ${Math.round((performance.now()-started)/1000)} seconds. Video length: 10 seconds.`;
     hideStatus();
   }catch(error){showError(`Video generation failed: ${error.message}`);}
-  finally{layerData?.inputs.forEach(input=>input.dispose());busy=false;$('previewBtn').disabled=$('exportBtn').disabled=false;}
+  finally{layerData?.inputs.forEach(input=>input.dispose());busy=false;$('previewBtn').disabled=$('exportBtn').disabled=false;uvEditor.setLocked(false);$('file').disabled=false;}
 });
 
 try{
@@ -408,6 +433,8 @@ try{
   }
   decryptedAssets.clear();
   status('Initializing your mockup preview…');
+  uvEditor.setSlot(manifest.slot.recommendedWidth,manifest.slot.recommendedHeight);
+  uvEditor.setMesh(await meshForFrame(299));
   await Promise.all(videos.map(v=>v.readyState>=1?null:wait(v,'loadedmetadata')));
   if(packageMode){
     const bitmap=await createImageBitmap(packageDefaultDisplay);
