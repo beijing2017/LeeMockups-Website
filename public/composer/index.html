@@ -6,11 +6,12 @@
   <meta name="referrer" content="no-referrer">
   <meta name="description" content="Create your LeeMockups video and five full-resolution still images in your browser.">
   <title>LeeMockups · Create your mockup</title>
-  <link rel="stylesheet" href="./style.css?v=result-preview-3">
+  <link rel="stylesheet" href="./style.css?v=seam-progress-4">
   <style id="composer-muted-surfaces">
     :root{--composer-muted:#f9f7fa}
     .canvas-wrap,.progress-overlay,.still-placeholder,.still-card img,.still-zoom,aside .drop,aside .drop:hover,#previewBtn{background:var(--composer-muted)}
     .progress-overlay.has-preview{background:rgba(249,247,250,.78)}
+    .progress-overlay.is-exporting{background:var(--composer-muted)}
     #previewBtn:disabled{opacity:1;color:#b3aabb}
   </style>
   <style>#download[hidden]{display:none}</style>
@@ -72,6 +73,6 @@
   <video id="white" preload="auto" muted playsinline hidden></video>
   <video id="base" preload="auto" muted playsinline hidden></video>
   <script src="./vendor/fflate.min.js"></script>
-  <script type="module" src="./app-v2.js?v=result-preview-3"></script>
+  <script type="module" src="./app-v2.js?v=seam-progress-4"></script>
 </body>
 </html>
