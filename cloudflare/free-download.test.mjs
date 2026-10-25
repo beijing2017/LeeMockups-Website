@@ -112,6 +112,8 @@ test("browser access streams only a published free package to the official site 
   assert.equal(response.headers.get("access-control-allow-origin"), "https://www.leemockups.com");
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.equal(response.headers.get("content-type"), "application/octet-stream");
+  assert.equal(response.headers.get("content-length"), "4");
+  assert.equal(response.headers.get("access-control-expose-headers"), "Content-Length");
   assert.equal(await response.text(), "test");
   const head = await browserRequest("https://leemockups.com", "HEAD");
   assert.equal(head.status, 200);

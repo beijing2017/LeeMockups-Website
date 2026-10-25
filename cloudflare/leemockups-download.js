@@ -121,6 +121,7 @@ export default {
         "Content-Length": String(object.size),
         "Cache-Control": "no-store",
         "Access-Control-Allow-Origin": origin,
+        "Access-Control-Expose-Headers": "Content-Length",
         "Vary": "Origin",
         "X-Content-Type-Options": "nosniff",
       });
