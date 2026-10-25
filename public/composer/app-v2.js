@@ -1,5 +1,5 @@
-import { createGpuRenderer } from './gpu.js';
-import { createUvEditor } from './uv-editor.mjs';
+import { createGpuRenderer } from './gpu.js?v=uv-handles-2';
+import { createUvEditor } from './uv-editor.mjs?v=uv-handles-2';
 import { readMockupPackage } from './package-reader.mjs';
 import { ALL_FORMATS, BlobSource, BufferTarget, CanvasSource, Input, Mp4OutputFormat, Output, VideoSampleSink } from './vendor/mediabunny.min.mjs';
 
@@ -28,10 +28,9 @@ let meshes,meshBuffer,trianglesPerFrame,manifest,artwork,draw,busy=false,previou
 let packageLayers,packageDefaultDisplay;
 let uvPreviewTimer;
 const uvEditor=createUvEditor({
-  canvas:$('uvCanvas'),scaleInput:$('uvScale'),scaleValue:$('uvScaleValue'),
-  resetButton:$('uvReset'),hint:$('uvHint'),
-  onChange:({centerU,centerV,scale})=>{
-    draw?.setDesignTransform(centerU,centerV,scale);
+  canvas:$('uvCanvas'),resetButton:$('uvReset'),hint:$('uvHint'),
+  onChange:({centerU,centerV,scaleX,scaleY})=>{
+    if(draw)draw.setDesignTransform(centerU,centerV,scaleX,scaleY);
     if(hasRenderedFrame&&!busy){
       clearTimeout(uvPreviewTimer);
       uvPreviewTimer=setTimeout(async()=>{

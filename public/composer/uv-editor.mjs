@@ -30,16 +30,39 @@ export function visitUvTriangles(mesh, visit) {
   return count;
 }
 
-export function artworkRect(imageWidth, imageHeight, stageWidth, stageHeight, scale, centerU, centerV) {
-  if (!(imageWidth > 0 && imageHeight > 0 && stageWidth > 0 && stageHeight > 0 && scale > 0)) return null;
+export function artworkRect(imageWidth, imageHeight, stageWidth, stageHeight, scaleX, scaleY, centerU, centerV) {
+  if (!(imageWidth > 0 && imageHeight > 0 && stageWidth > 0 && stageHeight > 0 && scaleX > 0 && scaleY > 0)) return null;
   const fit = Math.min(stageWidth / imageWidth, stageHeight / imageHeight);
-  const width = imageWidth * fit * scale;
-  const height = imageHeight * fit * scale;
+  const width = imageWidth * fit * scaleX;
+  const height = imageHeight * fit * scaleY;
   return { x: centerU * stageWidth - width / 2, y: centerV * stageHeight - height / 2, width, height };
 }
 
-export function artworkUv(u, v, scale, centerU, centerV) {
-  return { u: (u - centerU) / scale + .5, v: (v - centerV) / scale + .5 };
+export function artworkUv(u, v, scaleX, scaleY, centerU, centerV) {
+  return { u: (u - centerU) / scaleX + .5, v: (v - centerV) / scaleY + .5 };
+}
+
+export function resizeArtworkRect(rect, handle, dx, dy, minWidth, maxWidth, minHeight, maxHeight) {
+  const horizontal = handle.includes('w') ? -1 : handle.includes('e') ? 1 : 0;
+  const vertical = handle.includes('n') ? -1 : handle.includes('s') ? 1 : 0;
+  if (!horizontal && !vertical) return { ...rect };
+  let width = rect.width;
+  let height = rect.height;
+  if (horizontal && vertical) {
+    const factor = 1 + (horizontal * width * dx + vertical * height * dy) / (width * width + height * height);
+    const limited = clamp(factor, Math.max(minWidth / width, minHeight / height), Math.min(maxWidth / width, maxHeight / height));
+    width *= limited;
+    height *= limited;
+  } else if (horizontal) width = clamp(width + horizontal * dx, minWidth, maxWidth);
+  else height = clamp(height + vertical * dy, minHeight, maxHeight);
+  const anchorX = horizontal > 0 ? rect.x : rect.x + rect.width;
+  const anchorY = vertical > 0 ? rect.y : rect.y + rect.height;
+  return {
+    x: horizontal ? (horizontal > 0 ? anchorX : anchorX - width) : rect.x,
+    y: vertical ? (vertical > 0 ? anchorY : anchorY - height) : rect.y,
+    width,
+    height,
+  };
 }
 
 function maskOverlays(canvas, mesh) {
@@ -96,16 +119,25 @@ function maskOverlays(canvas, mesh) {
   return { empty: createOverlay(false), placed: createOverlay(true) };
 }
 
-export function createUvEditor({ canvas, scaleInput, scaleValue, resetButton, hint, onChange }) {
+export function createUvEditor({ canvas, resetButton, hint, onChange }) {
   const context = canvas.getContext('2d');
   let artwork = null;
   let overlays = null;
-  let scale = 1;
+  let scaleX = 1;
+  let scaleY = 1;
   let centerU = .5;
   let centerV = .5;
   let locked = false;
   let drag = null;
-  const transform = () => ({ centerU, centerV, scale });
+  const handles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+  const transform = () => ({ centerU, centerV, scaleX, scaleY });
+  const imageRect = () => artwork && artworkRect(
+    artwork.width, artwork.height, canvas.width, canvas.height, scaleX, scaleY, centerU, centerV
+  );
+  const handlePoint = (rect, handle) => ({
+    x: rect.x + rect.width * (handle.includes('w') ? 0 : handle.includes('e') ? 1 : .5),
+    y: rect.y + rect.height * (handle.includes('n') ? 0 : handle.includes('s') ? 1 : .5),
+  });
   const draw = () => {
     const width = canvas.width;
     const height = canvas.height;
@@ -122,18 +154,23 @@ export function createUvEditor({ canvas, scaleInput, scaleValue, resetButton, hi
       context.lineTo(width, height * fraction);
       context.stroke();
     }
-    let rect;
-    if (artwork) {
-      rect = artworkRect(artwork.width, artwork.height, width, height, scale, centerU, centerV);
-      context.drawImage(artwork, rect.x, rect.y, rect.width, rect.height);
-    }
+    const rect = imageRect();
+    if (rect) context.drawImage(artwork, rect.x, rect.y, rect.width, rect.height);
     if (overlays) context.drawImage(artwork ? overlays.placed : overlays.empty, 0, 0);
     if (rect) {
       context.save();
       context.strokeStyle = '#7448ef';
       context.lineWidth = 2;
-      context.setLineDash([8, 6]);
       context.strokeRect(rect.x, rect.y, rect.width, rect.height);
+      for (const handle of handles) {
+        const point = handlePoint(rect, handle);
+        if (point.x < 0 || point.x > width || point.y < 0 || point.y > height) continue;
+        context.beginPath();
+        context.roundRect(point.x - 6, point.y - 6, 12, 12, 3);
+        context.fillStyle = '#fff';
+        context.fill();
+        context.stroke();
+      }
       context.restore();
     }
     context.strokeStyle = '#bca8d3';
@@ -141,52 +178,85 @@ export function createUvEditor({ canvas, scaleInput, scaleValue, resetButton, hi
     context.strokeRect(1, 1, width - 2, height - 2);
   };
   const update = () => {
-    scaleValue.textContent = Math.round(scale * 100) + '%';
     draw();
     onChange(transform());
   };
   const setLocked = value => {
     locked = !!value;
-    scaleInput.disabled = locked || !artwork;
     resetButton.disabled = locked || !artwork;
     canvas.style.cursor = artwork && !locked ? 'grab' : 'default';
   };
-  scaleInput.addEventListener('input', () => {
-    if (locked || !artwork) return;
-    scale = Number(scaleInput.value) / 100;
-    update();
-  });
   resetButton.addEventListener('click', () => {
     if (locked || !artwork) return;
     centerU = centerV = .5;
-    scale = 1;
-    scaleInput.value = '100';
+    scaleX = scaleY = 1;
     update();
   });
   const point = event => {
     const bounds = canvas.getBoundingClientRect();
-    return { u: (event.clientX - bounds.left) / bounds.width, v: (event.clientY - bounds.top) / bounds.height };
+    return {
+      x: (event.clientX - bounds.left) * canvas.width / bounds.width,
+      y: (event.clientY - bounds.top) * canvas.height / bounds.height,
+    };
+  };
+  const hitHandle = (position, rect) => {
+    if (!rect) return null;
+    const bounds = canvas.getBoundingClientRect();
+    const radiusX = 15 * canvas.width / bounds.width;
+    const radiusY = 15 * canvas.height / bounds.height;
+    for (const handle of handles) {
+      const target = handlePoint(rect, handle);
+      if (Math.abs(position.x - target.x) <= radiusX && Math.abs(position.y - target.y) <= radiusY) return handle;
+    }
+    return null;
+  };
+  const cursorFor = handle => {
+    if (!handle) return 'grab';
+    if (handle === 'n' || handle === 's') return 'ns-resize';
+    if (handle === 'e' || handle === 'w') return 'ew-resize';
+    return handle === 'nw' || handle === 'se' ? 'nwse-resize' : 'nesw-resize';
   };
   canvas.addEventListener('pointerdown', event => {
     if (locked || !artwork) return;
+    const position = point(event);
+    const rect = imageRect();
+    const handle = hitHandle(position, rect);
+    if (!handle && (position.x < rect.x || position.x > rect.x + rect.width ||
+      position.y < rect.y || position.y > rect.y + rect.height)) return;
     event.preventDefault();
-    const start = point(event);
-    drag = { id: event.pointerId, u: start.u, v: start.v, centerU, centerV };
+    drag = { id: event.pointerId, start: position, rect, handle, centerU, centerV };
     canvas.setPointerCapture(event.pointerId);
-    canvas.style.cursor = 'grabbing';
+    canvas.style.cursor = handle ? cursorFor(handle) : 'grabbing';
   });
   canvas.addEventListener('pointermove', event => {
-    if (!drag || event.pointerId !== drag.id) return;
+    if (locked || !artwork) return;
     const current = point(event);
-    centerU = clamp(drag.centerU + current.u - drag.u, -.75, 1.75);
-    centerV = clamp(drag.centerV + current.v - drag.v, -.75, 1.75);
+    if (!drag) {
+      canvas.style.cursor = cursorFor(hitHandle(current, imageRect()));
+      return;
+    }
+    if (event.pointerId !== drag.id) return;
+    const dx = current.x - drag.start.x;
+    const dy = current.y - drag.start.y;
+    if (!drag.handle) {
+      centerU = clamp(drag.centerU + dx / canvas.width, -2, 3);
+      centerV = clamp(drag.centerV + dy / canvas.height, -2, 3);
+    } else {
+      const base = artworkRect(artwork.width, artwork.height, canvas.width, canvas.height, 1, 1, .5, .5);
+      const resized = resizeArtworkRect(drag.rect, drag.handle, dx, dy,
+        base.width * .05, base.width * 6, base.height * .05, base.height * 6);
+      scaleX = resized.width / base.width;
+      scaleY = resized.height / base.height;
+      centerU = (resized.x + resized.width / 2) / canvas.width;
+      centerV = (resized.y + resized.height / 2) / canvas.height;
+    }
     update();
   });
   const stopDrag = event => {
     if (!drag || event.pointerId !== drag.id) return;
     drag = null;
     if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-    canvas.style.cursor = locked ? 'default' : 'grab';
+    canvas.style.cursor = locked ? 'default' : cursorFor(hitHandle(point(event), imageRect()));
   };
   canvas.addEventListener('pointerup', stopDrag);
   canvas.addEventListener('pointercancel', stopDrag);
@@ -198,8 +268,8 @@ export function createUvEditor({ canvas, scaleInput, scaleValue, resetButton, hi
     if (event.key === 'ArrowRight') centerU += amount;
     if (event.key === 'ArrowUp') centerV -= amount;
     if (event.key === 'ArrowDown') centerV += amount;
-    centerU = clamp(centerU, -.75, 1.75);
-    centerV = clamp(centerV, -.75, 1.75);
+    centerU = clamp(centerU, -2, 3);
+    centerV = clamp(centerV, -2, 3);
     update();
   });
   draw();
@@ -207,22 +277,21 @@ export function createUvEditor({ canvas, scaleInput, scaleValue, resetButton, hi
     setSlot(width, height) {
       const maxDimension = 600;
       const ratio = width / height;
-      canvas.width = Math.round(maxDimension * Math.min(1, ratio));
-      canvas.height = Math.round(maxDimension * Math.min(1, 1 / ratio));
+      canvas.width = Math.max(1, Math.round(maxDimension * Math.min(1, ratio)));
+      canvas.height = Math.max(1, Math.round(maxDimension * Math.min(1, 1 / ratio)));
       overlays = null;
       draw();
     },
     setMesh(mesh) {
       overlays = maskOverlays(canvas, mesh);
-      hint.textContent = overlays ? 'The outlined shape is the usable UV area.' : 'UV outline is unavailable for this mockup.';
+      hint.textContent = overlays ? 'Outline shows the usable UV area.' : 'UV outline is unavailable for this mockup.';
       draw();
     },
     setArtwork(bitmap) {
       artwork?.close();
       artwork = bitmap;
       centerU = centerV = .5;
-      scale = 1;
-      scaleInput.value = '100';
+      scaleX = scaleY = 1;
       setLocked(false);
       update();
     },

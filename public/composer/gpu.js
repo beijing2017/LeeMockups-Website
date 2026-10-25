@@ -16,8 +16,7 @@ void main(){gl_Position=vec4(position*depth,depth-2.*nearDepth,depth);designUv=u
 const fragmentArt = `#version 300 es
 precision highp float;
 uniform sampler2D baseLayer,blackLayer,whiteLayer,design;
-uniform vec2 resolution, designCenter;
-uniform float designScale;
+uniform vec2 resolution, designCenter, designScale;
 in vec2 designUv;
 out vec4 outputColor;
 vec3 lin(vec3 c){return mix(c/12.92,pow((c+.055)/1.055,vec3(2.4)),step(vec3(.04045),c));}
@@ -126,10 +125,10 @@ export function createGpuRenderer(canvas,artwork) {
     gl.disable(gl.DEPTH_TEST);
     gl.flush();
   };
-  renderFrame.setDesignTransform=(centerU=.5,centerV=.5,scale=1)=>{
+  renderFrame.setDesignTransform=(centerU=.5,centerV=.5,scaleX=1,scaleY=scaleX)=>{
     gl.useProgram(artProgram);
     gl.uniform2f(designCenterLocation,centerU,centerV);
-    gl.uniform1f(designScaleLocation,scale);
+    gl.uniform2f(designScaleLocation,scaleX,scaleY);
   };
   renderFrame.setDesignTransform();
   return renderFrame;
