@@ -30,8 +30,8 @@ void main(){
   vec2 artUv=(designUv-designCenter)/designScale+vec2(.5);
   vec4 art=texture(design,clamp(artUv,0.,1.));
   if(any(lessThan(artUv,vec2(0.)))||any(greaterThan(artUv,vec2(1.)))) art.a=0.;
-  // Fade a narrow gutter where a cylindrical UV map joins at v=0 and v=1.
-  if(seamFadeWidth>0.) art.a*=smoothstep(0.,seamFadeWidth,min(designUv.y,1.-designUv.y));
+  // Fade a narrow gutter where a cylindrical UV map joins at u=0 and u=1.
+  if(seamFadeWidth>0.) art.a*=smoothstep(0.,seamFadeWidth,min(designUv.x,1.-designUv.x));
   vec3 replacement=black+lin(art.rgb)*(white-black);
   outputColor=vec4(srgb(mix(base,replacement,art.a)),1.);
 }`;
