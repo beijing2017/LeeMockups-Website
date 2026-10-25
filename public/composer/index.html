@@ -15,20 +15,32 @@
   <main>
     <section class="preview">
       <div class="preview-head"><div><p class="eyebrow">High-resolution preview</p><h1>Add your design and create your video</h1></div></div>
-      <div class="canvas-wrap">
-        <canvas id="canvas" width="2000" height="2000" aria-label="Mockup preview"></canvas>
-        <img id="cover" hidden alt="Default mockup preview">
-        <div id="progressOverlay" class="progress-overlay">
-          <div class="progress-panel">
-            <p id="status" role="status">Loading your mockup…</p>
-            <p class="progress-meta"><span id="progressDetail"></span><strong id="progressPercent"></strong></p>
-            <div id="progressTrack" class="progress-track indeterminate" role="progressbar" aria-label="Mockup loading progress" aria-valuemin="0" aria-valuemax="100"><div id="meterFill"></div></div>
+      <div class="visual-column">
+        <div class="canvas-wrap">
+          <canvas id="canvas" width="2000" height="2000" aria-label="Mockup preview"></canvas>
+          <img id="cover" hidden alt="Default mockup preview">
+          <div id="progressOverlay" class="progress-overlay">
+            <div class="progress-panel">
+              <p id="status" role="status">Loading your mockup…</p>
+              <p class="progress-meta"><span id="progressDetail"></span><strong id="progressPercent"></strong></p>
+              <div id="progressTrack" class="progress-track indeterminate" role="progressbar" aria-label="Mockup loading progress" aria-valuemin="0" aria-valuemax="100"><div id="meterFill"></div></div>
+            </div>
           </div>
         </div>
+        <section id="stillsPanel" class="stills-panel" aria-label="Still images">
+          <div id="stillZoom" class="still-zoom" hidden><img id="stillZoomImage" alt="Large still preview"></div>
+          <div class="stills-head"><div><span class="sparkle">✦</span><strong>Save still images</strong></div><small id="stillsCaption">Created after video generation</small></div>
+          <div id="stillsGrid" class="stills-grid">
+          <div class="still-placeholder"><img src="/leemockups-symbol.png" alt="" aria-hidden="true"></div>
+          <div class="still-placeholder"><img src="/leemockups-symbol.png" alt="" aria-hidden="true"></div>
+          <div class="still-placeholder"><img src="/leemockups-symbol.png" alt="" aria-hidden="true"></div>
+          <div class="still-placeholder"><img src="/leemockups-symbol.png" alt="" aria-hidden="true"></div>
+          <div class="still-placeholder"><img src="/leemockups-symbol.png" alt="" aria-hidden="true"></div>
+          </div>
+        </section>
       </div>
       <a id="purchaseReturn" hidden href="https://www.leemockups.com/mockup/?sku=LM-VM-MUG-001">Return to your purchased mockup to generate again</a>
     </section>
-    <div class="side-column">
     <aside>
       <p class="eyebrow">Your mockup</p><h2 id="sampleName">Video mockup</h2>
       <p class="muted">Your artwork stays in this browser. It is not uploaded to LeeMockups.</p>
@@ -43,19 +55,7 @@
         <p class="note">Keep this page open while your video is being created.</p>
       </div>
     </aside>
-    <section id="stillsPanel" class="stills-panel" aria-label="Still images">
-      <div class="stills-head"><div><span class="sparkle">✦</span><strong>Video stills</strong></div><small>Five full-resolution PNGs appear here after creation</small></div>
-      <div id="stillsGrid" class="stills-grid">
-        <div class="still-placeholder"><div class="still-placeholder-frame">1</div><span>Still 1</span></div>
-        <div class="still-placeholder"><div class="still-placeholder-frame">2</div><span>Still 2</span></div>
-        <div class="still-placeholder"><div class="still-placeholder-frame">3</div><span>Still 3</span></div>
-        <div class="still-placeholder"><div class="still-placeholder-frame">4</div><span>Still 4</span></div>
-        <div class="still-placeholder"><div class="still-placeholder-frame">5</div><span>Still 5</span></div>
-      </div>
-    </section>
-    </div>
-  </main>
-  <video id="black" preload="auto" muted playsinline hidden></video>
+  </main> <video id="black" preload="auto" muted playsinline hidden></video>
   <video id="white" preload="auto" muted playsinline hidden></video>
   <video id="base" preload="auto" muted playsinline hidden></video>
   <script src="./vendor/fflate.min.js"></script>

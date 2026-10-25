@@ -60,21 +60,32 @@ function clearStills(showPlaceholders=true){
   stillUrls=[];
   const grid=$('stillsGrid');
   grid.replaceChildren();
-  if(showPlaceholders)for(let position=1;position<=5;position++){
+  $('stillZoom').hidden=true;
+  $('stillZoomImage').removeAttribute('src');
+  $('stillsCaption').textContent='Created after video generation';
+  if(showPlaceholders)for(let position=0;position<5;position++){
     const card=document.createElement('div');card.className='still-placeholder';
-    const frame=document.createElement('div');frame.className='still-placeholder-frame';frame.textContent=position;
-    const label=document.createElement('span');label.textContent=`Still ${position}`;
-    card.append(frame,label);grid.append(card);
+    const logo=document.createElement('img');logo.src='/leemockups-symbol.png';logo.alt='';logo.setAttribute('aria-hidden','true');
+    card.append(logo);grid.append(card);
   }
 }
 function showStills(stills){
   clearStills(false);
+  $('stillsCaption').textContent='Full-resolution PNG images';
   for(const [position,still] of stills.entries()){
     const url=URL.createObjectURL(still.blob);stillUrls.push(url);
     const card=document.createElement('div');card.className='still-card';
     const image=document.createElement('img');image.src=url;image.alt=`Video still ${position+1}, frame ${still.frame}`;
     const link=document.createElement('a');link.href=url;link.download=`LeeMockups-${sampleId}-still-${position+1}.png`;
-    link.textContent=`Save still ${position+1}`;
+    link.className='still-download';link.textContent='↓';link.title='Download full-resolution PNG';
+    link.setAttribute('aria-label',`Download still ${position+1}`);
+    const showZoom=()=>{$('stillZoomImage').src=url;$('stillZoom').hidden=false;};
+    const hideZoom=()=>{$('stillZoom').hidden=true;};
+    card.addEventListener('mouseenter',showZoom);
+    card.addEventListener('mouseleave',hideZoom);
+    link.addEventListener('focus',showZoom);
+    link.addEventListener('blur',hideZoom);
+    image.addEventListener('click',()=>{$('stillZoom').hidden?showZoom():hideZoom();});
     card.append(image,link);$('stillsGrid').append(card);
   }
 }
