@@ -9,17 +9,24 @@
   <link rel="stylesheet" href="./style.css">
   <style>#download[hidden]{display:none}</style>
   <style>#purchaseReturn{display:inline-block;margin:4px 0 14px;color:#6748c4;font-size:14px;font-weight:700}#purchaseReturn[hidden]{display:none}</style>
-  <style>.preview-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;color:#756d7e;font-size:15px;line-height:1.5}.preview-placeholder[hidden]{display:none}</style>
 </head>
 <body>
   <header><div class="brand"><span class="mark">◩</span><div><strong>LeeMockups</strong><small>Create your video mockup</small></div></div></header>
   <main>
     <section class="preview">
       <div class="preview-head"><div><p class="eyebrow">High-resolution preview</p><h1>Add your design and create your video</h1></div></div>
-      <div class="canvas-wrap"><canvas id="canvas" width="2000" height="2000" aria-label="Mockup preview"></canvas><div id="previewPlaceholder" class="preview-placeholder">Loading your mockup preview…</div><img id="cover" hidden alt="Default mockup preview"></div>
-      <p id="status" role="status">Loading your mockup…</p>
+      <div class="canvas-wrap">
+        <canvas id="canvas" width="2000" height="2000" aria-label="Mockup preview"></canvas>
+        <img id="cover" hidden alt="Default mockup preview">
+        <div id="progressOverlay" class="progress-overlay">
+          <div class="progress-panel">
+            <p id="status" role="status">Loading your mockup…</p>
+            <p class="progress-meta"><span id="progressDetail"></span><strong id="progressPercent"></strong></p>
+            <div id="progressTrack" class="progress-track indeterminate" role="progressbar" aria-label="Mockup loading progress" aria-valuemin="0" aria-valuemax="100"><div id="meterFill"></div></div>
+          </div>
+        </div>
+      </div>
       <a id="purchaseReturn" hidden href="https://www.leemockups.com/mockup/?sku=LM-VM-MUG-001">Return to your purchased mockup to generate again</a>
-      <div class="meter"><div id="meterFill"></div></div>
       <section id="stillsPanel" class="stills-panel" hidden aria-label="Still images">
         <div class="stills-head"><div><span class="sparkle">✦</span><strong>Save still images</strong></div><small>Five full-resolution PNGs created with your video</small></div>
         <div id="stillsGrid" class="stills-grid"></div>

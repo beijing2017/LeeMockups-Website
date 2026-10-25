@@ -16,8 +16,8 @@ $('cover').alt=`${sampleLabel} default preview`;
 let hasRenderedFrame=false;
 function showCover(src){
   const cover=$('cover');
-  cover.onload=()=>{if(!hasRenderedFrame)cover.hidden=false;$('previewPlaceholder').hidden=true;};
-  cover.onerror=()=>{cover.hidden=true;$('previewPlaceholder').textContent='The preview could not be loaded.';};
+  cover.onload=()=>{if(!hasRenderedFrame)cover.hidden=false;};
+  cover.onerror=()=>{cover.hidden=true;};
   cover.src=src;
 }
 if(sampleId==='mug-v1-enc')showCover('https://downloads.leemockups.com/mockups/LM-VM-MUG-001/LM-VM-MUG-001-thumb.webp');
@@ -74,7 +74,65 @@ function showStills(stills){
 const captureStill=()=>new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Could not save a still image.')),'image/png'));
 let indexedChunkIndex=-1,indexedChunkFrames;
 let floatChunkIndex=-1,floatChunkBuffer;
-const status=(message,progress=0)=>{$('status').textContent=message;$('meterFill').style.width=`${Math.round(progress*100)}%`;};
+function status(message, progress = null, detail = '') {
+  const overlay = $('progressOverlay');
+  overlay.hidden = false;
+  overlay.classList.toggle('has-preview', hasRenderedFrame);
+  overlay.classList.remove('is-error');
+  $('progressTrack').hidden = false;
+  if ($('status').textContent !== message) $('status').textContent = message;
+  $('progressDetail').textContent = detail;
+  const known = Number.isFinite(progress);
+  $('progressPercent').textContent = known ? `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%` : '';
+  $('progressTrack').classList.toggle('indeterminate', !known);
+  if (known) $('progressTrack').setAttribute('aria-valuenow', String(Math.round(Math.max(0, Math.min(1, progress)) * 100)));
+  else $('progressTrack').removeAttribute('aria-valuenow');
+  $('meterFill').style.width = known ? `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%` : '';
+}
+function hideStatus() { $('progressOverlay').hidden = true; }
+function showError(message) {
+  status(message);
+  $('progressOverlay').classList.add('is-error');
+  $('progressTrack').hidden = true;
+}
+const megabytes = bytes => (bytes / 1024 / 1024).toFixed(1);
+async function downloadFreePackage(response) {
+  if (!response.body) throw new Error('This browser cannot stream the mockup download.');
+  const rawLength = Number(response.headers.get('Content-Length'));
+  const total = Number.isSafeInteger(rawLength) && rawLength > 0 ? rawLength : null;
+  const reader = response.body.getReader();
+  const chunks = [];
+  let received = 0;
+  const started = performance.now();
+  const update = () => {
+    const seconds = Math.floor((performance.now() - started) / 1000);
+    status('Downloading your free mockup…',
+      total ? Math.min(1, received / total) : null,
+      total ? `${megabytes(received)} / ${megabytes(total)} MB · ${seconds}s elapsed`
+        : `${megabytes(received)} MB received · ${seconds}s elapsed`);
+  };
+  update();
+  const ticker = setInterval(update, 1000);
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.byteLength;
+      if (received > 250 * 1024 * 1024) {
+        await reader.cancel();
+        throw new Error('The mockup package is too large for this browser.');
+      }
+      update();
+    }
+  } finally {
+    clearInterval(ticker);
+    reader.releaseLock();
+  }
+  if (total && received !== total) throw new Error('The mockup download was incomplete. Please refresh and try again.');
+  update();
+  return new Blob(chunks, { type: 'application/octet-stream' });
+}
 const wait=(target,event)=>new Promise((resolve,reject)=>{target.addEventListener(event,resolve,{once:true});target.addEventListener('error',()=>reject(new Error(`${event} failed`)),{once:true});});
 async function loadDecryptionKey(){
   const productUrl='https://www.leemockups.com/mockup/?sku=LM-VM-MUG-001';
@@ -84,7 +142,7 @@ async function loadDecryptionKey(){
   const ticket=fragment.get('ticket');
   if(ticket){
     history.replaceState(null,'',location.pathname+location.search);
-    status('Verifying your purchase…',.02);
+    status('Verifying your purchase…');
     try{
       const response=await fetch('https://downloads.leemockups.com/commerce/render-key',{
         method:'POST',headers:{'content-type':'application/json'},
@@ -184,8 +242,8 @@ async function render(index,sources=videos){
 async function preview(){
   if(!artwork||!manifest||busy)return;
   busy=true;$('previewBtn').disabled=$('exportBtn').disabled=true;
-  try{status('Rendering a full-resolution preview…',.2);await Promise.all(videos.map(v=>seek(v,9.85)));await render(299);status('Preview ready (2000 × 2000). Your artwork stays on this device.',1);}
-  catch(error){status(`Preview failed: ${error.message}`);}
+  try{status('Rendering a full-resolution preview…');await Promise.all(videos.map(v=>seek(v,9.85)));await render(299);hideStatus();}
+  catch(error){showError(`Preview failed: ${error.message}`);}
   finally{busy=false;$('previewBtn').disabled=$('exportBtn').disabled=false;}
 }
 
@@ -205,7 +263,7 @@ $('file').addEventListener('change',async event=>{
     draw=createGpuRenderer(canvas,artwork);
     $('previewBtn').disabled=$('exportBtn').disabled=false;
     await preview();
-  }catch(error){status(`Could not read the image: ${error.message}`);}
+  }catch(error){showError(`Could not read the image: ${error.message}`);}
 });
 $('previewBtn').addEventListener('click',preview);
 
@@ -214,7 +272,7 @@ async function openLayers(){
   const inputs=[];
   try{
     for(let i=0;i<paths.length;i++){
-      status(`Loading video layer ${i+1} of 3…`,.02+i*.03);
+      status(`Loading video layer ${i+1} of 3…`);
       const source=packageMode?packageLayers[i]:manifest.browserEncryption
         ? new Blob([await fetchAsset(paths[i])],{type:'video/mp4'})
         : await (async()=>{const response=await fetch(`${assetRoot}/${paths[i]}`);if(!response.ok)throw new Error(`Could not load ${paths[i]}.`);return response.blob();})();
@@ -229,7 +287,7 @@ async function openLayers(){
 
 $('exportBtn').addEventListener('click',async()=>{
   if(!draw||busy)return;
-  if(!window.VideoEncoder||!window.VideoDecoder){status('This browser cannot encode the video. Please use a recent version of Chrome or Edge.');return;}
+  if(!window.VideoEncoder||!window.VideoDecoder){showError('This browser cannot encode the video. Please use a recent version of Chrome or Edge.');return;}
   busy=true;$('previewBtn').disabled=$('exportBtn').disabled=true;$('download').hidden=true;
   if(previousUrl){URL.revokeObjectURL(previousUrl);previousUrl=undefined;}
   clearStills();
@@ -257,7 +315,7 @@ $('exportBtn').addEventListener('click',async()=>{
         await new Promise(resolve=>setTimeout(resolve,0));
       }
     }
-    status('All 300 frames are ready. Finalizing the MP4…',.99);
+    status('All 300 frames are ready. Finalizing the MP4…');
     await output.finalize();
     const data=output.target.buffer;
     if(!data?.byteLength)throw new Error('The video encoder produced no data.');
@@ -267,17 +325,27 @@ $('exportBtn').addEventListener('click',async()=>{
     showStills(stills);
     status(`Video and 5 still images ready · 2000 × 2000 · ${(blob.size/1024/1024).toFixed(1)} MB MP4`,1);
     $('metrics').textContent=`Created in ${Math.round((performance.now()-started)/1000)} seconds. Video length: 10 seconds.`;
-  }catch(error){status(`Video generation failed: ${error.message}`);}
+    hideStatus();
+  }catch(error){showError(`Video generation failed: ${error.message}`);}
   finally{layerData?.inputs.forEach(input=>input.dispose());busy=false;$('previewBtn').disabled=$('exportBtn').disabled=false;}
 });
 
 try{
   if(packageMode){
-    status('Downloading your free mockup…',.01);
-    const response=await fetch('https://downloads.leemockups.com/browser/free/LM-VM-MUG-002',{cache:'no-store'});
+    const connectionStarted=performance.now();
+    const showConnection=()=>status('Connecting to your free mockup…', null,
+      `Waiting for the download to start · ${Math.floor((performance.now()-connectionStarted)/1000)}s elapsed`);
+    showConnection();
+    const connectionTicker=setInterval(showConnection,1000);
+    let response;
+    try{response=await fetch('https://downloads.leemockups.com/browser/free/LM-VM-MUG-002',{cache:'no-store'});}
+    finally{clearInterval(connectionTicker);}
     if(!response.ok)throw new Error(`Could not download the free mockup (${response.status}).`);
-    const packageBlob=await response.blob();
-    const unpacked=await readMockupPackage(packageBlob,status);
+    const packageBlob=await downloadFreePackage(response);
+    const unpacked=await readMockupPackage(packageBlob,(message,progress)=>{
+      if(message==='Preparing browser frames…')status(message,Math.max(0,Math.min(1,(progress-.08)/.72)));
+      else status(message);
+    });
     manifest=unpacked.manifest;
     meshes=unpacked.meshes;
     packageLayers=unpacked.layers;
@@ -295,7 +363,7 @@ try{
   if(!packageMode&&manifest.browserEncryption){
     if(manifest.browserEncryption.algorithm!=='AES-256-GCM'||manifest.browserEncryption.format!=='LMENC1')throw new Error('This encrypted mockup format is not supported.');
     decryptionKey=await loadDecryptionKey();
-    status('Loading and decrypting your mockup…',.03);
+    status('Loading and decrypting your mockup…');
     const names=['thumbnail.png','black-layer.mp4','white-layer.mp4','base-layer.mp4'];
     const decoded=await Promise.all(names.map(fetchAsset));
     showCover(packageObjectUrl(decoded[0],'image/png'));
@@ -320,6 +388,7 @@ try{
     meshes=await response.json();if(meshes.length!==300)throw new Error('The mockup has an invalid frame count.');
   }
   decryptedAssets.clear();
+  status('Initializing your mockup preview…');
   await Promise.all(videos.map(v=>v.readyState>=1?null:wait(v,'loadedmetadata')));
   if(packageMode){
     const bitmap=await createImageBitmap(packageDefaultDisplay);
@@ -333,14 +402,8 @@ try{
     draw=createGpuRenderer(canvas,artwork);
     await preview();
     $('previewBtn').disabled=$('exportBtn').disabled=true;
-    status('Mockup ready. Choose a design to begin.');
-  }else status('Mockup ready. Choose a design to begin.');
+    hideStatus();
+  }else hideStatus();
 }catch(error){
-  if($('cover').hidden){
-    $('previewPlaceholder').hidden=false;
-    $('previewPlaceholder').textContent=sampleId==='mug-v1-enc'
-      ? 'The product preview is unavailable. Return to the purchased mockup page to try again.'
-      : 'The mockup preview could not be loaded.';
-  }
-  status(`Could not load this mockup: ${error.message}`);
+  showError(`Could not load this mockup: ${error.message}`);
 }
