@@ -6,11 +6,11 @@
   <meta name="referrer" content="no-referrer">
   <meta name="description" content="Create your LeeMockups video and five full-resolution still images in your browser.">
   <title>LeeMockups · Create your mockup</title>
-  <link rel="stylesheet" href="./style.css?v=uv-handles-2">
+  <link rel="stylesheet" href="./style.css?v=result-preview-3">
   <style id="composer-muted-surfaces">
     :root{--composer-muted:#f9f7fa}
     .canvas-wrap,.progress-overlay,.still-placeholder,.still-card img,.still-zoom,aside .drop,aside .drop:hover,#previewBtn{background:var(--composer-muted)}
-    .progress-overlay.has-preview{background:linear-gradient(to top,rgba(249,247,250,.86),transparent 46%)}
+    .progress-overlay.has-preview{background:rgba(249,247,250,.78)}
     #previewBtn:disabled{opacity:1;color:#b3aabb}
   </style>
   <style>#download[hidden]{display:none}</style>
@@ -24,6 +24,7 @@
       <div class="visual-column">
         <div class="canvas-wrap">
           <canvas id="canvas" width="2000" height="2000" aria-label="Mockup preview"></canvas>
+          <video id="resultVideo" class="result-video" controls playsinline muted loop preload="metadata" hidden aria-label="Generated mockup video"></video>
           <img id="cover" hidden alt="Default mockup preview">
           <div id="progressOverlay" class="progress-overlay">
             <div class="progress-panel">
@@ -61,6 +62,7 @@
       <div class="actions">
         <button id="previewBtn" disabled>Preview design</button>
         <button id="exportBtn" class="primary" disabled>Create video and 5 stills</button>
+        <button id="playResult" type="button" hidden>Play generated video</button>
         <a id="download" hidden>Download MP4 video</a>
         <p id="metrics" class="metrics"></p>
         <p class="note">Keep this page open while your video is being created.</p>
@@ -70,6 +72,6 @@
   <video id="white" preload="auto" muted playsinline hidden></video>
   <video id="base" preload="auto" muted playsinline hidden></video>
   <script src="./vendor/fflate.min.js"></script>
-  <script type="module" src="./app-v2.js?v=uv-handles-2"></script>
+  <script type="module" src="./app-v2.js?v=result-preview-3"></script>
 </body>
 </html>

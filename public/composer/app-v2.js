@@ -25,6 +25,12 @@ if(sampleId==='mug-v1-enc')showCover('https://downloads.leemockups.com/mockups/L
 else if(!packageMode)showCover(`${assetRoot}/thumbnail.png`);
 if(sampleId!=='mug-v1-enc'&&!packageMode)for(let i=0;i<videos.length;i++)videos[i].src=`${assetRoot}/${['black-layer.mp4','white-layer.mp4','base-layer.mp4'][i]}`;
 let meshes,meshBuffer,trianglesPerFrame,manifest,artwork,draw,busy=false,previousUrl;
+const resultVideo=$('resultVideo');
+function hideResultVideo(clear=false){
+  resultVideo.pause();
+  resultVideo.hidden=true;
+  if(clear){resultVideo.removeAttribute('src');resultVideo.load();$('playResult').hidden=true;}
+}
 let packageLayers,packageDefaultDisplay;
 let uvPreviewTimer;
 const uvEditor=createUvEditor({
@@ -51,6 +57,7 @@ function packageObjectUrl(data,type){
 function releaseTemporaryResources(){
   clearTimeout(uvPreviewTimer);
   uvEditor.dispose();
+  hideResultVideo(true);
   clearStills();
   if(previousUrl){URL.revokeObjectURL(previousUrl);previousUrl=undefined;}
   for(const video of videos){video.pause();video.removeAttribute('src');video.load();}
@@ -288,6 +295,7 @@ $('file').addEventListener('change',async event=>{
   const file=event.target.files?.[0];if(!file)return;
   if(!manifest){status('Please wait for the mockup to load before choosing an image.');return;}
   clearStills();
+  hideResultVideo(true);
   $('download').hidden=true;
   if(previousUrl){URL.revokeObjectURL(previousUrl);previousUrl=undefined;}
   $('metrics').textContent='';
@@ -306,7 +314,14 @@ $('file').addEventListener('change',async event=>{
     await preview();
   }catch(error){showError(`Could not read the image: ${error.message}`);}
 });
-$('previewBtn').addEventListener('click',preview);
+$('previewBtn').addEventListener('click',async()=>{hideResultVideo();await preview();});
+$('playResult').addEventListener('click',async()=>{
+  if(!previousUrl)return;
+  resultVideo.src=previousUrl;
+  resultVideo.hidden=false;
+  resultVideo.scrollIntoView({behavior:'smooth',block:'center'});
+  try{await resultVideo.play();}catch(error){showError(`Could not play the generated video: ${error.message}`);}
+});
 
 async function openLayers(){
   const paths=['black-layer.mp4','white-layer.mp4','base-layer.mp4'];
@@ -331,6 +346,7 @@ $('exportBtn').addEventListener('click',async()=>{
   if(!window.VideoEncoder||!window.VideoDecoder){showError('This browser cannot encode the video. Please use a recent version of Chrome or Edge.');return;}
   busy=true;$('previewBtn').disabled=$('exportBtn').disabled=true;$('download').hidden=true;
    clearTimeout(uvPreviewTimer);uvEditor.setLocked(true);$('file').disabled=true;
+   hideResultVideo(true);
   if(previousUrl){URL.revokeObjectURL(previousUrl);previousUrl=undefined;}
   clearStills();
   let layerData,output;
@@ -364,6 +380,8 @@ $('exportBtn').addEventListener('click',async()=>{
     const blob=new Blob([data],{type:'video/mp4'});
     previousUrl=URL.createObjectURL(blob);
     const link=$('download');link.href=previousUrl;link.download='LeeMockups-Mug-v2.mp4';link.hidden=false;
+    resultVideo.src=previousUrl;resultVideo.hidden=false;$('playResult').hidden=false;
+    resultVideo.play().catch(()=>{});
     showStills(stills);
     status(`Video and 5 still images ready · 2000 × 2000 · ${(blob.size/1024/1024).toFixed(1)} MB MP4`,1);
     $('metrics').textContent=`Created in ${Math.round((performance.now()-started)/1000)} seconds. Video length: 10 seconds.`;
