@@ -27,23 +27,33 @@
         </div>
       </div>
       <a id="purchaseReturn" hidden href="https://www.leemockups.com/mockup/?sku=LM-VM-MUG-001">Return to your purchased mockup to generate again</a>
-      <section id="stillsPanel" class="stills-panel" hidden aria-label="Still images">
-        <div class="stills-head"><div><span class="sparkle">✦</span><strong>Save still images</strong></div><small>Five full-resolution PNGs created with your video</small></div>
-        <div id="stillsGrid" class="stills-grid"></div>
-      </section>
     </section>
+    <div class="side-column">
     <aside>
       <p class="eyebrow">Your mockup</p><h2 id="sampleName">Video mockup</h2>
       <p class="muted">Your artwork stays in this browser. It is not uploaded to LeeMockups.</p>
       <label class="drop" for="file"><span class="upload">↑</span><strong>Choose a PNG or JPG</strong><small id="recommendedSize"></small><span id="filename"></span></label>
       <input id="file" type="file" accept="image/png,image/jpeg" hidden>
-      <div class="info"><div><small>Video duration</small><strong>10 seconds</strong></div></div>
-      <button id="previewBtn" disabled>Preview design</button>
-      <button id="exportBtn" class="primary" disabled>Create video and 5 stills</button>
-      <a id="download" hidden>Download MP4 video</a>
-      <p id="metrics" class="metrics"></p>
-      <p class="note">Keep this page open while your video is being created.</p>
+      <div class="info"><div><small>Video duration</small><strong>10 seconds</strong></div><div><small>Output resolution</small><strong id="outputSize">2000 × 2000 px</strong></div></div>
+      <div class="actions">
+        <button id="previewBtn" disabled>Preview design</button>
+        <button id="exportBtn" class="primary" disabled>Create video and 5 stills</button>
+        <a id="download" hidden>Download MP4 video</a>
+        <p id="metrics" class="metrics"></p>
+        <p class="note">Keep this page open while your video is being created.</p>
+      </div>
     </aside>
+    <section id="stillsPanel" class="stills-panel" aria-label="Still images">
+      <div class="stills-head"><div><span class="sparkle">✦</span><strong>Video stills</strong></div><small>Five full-resolution PNGs appear here after creation</small></div>
+      <div id="stillsGrid" class="stills-grid">
+        <div class="still-placeholder"><div class="still-placeholder-frame">1</div><span>Still 1</span></div>
+        <div class="still-placeholder"><div class="still-placeholder-frame">2</div><span>Still 2</span></div>
+        <div class="still-placeholder"><div class="still-placeholder-frame">3</div><span>Still 3</span></div>
+        <div class="still-placeholder"><div class="still-placeholder-frame">4</div><span>Still 4</span></div>
+        <div class="still-placeholder"><div class="still-placeholder-frame">5</div><span>Still 5</span></div>
+      </div>
+    </section>
+    </div>
   </main>
   <video id="black" preload="auto" muted playsinline hidden></video>
   <video id="white" preload="auto" muted playsinline hidden></video>
