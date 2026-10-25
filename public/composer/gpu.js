@@ -17,6 +17,7 @@ const fragmentArt = `#version 300 es
 precision highp float;
 uniform sampler2D baseLayer,blackLayer,whiteLayer,design;
 uniform vec2 resolution, designCenter, designScale;
+uniform float seamFadeWidth;
 in vec2 designUv;
 out vec4 outputColor;
 vec3 lin(vec3 c){return mix(c/12.92,pow((c+.055)/1.055,vec3(2.4)),step(vec3(.04045),c));}
@@ -29,6 +30,8 @@ void main(){
   vec2 artUv=(designUv-designCenter)/designScale+vec2(.5);
   vec4 art=texture(design,clamp(artUv,0.,1.));
   if(any(lessThan(artUv,vec2(0.)))||any(greaterThan(artUv,vec2(1.)))) art.a=0.;
+  // Fade a narrow gutter where a cylindrical UV map joins at v=0 and v=1.
+  if(seamFadeWidth>0.) art.a*=smoothstep(0.,seamFadeWidth,min(designUv.y,1.-designUv.y));
   vec3 replacement=black+lin(art.rgb)*(white-black);
   outputColor=vec4(srgb(mix(base,replacement,art.a)),1.);
 }`;
@@ -70,6 +73,7 @@ export function createGpuRenderer(canvas,artwork) {
   const nearDepthLocation=gl.getUniformLocation(artProgram,'nearDepth');
   const designCenterLocation=gl.getUniformLocation(artProgram,'designCenter');
   const designScaleLocation=gl.getUniformLocation(artProgram,'designScale');
+  const seamFadeLocation=gl.getUniformLocation(artProgram,'seamFadeWidth');
   for(const p of [baseProgram,artProgram]){
     gl.useProgram(p);
     for(const [name,unit] of [['blackLayer',0],['whiteLayer',1],['baseLayer',2],['design',3]]){
@@ -130,6 +134,11 @@ export function createGpuRenderer(canvas,artwork) {
     gl.uniform2f(designCenterLocation,centerU,centerV);
     gl.uniform2f(designScaleLocation,scaleX,scaleY);
   };
+  renderFrame.setSeamFade=(width=0)=>{
+    gl.useProgram(artProgram);
+    gl.uniform1f(seamFadeLocation,Math.max(0,width));
+  };
   renderFrame.setDesignTransform();
+  renderFrame.setSeamFade();
   return renderFrame;
 }

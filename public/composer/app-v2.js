@@ -1,4 +1,4 @@
-import { createGpuRenderer } from './gpu.js?v=uv-handles-2';
+import { createGpuRenderer } from './gpu.js?v=seam-progress-4';
 import { createUvEditor } from './uv-editor.mjs?v=uv-handles-2';
 import { readMockupPackage } from './package-reader.mjs';
 import { ALL_FORMATS, BlobSource, BufferTarget, CanvasSource, Input, Mp4OutputFormat, Output, VideoSampleSink } from './vendor/mediabunny.min.mjs';
@@ -32,6 +32,10 @@ function hideResultVideo(clear=false){
   if(clear){resultVideo.removeAttribute('src');resultVideo.load();$('playResult').hidden=true;}
 }
 let packageLayers,packageDefaultDisplay;
+function setupArtworkRenderer(){
+  draw=createGpuRenderer(canvas,artwork);
+  draw.setSeamFade(manifest.slot?.seamFadeWidth ?? (manifest.templateId==='mug-v2' ? .006 : 0));
+}
 let uvPreviewTimer;
 const uvEditor=createUvEditor({
   canvas:$('uvCanvas'),resetButton:$('uvReset'),hint:$('uvHint'),
@@ -308,7 +312,7 @@ $('file').addEventListener('change',async event=>{
     const width=bitmap.width*fit,height=bitmap.height*fit;
     ctx.drawImage(bitmap,(c.width-width)/2,(c.height-height)/2,width,height);
     artwork=ctx.getImageData(0,0,c.width,c.height);c.width=c.height=1;
-    draw=createGpuRenderer(canvas,artwork);
+    setupArtworkRenderer();
     uvEditor.setArtwork(bitmap);
     $('previewBtn').disabled=$('exportBtn').disabled=false;
     await preview();
@@ -328,7 +332,7 @@ async function openLayers(){
   const inputs=[];
   try{
     for(let i=0;i<paths.length;i++){
-      status(`Loading video layer ${i+1} of 3…`);
+      status('Creating your video…',0);
       const source=packageMode?packageLayers[i]:manifest.browserEncryption
         ? new Blob([await fetchAsset(paths[i])],{type:'video/mp4'})
         : await (async()=>{const response=await fetch(`${assetRoot}/${paths[i]}`);if(!response.ok)throw new Error(`Could not load ${paths[i]}.`);return response.blob();})();
@@ -347,6 +351,8 @@ $('exportBtn').addEventListener('click',async()=>{
   busy=true;$('previewBtn').disabled=$('exportBtn').disabled=true;$('download').hidden=true;
    clearTimeout(uvPreviewTimer);uvEditor.setLocked(true);$('file').disabled=true;
    hideResultVideo(true);
+   $('progressOverlay').classList.add('is-exporting');
+   status('Creating your video…',0);
   if(previousUrl){URL.revokeObjectURL(previousUrl);previousUrl=undefined;}
   clearStills();
   let layerData,output;
@@ -368,12 +374,11 @@ $('exportBtn').addEventListener('click',async()=>{
         await videoSource.add(index/30,1/30,{keyFrame:index%30===0});
       }finally{samples.forEach(sample=>sample?.close());}
       if(index%5===0||index===299){
-        const elapsed=Math.round((performance.now()-started)/1000);
-        status(`Compositing frame ${index+1} of 300 · ${elapsed} sec elapsed`,(index+1)/300);
+        status('Creating your video…',((index+1)/300)*.95);
         await new Promise(resolve=>setTimeout(resolve,0));
       }
     }
-    status('All 300 frames are ready. Finalizing the MP4…');
+    status('Creating your video…',.95);
     await output.finalize();
     const data=output.target.buffer;
     if(!data?.byteLength)throw new Error('The video encoder produced no data.');
@@ -383,11 +388,11 @@ $('exportBtn').addEventListener('click',async()=>{
     resultVideo.src=previousUrl;resultVideo.hidden=false;$('playResult').hidden=false;
     resultVideo.play().catch(()=>{});
     showStills(stills);
-    status(`Video and 5 still images ready · 2000 × 2000 · ${(blob.size/1024/1024).toFixed(1)} MB MP4`,1);
+    status('Your video is ready',1);
     $('metrics').textContent=`Created in ${Math.round((performance.now()-started)/1000)} seconds. Video length: 10 seconds.`;
     hideStatus();
   }catch(error){showError(`Video generation failed: ${error.message}`);}
-  finally{layerData?.inputs.forEach(input=>input.dispose());busy=false;$('previewBtn').disabled=$('exportBtn').disabled=false;uvEditor.setLocked(false);$('file').disabled=false;}
+  finally{$('progressOverlay').classList.remove('is-exporting');layerData?.inputs.forEach(input=>input.dispose());busy=false;$('previewBtn').disabled=$('exportBtn').disabled=false;uvEditor.setLocked(false);$('file').disabled=false;}
 });
 
 try{
@@ -462,7 +467,7 @@ try{
     artwork=context.getImageData(0,0,design.width,design.height);
     bitmap.close();design.width=design.height=1;
     packageDefaultDisplay=undefined;
-    draw=createGpuRenderer(canvas,artwork);
+    setupArtworkRenderer();
     await preview();
     $('previewBtn').disabled=$('exportBtn').disabled=true;
     hideStatus();

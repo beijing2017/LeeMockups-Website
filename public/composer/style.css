@@ -98,3 +98,6 @@ aside .drop small{font-size:11px}
 .canvas-wrap .result-video[hidden],#playResult[hidden]{display:none}
 #playResult{margin-top:10px;background:var(--composer-muted);color:#6748c4}
 .progress-overlay.has-preview{align-items:center;background:rgba(249,247,250,.78)}
+
+/* Cover intermediate frames while encoding; only the finished MP4 is shown. */
+.progress-overlay.has-preview.is-exporting,.progress-overlay.is-exporting{align-items:center;background:var(--composer-muted)}
