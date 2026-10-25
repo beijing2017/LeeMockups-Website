@@ -14,3 +14,40 @@
 .progress-overlay.is-error #status{color:#a33743}
 @keyframes mockup-loading{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
 @media(prefers-reduced-motion:reduce){.progress-track.indeterminate>div{animation:none;transform:none}.progress-track>div{transition:none}}
+
+/* Keep the preview full width and use the right column for controls and stills. */
+main{align-items:stretch}
+.preview{align-self:start}
+.canvas-wrap{width:100%;max-width:none;margin:0;background:#f3f4f6}
+.side-column{display:flex;flex-direction:column;gap:24px;min-width:0}
+.side-column aside{display:flex;flex-direction:column;align-self:stretch;flex:1;min-height:560px}
+.side-column .drop{flex:1;min-height:180px;justify-content:center}
+.side-column .info{grid-template-columns:repeat(2,minmax(0,1fr));margin:18px 0 14px}
+.side-column .info strong{font-size:14px;white-space:nowrap}
+.side-column .actions{margin-top:auto}
+.side-column .note{margin-top:18px}
+.stills-panel{margin-top:0;background:#fff;border-radius:24px;box-shadow:0 12px 36px #2a173c0b}
+.stills-head{display:block}
+.stills-head small{display:block;margin-top:6px;line-height:1.4}
+.stills-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.still-placeholder{min-width:0;text-align:center}
+.still-placeholder-frame{display:grid;place-items:center;width:100%;aspect-ratio:1;border:1px dashed #d9d3e2;border-radius:12px;background:#f6f6f8;color:#b7afbf;font-size:18px;font-weight:700}
+.still-placeholder span{display:block;margin-top:7px;color:#938a9d;font-size:12px}
+.progress-overlay{background:rgba(243,244,246,.95)}
+.progress-overlay.has-preview{background:linear-gradient(to top,rgba(243,244,246,.86),transparent 46%)}
+.progress-panel{width:min(100%,520px);padding:20px 24px;border:0;border-radius:0;background:transparent;box-shadow:none}
+.progress-overlay.is-error .progress-panel{border:0}
+@media(max-width:880px){
+  .preview{order:0}
+  .side-column{order:1}
+  .side-column aside{min-height:480px}
+  .stills-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+}
+@media(max-width:470px){
+  .side-column aside{min-height:0}
+  .side-column .drop{flex:none;min-height:170px}
+  .side-column .info strong{font-size:12px}
+  .stills-panel{padding:16px}
+  .still-placeholder-frame{font-size:14px}
+  .still-placeholder span{font-size:10px}
+}

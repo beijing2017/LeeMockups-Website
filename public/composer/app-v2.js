@@ -55,12 +55,20 @@ window.addEventListener('pagehide',releaseTemporaryResources,{once:true});
 window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();});
 const stillFrameNumbers=[30,90,150,210,270];
 let stillUrls=[];
-function clearStills(){
+function clearStills(showPlaceholders=true){
   for(const url of stillUrls)URL.revokeObjectURL(url);
-  stillUrls=[];$('stillsGrid').replaceChildren();$('stillsPanel').hidden=true;
+  stillUrls=[];
+  const grid=$('stillsGrid');
+  grid.replaceChildren();
+  if(showPlaceholders)for(let position=1;position<=5;position++){
+    const card=document.createElement('div');card.className='still-placeholder';
+    const frame=document.createElement('div');frame.className='still-placeholder-frame';frame.textContent=position;
+    const label=document.createElement('span');label.textContent=`Still ${position}`;
+    card.append(frame,label);grid.append(card);
+  }
 }
 function showStills(stills){
-  clearStills();
+  clearStills(false);
   for(const [position,still] of stills.entries()){
     const url=URL.createObjectURL(still.blob);stillUrls.push(url);
     const card=document.createElement('div');card.className='still-card';
@@ -69,7 +77,6 @@ function showStills(stills){
     link.textContent=`Save still ${position+1}`;
     card.append(image,link);$('stillsGrid').append(card);
   }
-  $('stillsPanel').hidden=false;
 }
 const captureStill=()=>new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Could not save a still image.')),'image/png'));
 let indexedChunkIndex=-1,indexedChunkFrames;
@@ -359,7 +366,8 @@ try{
   }
   if(manifest.frameEnd-manifest.frameStart+1!==300||manifest.fps!==30
       ||manifest.output.width!==2000||manifest.output.height!==2000)throw new Error('This mockup has an unsupported format.');
-  if(!packageMode)$('recommendedSize').textContent=`Recommended: ${manifest.slot.recommendedWidth} × ${manifest.slot.recommendedHeight} px`;
+  $('outputSize').textContent=`${manifest.output.width} × ${manifest.output.height} px`;
+  $('recommendedSize').textContent=`Recommended: ${manifest.slot.recommendedWidth} × ${manifest.slot.recommendedHeight} px`;
   if(!packageMode&&manifest.browserEncryption){
     if(manifest.browserEncryption.algorithm!=='AES-256-GCM'||manifest.browserEncryption.format!=='LMENC1')throw new Error('This encrypted mockup format is not supported.');
     decryptionKey=await loadDecryptionKey();
