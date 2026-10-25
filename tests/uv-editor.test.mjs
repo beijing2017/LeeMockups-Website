@@ -41,15 +41,15 @@ test('side handle stretches only one axis while fixing the opposite edge', () =>
 });
 
 test('composer loads its current preview and renderer assets', () => {
-  const app = readFileSync(new URL('../public/composer/app-v4.js', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/composer/app-v5.js', import.meta.url), 'utf8');
   const html = readFileSync(new URL('../public/composer/index.html', import.meta.url), 'utf8');
   const gpu = readFileSync(new URL('../public/composer/gpu-backface.js', import.meta.url), 'utf8');
-  const editor = readFileSync(new URL('../public/composer/uv-editor-v2.mjs', import.meta.url), 'utf8');
+  const editor = readFileSync(new URL('../public/composer/uv-editor-v3.mjs', import.meta.url), 'utf8');
   assert.match(app, /from '\.\/gpu-backface\.js'/);
-  assert.match(app, /from '\.\/uv-editor-v2\.mjs'/);
+  assert.match(app, /from '\.\/uv-editor-v3\.mjs'/);
   assert.match(app, /setCullBackfaces\(manifest\.templateId==='mug-v2'\)/);
   assert.match(gpu, /gl\.enable\(gl\.CULL_FACE\)/);
-  assert.match(html, /src="\.\/app-v4\.js"/);
+  assert.match(html, /src="\.\/app-v5\.js"/);
   assert.doesNotMatch(html, /id="(?:previewBtn|playResult|uvReset)"/);
   assert.doesNotMatch(editor, /resetButton/);
 });
