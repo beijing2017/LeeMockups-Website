@@ -2,7 +2,7 @@
 
 .progress-overlay{position:absolute;inset:0;z-index:3;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(232,229,229,.94)}
 .progress-overlay[hidden],.progress-track[hidden]{display:none}
-.progress-overlay.has-preview{align-items:flex-end;background:transparent}
+.progress-overlay.has-preview{align-items:center;background:rgba(249,247,250,.78)}
 .progress-panel{width:min(100%,410px);padding:22px 24px;border:1px solid #ebe5f0;border-radius:16px;background:rgba(255,255,255,.96);box-shadow:0 10px 32px #30233a20;text-align:center}
 #status{margin:0;color:#352b40;font-size:16px;font-weight:700;line-height:1.45}
 .progress-meta{display:flex;align-items:center;justify-content:center;gap:10px;min-height:20px;margin:9px 0 15px;color:#756d7e;font-size:13px;line-height:1.4}
@@ -40,7 +40,7 @@ aside .note{margin-top:18px}
 .still-zoom[hidden]{display:none}
 .still-zoom img{display:block;width:100%;height:100%;object-fit:cover}
 .progress-overlay{background:rgba(243,244,246,.95)}
-.progress-overlay.has-preview{background:linear-gradient(to top,rgba(243,244,246,.86),transparent 46%)}
+.progress-overlay.has-preview{background:rgba(249,247,250,.78)}
 .progress-panel{width:min(100%,520px);padding:20px 24px;border:0;border-radius:0;background:transparent;box-shadow:none}
 .progress-overlay.is-error .progress-panel{border:0}
 @media(hover:none){.still-card .still-download{opacity:1;transform:none}}
@@ -69,7 +69,7 @@ aside .note{margin-top:18px}
 :root{--composer-muted:#f9f7fa}
 .canvas-wrap{background:var(--composer-muted)}
 .progress-overlay{background:rgba(249,247,250,.96)}
-.progress-overlay.has-preview{background:linear-gradient(to top,rgba(249,247,250,.86),transparent 46%)}
+.progress-overlay.has-preview{background:rgba(249,247,250,.78)}
 .still-placeholder,.still-card img,.still-zoom{background:var(--composer-muted)}
 aside .drop,aside .drop:hover{background:var(--composer-muted)}
 #previewBtn{background:var(--composer-muted)}
@@ -92,3 +92,9 @@ aside .drop small{font-size:11px}
 .uv-editor-foot button{width:auto;margin:0;padding:5px 10px;border-radius:7px;font-size:11px;background:var(--composer-muted)}
 @media(max-width:880px){.uv-board canvas{max-height:350px}}
 @media(max-width:470px){.uv-board{min-height:220px}.uv-board canvas{max-height:260px}}
+
+/* The finished MP4 plays in place of the composition canvas. */
+.canvas-wrap .result-video{position:absolute;inset:0;z-index:2;width:100%;height:100%;object-fit:contain;background:var(--composer-muted)}
+.canvas-wrap .result-video[hidden],#playResult[hidden]{display:none}
+#playResult{margin-top:10px;background:var(--composer-muted);color:#6748c4}
+.progress-overlay.has-preview{align-items:center;background:rgba(249,247,250,.78)}
