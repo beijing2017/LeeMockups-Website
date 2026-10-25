@@ -85,6 +85,7 @@ export function createGpuRenderer(canvas,artwork) {
   gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
   const meshBuffer=gl.createBuffer();
   const meshIndices=gl.createBuffer();
+  let cullBackfaces=false;
   const renderFrame = (triangles,sources) => {
     gl.viewport(0,0,w,h);
     for(let i=0;i<sources.length;i++){
@@ -121,14 +122,19 @@ export function createGpuRenderer(canvas,artwork) {
     gl.vertexAttribPointer(0,2,gl.FLOAT,false,20,0);
     gl.enableVertexAttribArray(1);gl.vertexAttribPointer(1,1,gl.FLOAT,false,20,8);
     gl.enableVertexAttribArray(2);gl.vertexAttribPointer(2,2,gl.FLOAT,false,20,12);
+    // The package mesh includes the mug's rear surface. Its projection can
+    // otherwise paint through the opaque cup as a thin duplicate of the art.
+    if(cullBackfaces){gl.enable(gl.CULL_FACE);gl.frontFace(gl.CCW);gl.cullFace(gl.BACK);}
     if(indices){
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,meshIndices);
       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,indices,gl.STREAM_DRAW);
       gl.drawElements(gl.TRIANGLES,indices.length,indices instanceof Uint16Array?gl.UNSIGNED_SHORT:gl.UNSIGNED_INT,0);
     }else gl.drawArrays(gl.TRIANGLES,0,data.length/5);
+    if(cullBackfaces)gl.disable(gl.CULL_FACE);
     gl.disable(gl.DEPTH_TEST);
     gl.flush();
   };
+  renderFrame.setCullBackfaces=(enabled=false)=>{cullBackfaces=Boolean(enabled);};
   renderFrame.setDesignTransform=(centerU=.5,centerV=.5,scaleX=1,scaleY=scaleX)=>{
     gl.useProgram(artProgram);
     gl.uniform2f(designCenterLocation,centerU,centerV);
