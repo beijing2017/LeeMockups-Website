@@ -1,4 +1,4 @@
-import { createGpuRenderer } from './gpu.js?v=seam-progress-4';
+import { createGpuRenderer } from './gpu.js?v=seam-axis-5';
 import { createUvEditor } from './uv-editor.mjs?v=uv-handles-2';
 import { readMockupPackage } from './package-reader.mjs';
 import { ALL_FORMATS, BlobSource, BufferTarget, CanvasSource, Input, Mp4OutputFormat, Output, VideoSampleSink } from './vendor/mediabunny.min.mjs';
@@ -34,7 +34,7 @@ function hideResultVideo(clear=false){
 let packageLayers,packageDefaultDisplay;
 function setupArtworkRenderer(){
   draw=createGpuRenderer(canvas,artwork);
-  draw.setSeamFade(manifest.slot?.seamFadeWidth ?? (manifest.templateId==='mug-v2' ? .006 : 0));
+  draw.setSeamFade(manifest.slot?.seamFadeWidth ?? (manifest.templateId==='mug-v2' ? .012 : 0));
 }
 let uvPreviewTimer;
 const uvEditor=createUvEditor({
