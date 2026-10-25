@@ -40,9 +40,12 @@ test('side handle stretches only one axis while fixing the opposite edge', () =>
   assert.deepEqual(resized, { x: 20, y: 30, width: 250, height: 100 });
 });
 
-test('composer imports a versioned GPU module so stale shader code cannot load with new controls', () => {
-  const app = readFileSync(new URL('../public/composer/app-v2.js', import.meta.url), 'utf8');
+test('composer loads the corrected renderer from fresh asset paths', () => {
+  const app = readFileSync(new URL('../public/composer/app-v3.js', import.meta.url), 'utf8');
   const html = readFileSync(new URL('../public/composer/index.html', import.meta.url), 'utf8');
-  assert.match(app, /from '\.\/gpu\.js\?v=[^']+'/);
-  assert.match(html, /src="\.\/app-v2\.js\?v=[^"]+"/);
+  const gpu = readFileSync(new URL('../public/composer/gpu-backface.js', import.meta.url), 'utf8');
+  assert.match(app, /from '\.\/gpu-backface\.js'/);
+  assert.match(app, /setCullBackfaces\(manifest\.templateId==='mug-v2'\)/);
+  assert.match(gpu, /gl\.enable\(gl\.CULL_FACE\)/);
+  assert.match(html, /src="\.\/app-v3\.js"/);
 });
