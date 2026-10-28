@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronDown, Download } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { getSeoCatalogData } from "@/lib/catalog-seo";
 import { getMockupCategories } from "@/lib/mockup-categories";
 
@@ -24,8 +24,7 @@ export async function SiteNav({ current }: SiteNavProps) {
       <Link href="/#how">How it works</Link>
       <Link href="/#features">Features</Link>
       <Link href="/help/" aria-current={current === "help" ? "page" : undefined}>Help</Link>
-      <Link href="/#download">Download</Link>
     </div>
-    <Link className="nav-cta" href="/#download"><Download size={15} /> Get the app</Link>
+    <Link className="nav-cta" href="/mockups/">Browse Mockups</Link>
   </nav>;
 }

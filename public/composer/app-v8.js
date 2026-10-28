@@ -1,4 +1,4 @@
-import { createGpuRenderer } from './gpu-backface.js';
+import { createGpuRenderer } from './gpu-backface.js?v=20261029a';
 import { createUvEditor, editorYToUvV } from './uv-editor-v4.mjs';
 import { readMockupPackage } from './package-reader-v2.mjs';
 import { ALL_FORMATS, BlobSource, BufferTarget, CanvasSource, Input, Mp4OutputFormat, Output, VideoSampleSink } from './vendor/mediabunny.min.mjs';
@@ -9,7 +9,8 @@ const videos=[$('black'),$('white'),$('base')];
 const requestedSku=new URLSearchParams(location.search).get('sku');
 if(requestedSku&&!/^LM-VM-[A-Z]{3}-\d{3}$/.test(requestedSku))location.replace('/mockups/');
 const sampleId=requestedSku||'LM-VM-MUG-002';
-$('returnToDetail').href=`/mockup/${encodeURIComponent(sampleId)}/`;
+const localTest=location.hostname==='127.0.0.1'||location.hostname==='localhost';
+$('returnToDetail').href=`${localTest?'https://www.leemockups.com':''}/mockup/${encodeURIComponent(sampleId)}/`;
 const packageMode=true;
 const assetRoot=sampleId==='v10'?'./assets':`./assets/${sampleId}`;
 const sampleLabel={v10:'V10 Frame','mug-v1':'Mug v1','mug-v2':'Matte Black Coffee Mug','mug-v2-package':'Matte Black Coffee Mug','shirt-v3-f':'Shirt v3 F','mug-v1-enc':'Mug v1'}[sampleId];
@@ -21,7 +22,7 @@ function showMockupName(name){
 }
 showMockupName(sampleLabel||sampleId);
 // The product catalog owns the customer-facing name; packages may retain working titles.
-void fetch('https://downloads.leemockups.com/catalog/products.json',{cache:'no-store'})
+void fetch(localTest?'/catalog/products.json':'https://downloads.leemockups.com/catalog/products.json',{cache:'no-store'})
   .then(response=>response.ok?response.json():null)
   .then(catalog=>{
     const product=Array.isArray(catalog?.products)
@@ -54,6 +55,7 @@ function setupArtworkRenderer(){
   draw=createGpuRenderer(canvas,artwork);
   draw.setCullBackfaces(manifest.templateId==='mug-v2');
   draw.setSeamFade(manifest.slot?.seamFadeWidth ?? (manifest.templateId==='mug-v2' ? .012 : 0));
+  draw.setDesignEdgeBleed(manifest.templateId==='v9-mockup' ? .012 : 0);
 }
 let uvPreviewTimer;
 const uvEditor=createUvEditor({
@@ -183,7 +185,7 @@ async function downloadFreePackage(response) {
   const started = performance.now();
   const update = () => {
     const seconds = Math.floor((performance.now() - started) / 1000);
-    status('Downloading your free mockup…',
+    status('Loading your mockup…',
       total ? Math.min(1, received / total) : null,
       total ? `${megabytes(received)} / ${megabytes(total)} MB · ${seconds}s elapsed`
         : `${megabytes(received)} MB received · ${seconds}s elapsed`);
@@ -382,7 +384,14 @@ $('exportBtn').addEventListener('click',async()=>{
   try{
     layerData=await openLayers();
     output=new Output({format:new Mp4OutputFormat(),target:new BufferTarget()});
-    const videoSource=new CanvasSource(canvas,{codec:'avc',bitrate:12_000_000});
+    // Favor the quality-oriented software encoder for subtle moving shadows.
+    // Hardware AVC can leave visible blocks even with a larger bitrate budget.
+    const videoSource=new CanvasSource(canvas,{
+      codec:'avc',
+      bitrate:32_000_000,
+      latencyMode:'quality',
+      hardwareAcceleration:'prefer-software'
+    });
     output.addVideoTrack(videoSource,{frameRate:30});
     await output.start();
     const started=performance.now();
@@ -422,14 +431,23 @@ $('exportBtn').addEventListener('click',async()=>{
 try{
   if(packageMode){
     const connectionStarted=performance.now();
-    const showConnection=()=>status('Connecting to your free mockup…', null,
+    const showConnection=()=>status('Opening your mockup…', null,
       `Waiting for the download to start · ${Math.floor((performance.now()-connectionStarted)/1000)}s elapsed`);
     showConnection();
     const connectionTicker=setInterval(showConnection,1000);
     let response;
-    try{response=await fetch(`https://downloads.leemockups.com/browser/free/${encodeURIComponent(sampleId)}`,{cache:'no-store'});}
+    const savedUrl=localTest?null:sessionStorage.getItem(`leemockups-render:${sampleId}`);
+    let sourceUrl=localTest?`/browser/test/${encodeURIComponent(sampleId)}`:`https://downloads.leemockups.com/browser/free/${encodeURIComponent(sampleId)}`;
+    if(savedUrl){
+      const signed=new URL(savedUrl);
+      if(signed.origin==='https://downloads.leemockups.com'&&signed.pathname===`/d/${sampleId}`)sourceUrl=signed.href;
+    }
+    try{response=await fetch(sourceUrl,{cache:'no-store'});}
     finally{clearInterval(connectionTicker);}
-    if(!response.ok)throw new Error(`Could not download the free mockup (${response.status}).`);
+    if(!response.ok){
+      if(!localTest&&response.status===404&&!savedUrl)throw new Error('Open this paid mockup from its product page after verifying your purchase.');
+      throw new Error(`Could not open the mockup (${response.status}). Return to the product page and try again.`);
+    }
     const packageBlob=await downloadFreePackage(response);
     const unpacked=await readMockupPackage(packageBlob,(message,progress)=>{
       if(message==='Preparing browser frames…')status(message,Math.max(0,Math.min(1,(progress-.08)/.72)));
@@ -448,7 +466,7 @@ try{
   if(!metadata.ok)throw new Error('Could not load the mockup details.');
   manifest=await metadata.json();
   }
-  if(manifest.frameEnd-manifest.frameStart+1!==300||manifest.fps!==30
+  if(![300,301].includes(manifest.frameEnd-manifest.frameStart+1)||manifest.fps!==30
       ||manifest.output.width!==2000||manifest.output.height!==2000)throw new Error('This mockup has an unsupported format.');
   $('outputSize').textContent=`${manifest.output.width} × ${manifest.output.height} px`;
   $('recommendedSize').textContent=`Recommended: ${manifest.slot.recommendedWidth} × ${manifest.slot.recommendedHeight} px`;
@@ -485,16 +503,18 @@ try{
   uvEditor.setMesh(await meshForFrame(previewFrameIndex));
   await Promise.all(videos.map(v=>v.readyState>=1?null:wait(v,'loadedmetadata')));
   if(packageMode){
-    const bitmap=await createImageBitmap(packageDefaultDisplay);
-    const design=document.createElement('canvas');
-    design.width=manifest.slot.recommendedWidth;design.height=manifest.slot.recommendedHeight;
-    const context=design.getContext('2d');context.imageSmoothingQuality='high';
-    context.drawImage(bitmap,0,0,design.width,design.height);
-    artwork=context.getImageData(0,0,design.width,design.height);
-    bitmap.close();design.width=design.height=1;
-    packageDefaultDisplay=undefined;
-    setupArtworkRenderer();
-    await preview();
+    if(packageDefaultDisplay){
+      const bitmap=await createImageBitmap(packageDefaultDisplay);
+      const design=document.createElement('canvas');
+      design.width=manifest.slot.recommendedWidth;design.height=manifest.slot.recommendedHeight;
+      const context=design.getContext('2d');context.imageSmoothingQuality='high';
+      context.drawImage(bitmap,0,0,design.width,design.height);
+      artwork=context.getImageData(0,0,design.width,design.height);
+      bitmap.close();design.width=design.height=1;
+      packageDefaultDisplay=undefined;
+      setupArtworkRenderer();
+      await preview();
+    }
     $('exportBtn').disabled=true;
     hideStatus();
   }else hideStatus();

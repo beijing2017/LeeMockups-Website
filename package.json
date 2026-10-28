@@ -7,8 +7,8 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "build:pages": "next build",
+    "build": "node scripts/fetch-catalog.mjs && next build",
+    "build:pages": "node scripts/fetch-catalog.mjs && next build",
     "start": "next start"
   },
   "dependencies": {

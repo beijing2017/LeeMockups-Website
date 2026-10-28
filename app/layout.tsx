@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     default: 'Video Mockups for Product Listings | LeeMockups',
     template: '%s | LeeMockups',
   },
-  description: 'Create video mockups from your artwork with LeeMockups. Choose a product template, add your design, and export an MP4 video and still images on Windows or macOS.',
+  description: 'Create video mockups online with LeeMockups. Choose a product, add your design in the browser, and save an MP4 video and still images.',
   keywords: ['video mockup', 'video mockups', 'product video mockup', 'animated mockup', 'mockup generator', 'LeeMockups'],
   alternates: { canonical: '/' },
   robots: { index: true, follow: true },
@@ -22,13 +22,13 @@ export const metadata: Metadata = {
   icons: { icon: '/leemockups-symbol.png' },
   openGraph: {
     title: 'Video Mockups for Product Listings | LeeMockups',
-    description: 'Turn your artwork into product video mockups with LeeMockups desktop templates.',
-    images: [{ url: '/og.png', width: 1536, height: 864, alt: 'LeeMockups desktop mockup software' }],
+    description: 'Turn your artwork into product video mockups online with LeeMockups.',
+    images: [{ url: '/og.png', width: 1536, height: 864, alt: 'LeeMockups video mockup generator' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Video Mockups for Product Listings | LeeMockups',
-    description: 'Turn your artwork into product video mockups with LeeMockups desktop templates.',
+    description: 'Turn your artwork into product video mockups online with LeeMockups.',
     images: ['/og.png'],
   },
 };

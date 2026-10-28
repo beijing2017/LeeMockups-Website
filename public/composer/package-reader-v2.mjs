@@ -3,6 +3,7 @@ const decoder = new TextDecoder();
 const magic = encoder.encode('LMOFFLINE1');
 const seed = Uint8Array.from('9146ab07d3e91258fceb60411df97042a8573cb9e02d65f71498a3be602fcd85'.match(/../g), value => parseInt(value, 16));
 const wantedFiles = new Set(['manifest.json', 'thumbnail.png', 'default-display.png', 'black-layer.mp4', 'white-layer.mp4', 'base-layer.mp4']);
+const requiredFiles = ['manifest.json', 'thumbnail.png', 'black-layer.mp4', 'white-layer.mp4', 'base-layer.mp4'];
 
 async function decryptPackage(blob) {
   const bytes = new Uint8Array(await blob.arrayBuffer());
@@ -99,7 +100,8 @@ export async function readMockupPackage(blob, onProgress = () => {}) {
   let count = 0;
   const unzip = new fflate.Unzip(file => {
     count += 1;
-    if (count > 500) throw new Error('The mockup package has too many files.');
+    // 300 mesh frames can each have a distinct topology: 300 + 300 + 7 package files.
+    if (count > 650) throw new Error('The mockup package has too many files.');
     const match = /^mesh\/mesh_(\d{4})\.json$/.exec(file.name);
     const topologyMatch = /^mesh\/(topology-[a-f0-9]{64}\.lmgeom)$/.exec(file.name);
     if (!wantedFiles.has(file.name) && !match && !topologyMatch) return;
@@ -109,7 +111,7 @@ export async function readMockupPackage(blob, onProgress = () => {}) {
       if (error) throw error;
       length += chunk.length;
       extractedBytes += chunk.length;
-      if (extractedBytes > 400 * 1024 * 1024 || length > 30 * 1024 * 1024) {
+      if (extractedBytes > 512 * 1024 * 1024 || length > 64 * 1024 * 1024) {
         throw new Error('The mockup package exceeds the browser test limit.');
       }
       chunks.push(chunk);
@@ -141,16 +143,23 @@ export async function readMockupPackage(blob, onProgress = () => {}) {
       await new Promise(resolve => setTimeout(resolve, 0));
     }
   }
-  if (files.size !== wantedFiles.size || meshFiles.size !== 300) {
+  if (requiredFiles.some(name => !files.has(name))) {
     throw new Error('The mockup package is incomplete.');
   }
   const manifest = JSON.parse(decoder.decode(files.get('manifest.json')));
+  const sourceFrameCount = manifest.frameEnd - manifest.frameStart + 1;
   if (!manifest.templateId || !Number.isSafeInteger(manifest.frameStart) ||
-      manifest.frameEnd-manifest.frameStart+1 !== 300 || manifest.fps !== 30 ||
+      ![300, 301].includes(sourceFrameCount) || manifest.fps !== 30 ||
       manifest.output?.width !== 2000 || manifest.output?.height !== 2000 ||
       !manifest.slot?.recommendedWidth || !manifest.slot?.recommendedHeight) {
-    throw new Error('This free mockup has an unsupported format.');
+    throw new Error('This mockup has an unsupported format.');
   }
+  if (meshFiles.size !== sourceFrameCount ||
+      Array.from({ length: sourceFrameCount }, (_, index) => manifest.frameStart + index)
+        .some(frame => !meshFiles.has(frame))) {
+    throw new Error('The mockup package is incomplete.');
+  }
+  // Some desktop packages include the next endpoint frame. A 10-second, 30-fps video uses 300 frames.
   const meshes=Array.from({length:300},(_,index)=>meshFiles.get(manifest.frameStart+index));
   if(meshes.some(mesh=>!mesh))throw new Error('The mockup package is missing mesh frames.');
   const getMesh=index=>{
@@ -162,7 +171,8 @@ export async function readMockupPackage(blob, onProgress = () => {}) {
     meshes,
     getMesh,
     thumbnail: new Blob([files.get('thumbnail.png')], { type: 'image/png' }),
-    defaultDisplay: new Blob([files.get('default-display.png')], { type: 'image/png' }),
+    defaultDisplay: files.has('default-display.png')
+      ? new Blob([files.get('default-display.png')], { type: 'image/png' }) : undefined,
     layers: ['black-layer.mp4', 'white-layer.mp4', 'base-layer.mp4'].map(name => new Blob([files.get(name)], { type: 'video/mp4' })),
   };
   files.clear();

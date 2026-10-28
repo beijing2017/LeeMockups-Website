@@ -1,11 +1,10 @@
 "use client";
 
-import { Download, KeyRound, ShieldCheck } from "lucide-react";
-import { FormEvent, useRef, useState } from "react";
+import { Play, KeyRound, ShieldCheck } from "lucide-react";
+import { FormEvent, useState } from "react";
 import { SiteNav } from "@/components/site-nav";
 import { PolicyLinks } from "@/components/policy-links";
-import { savePrivateDownload } from "@/lib/private-download";
-import { recordDownloadClick } from "@/lib/download-click";
+import { openPurchasedComposer } from "@/lib/browser-composer";
 
 type DownloadItem = { sku: string; name: string; url: string };
 const lastOrderKey = "leemockups:last-order-reference";
@@ -14,7 +13,6 @@ export default function OrderDownloadPage() {
   const [orderNumber, setOrderNumber] = useState("");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
-  const downloadLock = useRef(false);
   const [error, setError] = useState("");
   const [downloads, setDownloads] = useState<DownloadItem[]>([]);
 
@@ -44,33 +42,22 @@ export default function OrderDownloadPage() {
     }
   }
 
-  async function beginDownload(item: DownloadItem) {
-    if (downloadLock.current) return;
-    downloadLock.current = true;
-    setError("");
-    recordDownloadClick("paid-mockup", item.sku);
-    try {
-      await savePrivateDownload(item.url, `${item.sku}.mockup`);
-    } catch (reason) {
-      if ((reason as DOMException)?.name !== "AbortError") {
-        setError(reason instanceof Error ? reason.message : "The download could not be completed.");
-      }
-    } finally {
-      downloadLock.current = false;
-    }
+  function beginCreate(item: DownloadItem) {
+    try { openPurchasedComposer(item); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "The creator could not open."); }
   }
 
   return <main className="order-page">
     <SiteNav current="order-download" />
     <section className="order-shell shell">
-      <div className="order-copy"><span className="section-tag">PURCHASE DOWNLOAD</span><h1>Get your mockup.</h1><p>Enter the order number from your Creem receipt. We’ll verify the payment and create a private download link.</p><ul><li><ShieldCheck /> Secure, time-limited download</li><li><KeyRound /> No LeeMockups account required</li></ul></div>
+      <div className="order-copy"><span className="section-tag">PURCHASE ACCESS</span><h1>Create your mockup.</h1><p>Enter the order number from your Creem receipt. We’ll verify your purchase and open the online creator.</p><ul><li><ShieldCheck /> Secure, time-limited access</li><li><KeyRound /> No LeeMockups account required</li></ul></div>
       <div className="order-card">
         <form onSubmit={redeem}>
           <label>Order number<input required autoComplete="off" value={orderNumber} onFocus={() => { if (!orderNumber) setOrderNumber(localStorage.getItem(lastOrderKey) || ""); }} onChange={(event) => setOrderNumber(event.target.value.trim())} placeholder="e.g. ORD-1A0CA4D195542817" /></label>
           <label>Email used at checkout<input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></label>
           {downloads.length > 0
-            ? <button className="button primary purchase-primary purchased" type="button" onClick={() => beginDownload(downloads[0])}><Download size={17} /> Download</button>
-            : <button className="button primary" disabled={busy}>{busy ? "Verifying purchase…" : "Get my download"}</button>}
+            ? <button className="button primary purchase-primary purchased" type="button" onClick={() => beginCreate(downloads[0])}><Play size={17} /> Create video online</button>
+            : <button className="button primary" disabled={busy}>{busy ? "Verifying purchase…" : "Verify my purchase"}</button>}
         </form>
         {error && <div className="order-message error" role="alert">{error}</div>}
         <p className="order-help">Need help? Email <a href="mailto:support@leemockups.com">support@leemockups.com</a> with your order details.</p>

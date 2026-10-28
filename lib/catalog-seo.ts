@@ -29,11 +29,12 @@ type SeoCatalog = { products: CatalogProduct[]; homeFeaturedSkus: string[] };
 let catalogPromise: Promise<SeoCatalog> | undefined;
 
 export function getSeoCatalogData(): Promise<SeoCatalog> {
-  catalogPromise ??= fetch(`${catalogAssetBase}/catalog/products.json?seo-build=${Date.now()}`, {
-    cache: "force-cache",
-  }).then(async (response) => {
-    if (!response.ok) throw new Error(`Product catalog returned ${response.status}`);
-    const catalog = await response.json();
+  catalogPromise ??= (process.env.NODE_ENV === "production"
+    ? import("node:fs/promises").then(({ readFile }) => readFile(`${process.cwd()}/.catalog-build.json`, "utf8")).then(JSON.parse)
+    : fetch(`${catalogAssetBase}/catalog/products.json?seo-build=${Date.now()}`, { cache: "force-cache" }).then(async (response) => {
+      if (!response.ok) throw new Error(`Product catalog returned ${response.status}`);
+      return response.json();
+    })).then((catalog) => {
     if (!Array.isArray(catalog?.products)) throw new Error("Invalid product catalog");
     const products = catalog.products.filter((product: CatalogProduct) =>
       /^LM-VM-[A-Z]{3}-\d{3}$/.test(product.sku) &&

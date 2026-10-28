@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Download } from "lucide-react";
+import { Play } from "lucide-react";
 import { readAttribution, trackEvent } from "@/lib/marketing-attribution";
-import { savePrivateDownload } from "@/lib/private-download";
-import { recordDownloadClick } from "@/lib/download-click";
+import { openPurchasedComposer } from "@/lib/browser-composer";
 
 type DownloadItem={sku:string;name:string;url:string};
 type PurchaseRecord={transactionId:string;claimToken:string;email?:string};
@@ -31,11 +30,11 @@ export function CreemCheckoutButton({sku}:{sku:string}){
     for(let attempt=0;attempt<=retries;attempt++){
       const response=await fetch(redeemApi,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({provider:"CREEM",...record})});
       const body=await response.json();
-      if(response.ok){setDownloads(body.downloads||[]);setError("");return true}
+      if(response.ok){setDownloads(body.downloads||[]);setError("");return body.downloads as DownloadItem[]}
       if(body.code!=="PAYMENT_PENDING"||attempt===retries)throw new Error(body.error||"We could not verify this purchase.");
       await new Promise((resolve)=>setTimeout(resolve,1500*(attempt+1)));
     }
-    return false;
+    return [] as DownloadItem[];
   }
   useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
@@ -66,13 +65,18 @@ export function CreemCheckoutButton({sku}:{sku:string}){
       trackEvent("begin_checkout",{items:[{item_id:sku}]});window.location.assign(body.checkoutUrl);
     }catch(reason){localStorage.removeItem(`${storageKey}:pending`);setError(reason instanceof Error?reason.message:"Checkout could not open. Please try again.");setOpening(false)}
   }
-  async function beginDownload(item:DownloadItem){
+  async function beginCreate(item:DownloadItem){
     if(downloadLock.current)return;
-    downloadLock.current=true;setError("");trackEvent("file_download",{item_id:item.sku});recordDownloadClick("paid-mockup",item.sku);
-    try{await savePrivateDownload(item.url,`${item.sku}.mockup`)}
-    catch(reason){if((reason as DOMException)?.name!=="AbortError")setError(reason instanceof Error?reason.message:"The download could not be completed.")}
+    downloadLock.current=true;setError("");
+    try{
+      const record=JSON.parse(localStorage.getItem(storageKey)||"null") as PurchaseRecord|null;
+      if(!record)throw new Error("Purchase verification expired. Please restore your order.");
+      const fresh=await redeem(record);
+      openPurchasedComposer(fresh.find((entry)=>entry.sku===item.sku)||item);
+    }
+    catch(reason){setError(reason instanceof Error?reason.message:"The generator could not open.")}
     finally{downloadLock.current=false}
   }
-  if(downloads.length)return <><div className="purchase-downloads purchased">{downloads.map((item)=><button className="button primary purchase-primary purchased" type="button" key={item.sku} onClick={()=>beginDownload(item)}><Download size={17}/>Download mockup</button>)}</div>{error&&<small className="checkout-error" role="alert">{error}</small>}</>;
-  return <>{checking?<button className="button primary purchase-primary" disabled>Checking purchase…</button>:<button className="button primary purchase-primary" type="button" onClick={openCheckout} disabled={opening}>{opening?"Opening checkout…":"Buy now"}</button>}{error&&<small className="checkout-error" role="alert">{error}</small>}<Link className="mockup-existing-download" href="/order-download/">Already purchased? Restore download</Link></>;
+  if(downloads.length)return <><div className="purchase-downloads purchased">{downloads.map((item)=><button className="button primary purchase-primary purchased" type="button" key={item.sku} onClick={()=>beginCreate(item)}><Play size={17}/>Create video online</button>)}</div>{error&&<small className="checkout-error" role="alert">{error}</small>}</>;
+  return <>{checking?<button className="button primary purchase-primary" disabled>Checking purchase…</button>:<button className="button primary purchase-primary" type="button" onClick={openCheckout} disabled={opening}>{opening?"Opening checkout…":"Buy now"}</button>}{error&&<small className="checkout-error" role="alert">{error}</small>}<Link className="mockup-existing-download" href="/order-download/">Already purchased? Restore access</Link></>;
 }
