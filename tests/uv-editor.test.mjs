@@ -41,7 +41,7 @@ test('side handle stretches only one axis while fixing the opposite edge', () =>
 });
 
 test('composer loads its current preview and renderer assets', () => {
-  const app = readFileSync(new URL('../public/composer/app-v5.js', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/composer/app-v6.js', import.meta.url), 'utf8');
   const html = readFileSync(new URL('../public/composer/index.html', import.meta.url), 'utf8');
   const gpu = readFileSync(new URL('../public/composer/gpu-backface.js', import.meta.url), 'utf8');
   const editor = readFileSync(new URL('../public/composer/uv-editor-v3.mjs', import.meta.url), 'utf8');
