@@ -9,6 +9,7 @@ const videos=[$('black'),$('white'),$('base')];
 const requestedSku=new URLSearchParams(location.search).get('sku');
 if(requestedSku&&!/^LM-VM-[A-Z]{3}-\d{3}$/.test(requestedSku))location.replace('/mockups/');
 const sampleId=requestedSku||'LM-VM-MUG-002';
+$('returnToDetail').href=`/mockup/${encodeURIComponent(sampleId)}/`;
 const packageMode=true;
 const assetRoot=sampleId==='v10'?'./assets':`./assets/${sampleId}`;
 const sampleLabel={v10:'V10 Frame','mug-v1':'Mug v1','mug-v2':'Matte Black Coffee Mug','mug-v2-package':'Matte Black Coffee Mug','shirt-v3-f':'Shirt v3 F','mug-v1-enc':'Mug v1'}[sampleId];

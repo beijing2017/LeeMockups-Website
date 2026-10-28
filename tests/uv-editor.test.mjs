@@ -57,7 +57,10 @@ test('composer loads its current preview and renderer assets', () => {
   assert.match(app, /setDesignTransform\(centerU,editorYToUvV\(centerV\),scaleX,scaleY\)/);
   assert.match(app, /setCullBackfaces\(manifest\.templateId==='mug-v2'\)/);
   assert.match(gpu, /gl\.enable\(gl\.CULL_FACE\)/);
-  assert.match(html, /src="\.\/app-v8\.js"/);
+  assert.match(html, /src="\.\/app-v8\.js(?:\?[^"]*)?"/);
+  assert.match(html, /href="\/" aria-label="LeeMockups home"><img src="\/leemockups-symbol\.png"/);
+  assert.match(html, /id="returnToDetail"[^>]+href="\/mockups\/"/);
+  assert.match(app, /returnToDetail'\)\.href=`\/mockup\/\$\{encodeURIComponent\(sampleId\)\}\/`/);
   assert.doesNotMatch(html, /id="(?:previewBtn|playResult|uvReset)"/);
   assert.doesNotMatch(editor, /resetButton/);
 });
