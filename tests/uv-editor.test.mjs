@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { artworkRect, artworkUv, resizeArtworkRect, visitUvTriangles } from '../public/composer/uv-editor.mjs';
+import { artworkRect, artworkUv, editorYToUvV, resizeArtworkRect, uvVToEditorY, visitUvTriangles } from '../public/composer/uv-editor-v4.mjs';
 
 test('flat and indexed mockup meshes expose the same UV triangle', () => {
   const vertices = new Float32Array([
@@ -22,10 +22,17 @@ test('flat and indexed mockup meshes expose the same UV triangle', () => {
 test('artwork placement matches independent horizontal and vertical shader sampling', () => {
   const rect = artworkRect(200, 100, 400, 400, 1.5, 1.2, .6, .4);
   assert.deepEqual(rect, { x: -60, y: 40, width: 600, height: 240 });
-  assert.deepEqual(artworkUv(.6, .4, 1.5, 1.2, .6, .4), { u: .5, v: .5 });
-  const corner = artworkUv(rect.x / 400, rect.y / 400, 1.5, 1.2, .6, .4);
+  assert.deepEqual(artworkUv(.6, .6, 1.5, 1.2, .6, .4), { u: .5, v: .5 });
+  const corner = artworkUv(rect.x / 400, 1 - rect.y / 400, 1.5, 1.2, .6, .4);
   assert.ok(Math.abs(corner.u) < 1e-12);
-  assert.ok(Math.abs(corner.v - .25) < 1e-12);
+  assert.ok(Math.abs(corner.v - .75) < 1e-12);
+});
+
+test('moving artwork upward keeps the preview and editor in the same direction', () => {
+  assert.equal(editorYToUvV(.25), .75);
+  assert.deepEqual(artworkUv(.5, .5, 1, 1, .5, .5), { u: .5, v: .5 });
+  assert.deepEqual(artworkUv(.5, .5, 1, 1, .5, .25), { u: .5, v: .25 });
+  assert.ok(Math.abs(uvVToEditorY(.9) - .1) < 1e-12);
 });
 
 test('corner handle keeps aspect and opposite corner fixed', () => {
@@ -41,15 +48,16 @@ test('side handle stretches only one axis while fixing the opposite edge', () =>
 });
 
 test('composer loads its current preview and renderer assets', () => {
-  const app = readFileSync(new URL('../public/composer/app-v6.js', import.meta.url), 'utf8');
+  const app = readFileSync(new URL('../public/composer/app-v8.js', import.meta.url), 'utf8');
   const html = readFileSync(new URL('../public/composer/index.html', import.meta.url), 'utf8');
   const gpu = readFileSync(new URL('../public/composer/gpu-backface.js', import.meta.url), 'utf8');
-  const editor = readFileSync(new URL('../public/composer/uv-editor-v3.mjs', import.meta.url), 'utf8');
+  const editor = readFileSync(new URL('../public/composer/uv-editor-v4.mjs', import.meta.url), 'utf8');
   assert.match(app, /from '\.\/gpu-backface\.js'/);
-  assert.match(app, /from '\.\/uv-editor-v3\.mjs'/);
+  assert.match(app, /from '\.\/uv-editor-v4\.mjs'/);
+  assert.match(app, /setDesignTransform\(centerU,editorYToUvV\(centerV\),scaleX,scaleY\)/);
   assert.match(app, /setCullBackfaces\(manifest\.templateId==='mug-v2'\)/);
   assert.match(gpu, /gl\.enable\(gl\.CULL_FACE\)/);
-  assert.match(html, /src="\.\/app-v7\.js"/);
+  assert.match(html, /src="\.\/app-v8\.js"/);
   assert.doesNotMatch(html, /id="(?:previewBtn|playResult|uvReset)"/);
   assert.doesNotMatch(editor, /resetButton/);
 });
