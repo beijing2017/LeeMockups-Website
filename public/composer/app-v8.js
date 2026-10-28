@@ -13,8 +13,25 @@ $('returnToDetail').href=`/mockup/${encodeURIComponent(sampleId)}/`;
 const packageMode=true;
 const assetRoot=sampleId==='v10'?'./assets':`./assets/${sampleId}`;
 const sampleLabel={v10:'V10 Frame','mug-v1':'Mug v1','mug-v2':'Matte Black Coffee Mug','mug-v2-package':'Matte Black Coffee Mug','shirt-v3-f':'Shirt v3 F','mug-v1-enc':'Mug v1'}[sampleId];
-$('sampleName').textContent=sampleLabel||sampleId;
-$('cover').alt=`${sampleLabel} default preview`;
+let catalogName='';
+function showMockupName(name){
+  if(!name)return;
+  $('sampleName').textContent=name;
+  $('cover').alt=`${name} default preview`;
+}
+showMockupName(sampleLabel||sampleId);
+// The product catalog owns the customer-facing name; packages may retain working titles.
+void fetch('https://downloads.leemockups.com/catalog/products.json',{cache:'no-store'})
+  .then(response=>response.ok?response.json():null)
+  .then(catalog=>{
+    const product=Array.isArray(catalog?.products)
+      ?catalog.products.find(item=>item?.sku===sampleId):null;
+    if(typeof product?.name==='string'&&product.name.trim()){
+      catalogName=product.name.trim();
+      showMockupName(catalogName);
+      document.title=`${catalogName} · Create video | LeeMockups`;
+    }
+  }).catch(()=>{});
 let hasRenderedFrame=false;
 function showCover(src){
   const cover=$('cover');
@@ -423,8 +440,7 @@ try{
     packageMeshForFrame=unpacked.getMesh;
     packageLayers=unpacked.layers;
     packageDefaultDisplay=unpacked.defaultDisplay;
-    $('sampleName').textContent=manifest.name||sampleId;
-    $('cover').alt=`${manifest.name||sampleId} default preview`;
+    showMockupName(catalogName||manifest.name||sampleId);
     showCover(packageObjectUrl(unpacked.thumbnail,'image/png'));
     for(let i=0;i<videos.length;i++)videos[i].src=packageObjectUrl(packageLayers[i],'video/mp4');
   }else{
