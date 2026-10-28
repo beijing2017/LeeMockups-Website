@@ -25,6 +25,5 @@ export async function SiteNav({ current }: SiteNavProps) {
       <Link href="/#features">Features</Link>
       <Link href="/help/" aria-current={current === "help" ? "page" : undefined}>Help</Link>
     </div>
-    <Link className="nav-cta" href="/mockups/">Browse Mockups</Link>
   </nav>;
 }
