@@ -49,7 +49,7 @@ test('composer loads its current preview and renderer assets', () => {
   assert.match(app, /from '\.\/uv-editor-v3\.mjs'/);
   assert.match(app, /setCullBackfaces\(manifest\.templateId==='mug-v2'\)/);
   assert.match(gpu, /gl\.enable\(gl\.CULL_FACE\)/);
-  assert.match(html, /src="\.\/app-v5\.js"/);
+  assert.match(html, /src="\.\/app-v6\.js"/);
   assert.doesNotMatch(html, /id="(?:previewBtn|playResult|uvReset)"/);
   assert.doesNotMatch(editor, /resetButton/);
 });
