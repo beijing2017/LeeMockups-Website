@@ -108,3 +108,11 @@ header .brand img{display:block;width:38px;height:38px;object-fit:contain}
 header .brand:focus-visible,.return-to-detail:focus-visible{outline:2px solid #7448ef;outline-offset:4px;border-radius:4px}
 .return-to-detail{display:inline-flex;align-items:center;min-height:24px;margin-bottom:10px;color:#6748c4;font-size:13px;font-weight:700;text-decoration:none}
 .return-to-detail:hover{text-decoration:underline}
+
+/* Match the main site's brand and give the return link its own visual row. */
+header .brand,header .brand:visited,header .brand:hover{color:#24212c;text-decoration:none}
+header .brand span,header .brand strong,header .brand small{text-decoration:none}
+header .brand strong{font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:800;letter-spacing:-.04em;line-height:1.15}
+header .brand small{display:block;margin-top:3px;color:#77717d;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:400;letter-spacing:0;line-height:1.25}
+.return-to-detail,.return-to-detail:visited{display:flex;width:max-content;align-items:center;min-height:24px;margin:0 0 26px;color:#77717d;font-size:13px;font-weight:700;line-height:1.3;text-decoration:none}
+.return-to-detail:hover{color:#7050f2;text-decoration:none}
