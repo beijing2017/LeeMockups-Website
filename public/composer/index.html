@@ -18,10 +18,10 @@
   <style>#purchaseReturn{display:inline-block;margin:4px 0 14px;color:#6748c4;font-size:14px;font-weight:700}#purchaseReturn[hidden]{display:none}</style>
 </head>
 <body>
-  <header><div class="brand"><span class="mark">◩</span><div><strong>LeeMockups</strong><small>Create your video mockup</small></div></div></header>
+  <header><a class="brand" href="/" aria-label="LeeMockups home"><img src="/leemockups-symbol.png" width="38" height="38" alt=""><span><strong>LeeMockups</strong><small>Create your video mockup</small></span></a></header>
   <main>
     <section class="preview">
-      <div class="preview-head"><div><p class="eyebrow">High-resolution preview</p><h1>Add your design and create your video</h1></div></div>
+      <div class="preview-head"><div><a id="returnToDetail" class="return-to-detail" href="/mockups/">← Back to mockup details</a><p class="eyebrow">High-resolution preview</p><h1>Add your design and create your video</h1></div></div>
       <div class="visual-column">
         <div class="canvas-wrap">
           <canvas id="canvas" width="2000" height="2000" aria-label="Mockup preview"></canvas>
@@ -71,6 +71,6 @@
   <video id="white" preload="auto" muted playsinline hidden></video>
   <video id="base" preload="auto" muted playsinline hidden></video>
   <script src="./vendor/fflate.min.js"></script>
-  <script type="module" src="./app-v8.js"></script>
+  <script type="module" src="./app-v8.js?v=20261028"></script>
 </body>
 </html>
