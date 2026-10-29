@@ -105,3 +105,12 @@
 @media(max-width:900px){.nav-links{overflow:visible;flex-wrap:wrap;white-space:normal}}
 .mockups-all-page .catalog{padding-bottom:58px}.sales-channels{padding:0 0 86px}.sales-channels-heading{padding-top:42px;border-top:1px solid #ece7f0}.sales-channels-heading .mockups-eyebrow{margin-bottom:12px}.sales-channels-heading h2{margin:0;font-size:clamp(30px,3.2vw,42px);letter-spacing:-.05em}.sales-channels-heading p{margin:12px 0 0;color:#746e79;font-size:15px;line-height:1.6}.sales-channels-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:28px}.sales-channels-grid>div{padding:22px;border:1px solid #ece7f0;border-radius:17px;background:#fcfafd}.sales-channels-grid h3{margin:0 0 9px;font-size:15px}.sales-channels-grid p{margin:0;color:#746e79;font-size:13px;line-height:1.6}.sales-channels-note{margin:18px 0 0;color:#8a8390;font-size:12px;line-height:1.6}
 @media(max-width:620px){.sales-channels{padding-bottom:58px}.sales-channels-grid{grid-template-columns:1fr;gap:10px;margin-top:22px}.sales-channels-grid>div{padding:18px}}
+
+/* Use the full detail-page width for the short output list and process steps. */
+.mockup-info-main{max-width:none}
+.mockup-check-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.mockup-steps{grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+.mockup-steps li{align-items:start}
+.mockup-steps li>b{flex:none}
+@media(max-width:850px){.mockup-steps{grid-template-columns:1fr;gap:22px}}
+@media(max-width:620px){.mockup-check-list{grid-template-columns:1fr;gap:12px}}
