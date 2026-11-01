@@ -20,19 +20,28 @@ function showMockupName(name){
   $('sampleName').textContent=name;
   $('cover').alt=`${name} default preview`;
 }
-showMockupName(sampleLabel||sampleId);
-// The product catalog owns the customer-facing name; packages may retain working titles.
-void fetch(localTest?'/catalog/products.json':'https://downloads.leemockups.com/catalog/products.json',{cache:'no-store'})
-  .then(response=>response.ok?response.json():null)
-  .then(catalog=>{
-    const product=Array.isArray(catalog?.products)
-      ?catalog.products.find(item=>item?.sku===sampleId):null;
-    if(typeof product?.name==='string'&&product.name.trim()){
-      catalogName=product.name.trim();
-      showMockupName(catalogName);
-      document.title=`${catalogName} · Create video | LeeMockups`;
+showMockupName(sampleLabel||'Video mockup');
+// Only the website catalog supplies customer-facing names. Package names are internal scene titles.
+async function loadCatalogName(){
+  const url=localTest?'/catalog/products.json':'https://downloads.leemockups.com/catalog/products.json';
+  for(let attempt=0;attempt<3;attempt++){
+    try{
+      const response=await fetch(url,{cache:'no-store'});
+      if(!response.ok)throw new Error(`Catalog returned ${response.status}`);
+      const catalog=await response.json();
+      const product=Array.isArray(catalog?.products)?catalog.products.find(item=>item?.sku===sampleId):null;
+      if(typeof product?.name==='string'&&product.name.trim()){
+        catalogName=product.name.trim();
+        showMockupName(catalogName);
+        document.title=`${catalogName} · Create video | LeeMockups`;
+      }
+      return;
+    }catch{
+      if(attempt<2)await new Promise(resolve=>setTimeout(resolve,500*(attempt+1)));
     }
-  }).catch(()=>{});
+  }
+}
+void loadCatalogName();
 let hasRenderedFrame=false;
 function showCover(src){
   const cover=$('cover');
@@ -458,7 +467,7 @@ try{
     packageMeshForFrame=unpacked.getMesh;
     packageLayers=unpacked.layers;
     packageDefaultDisplay=unpacked.defaultDisplay;
-    showMockupName(catalogName||manifest.name||sampleId);
+    if(catalogName)showMockupName(catalogName);
     showCover(packageObjectUrl(unpacked.thumbnail,'image/png'));
     for(let i=0;i<videos.length;i++)videos[i].src=packageObjectUrl(packageLayers[i],'video/mp4');
   }else{
