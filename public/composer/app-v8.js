@@ -131,13 +131,15 @@ function clearStills(showPlaceholders=true){
     card.append(logo);grid.append(card);
   }
 }
+let completionTimer;
 function invalidateOutput(){
+  clearTimeout(completionTimer);
+  hideStatus();
   clearStills();
   hideResultVideo(true);
   const link=$('download');link.hidden=true;link.removeAttribute('href');
   if(previousUrl){URL.revokeObjectURL(previousUrl);previousUrl=undefined;}
   $('exportBtn').hidden=false;
-  $('metrics').textContent='';
 }
 function showStills(stills){
   clearStills(false);
@@ -428,11 +430,12 @@ $('exportBtn').addEventListener('click',async()=>{
     const link=$('download');link.href=previousUrl;link.download=`LeeMockups-${sampleId}.mp4`;link.hidden=false;
     $('exportBtn').hidden=true;
     resultVideo.src=previousUrl;resultVideo.hidden=false;
-    resultVideo.play().catch(()=>{});
     showStills(stills);
-    status('Your video is ready',1);
-    $('metrics').textContent=`Created in ${Math.round((performance.now()-started)/1000)} seconds. Video length: 10 seconds.`;
-    hideStatus();
+    status(`Created in ${Math.round((performance.now()-started)/1000)} seconds`,1,'Video length: 10 seconds');
+    completionTimer=setTimeout(()=>{
+      hideStatus();
+      resultVideo.play().catch(()=>{});
+    },1800);
   }catch(error){showError(`Video generation failed: ${error.message}`);}
   finally{$('progressOverlay').classList.remove('is-exporting');layerData?.inputs.forEach(input=>input.dispose());busy=false;$('exportBtn').disabled=!userArtworkReady;uvEditor.setLocked(false);$('file').disabled=false;}
 });

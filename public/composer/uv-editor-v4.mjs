@@ -142,6 +142,13 @@ export function createUvEditor({ canvas, hint, onChange }) {
     x: rect.x + rect.width * (handle.includes('w') ? 0 : handle.includes('e') ? 1 : .5),
     y: rect.y + rect.height * (handle.includes('n') ? 0 : handle.includes('s') ? 1 : .5),
   });
+  const visibleHandlePoint = (rect, handle) => {
+    const point = handlePoint(rect, handle);
+    return {
+      x: clamp(point.x, 7, canvas.width - 7),
+      y: clamp(point.y, 7, canvas.height - 7),
+    };
+  };
   const draw = () => {
     const width = canvas.width;
     const height = canvas.height;
@@ -167,8 +174,9 @@ export function createUvEditor({ canvas, hint, onChange }) {
       context.lineWidth = 2;
       context.strokeRect(rect.x, rect.y, rect.width, rect.height);
       for (const handle of handles) {
-        const point = handlePoint(rect, handle);
-        if (point.x < 0 || point.x > width || point.y < 0 || point.y > height) continue;
+        const raw = handlePoint(rect, handle);
+        if (raw.x < 0 || raw.x > width || raw.y < 0 || raw.y > height) continue;
+        const point = visibleHandlePoint(rect, handle);
         context.beginPath();
         context.roundRect(point.x - 6, point.y - 6, 12, 12, 3);
         context.fillStyle = '#fff';
@@ -199,7 +207,7 @@ export function createUvEditor({ canvas, hint, onChange }) {
     const radiusX = 15 * canvas.width / bounds.width;
     const radiusY = 15 * canvas.height / bounds.height;
     for (const handle of handles) {
-      const target = handlePoint(rect, handle);
+      const target = visibleHandlePoint(rect, handle);
       if (Math.abs(position.x - target.x) <= radiusX && Math.abs(position.y - target.y) <= radiusY) return handle;
     }
     return null;
