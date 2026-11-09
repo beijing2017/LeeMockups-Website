@@ -21,6 +21,7 @@ export async function SiteNav({ current }: SiteNavProps) {
           </div>
         </div>
       </div>
+      <Link href="/composer/">Mockup Generator</Link>
       <Link href="/#how">How it works</Link>
       <Link href="/#features">Features</Link>
       <Link href="/help/" aria-current={current === "help" ? "page" : undefined}>Help</Link>
