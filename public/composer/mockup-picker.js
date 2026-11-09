@@ -9,7 +9,7 @@
 
   const stylesheet = document.createElement('link');
   stylesheet.rel = 'stylesheet';
-  stylesheet.href = './mockup-picker.css?v=20261109d';
+  stylesheet.href = './mockup-picker.css?v=20261109e';
   document.head.appendChild(stylesheet);
   document.body.classList.add('generator-library');
 
@@ -37,6 +37,16 @@
   sidebar.setAttribute('aria-label', 'Choose a mockup');
   sidebar.innerHTML = '<div class="generator-picker-head"><div><p class="generator-kicker">MOCKUP LIBRARY</p><h2>Choose a mockup</h2></div><span id="generatorCount"></span></div><div class="generator-tabs" role="group" aria-label="Mockup categories"></div><div class="generator-picker-list" aria-live="polite"><p class="generator-picker-message">Loading mockups…</p></div>';
   main.prepend(sidebar);
+
+  const preview = main.querySelector('.preview');
+  if (preview) {
+    const syncColumnHeight = () => {
+      main.style.setProperty('--preview-card-height', `${Math.ceil(preview.getBoundingClientRect().height)}px`);
+    };
+    if ('ResizeObserver' in window) new ResizeObserver(syncColumnHeight).observe(preview);
+    else window.addEventListener('resize', syncColumnHeight);
+    syncColumnHeight();
+  }
 
   const tabs = sidebar.querySelector('.generator-tabs');
   const list = sidebar.querySelector('.generator-picker-list');
@@ -99,6 +109,7 @@
       if (product.sku === activeSku) card.setAttribute('aria-current', 'true');
       if (product.sku === activeSku) card.addEventListener('click', event => event.preventDefault());
       card.setAttribute('aria-label', `${product.name}. ${isFree(product) ? 'Free' : 'Paid'}.`);
+      card.title = product.name;
 
       const thumb = document.createElement('span');
       thumb.className = 'generator-product-thumb';
