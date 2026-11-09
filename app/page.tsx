@@ -47,8 +47,8 @@ export default async function Home() {
         <div className="hero-copy">
           <div className="eyebrow">Made for print-on-demand sellers</div>
           <h1>Product Mockups <br /><em>for Your Designs</em></h1>
-          <p>Shop video mockups for your products, add your artwork online, and download MP4 videos and matching still images for your listings.</p>
-          <div className="hero-actions"><a className="button primary" href="/mockups/">Browse Video Mockups</a><a className="button secondary" href="#how">Mockup Generator</a></div>
+          <p>Shop video mockups for your products, add your artwork online, <span className="hero-description-tail">and download MP4 videos and matching still images for your listings.</span></p>
+          <div className="hero-actions"><a className="button primary" href="/mockups/">Browse Video Mockups</a><a className="button hero-generator-button" href="#how">Mockup Generator</a></div>
         </div>
       </section>
 
