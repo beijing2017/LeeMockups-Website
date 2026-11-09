@@ -1,11 +1,11 @@
 import type { MetadataRoute } from 'next';
 import { getSeoCatalog, productUrl } from '@/lib/catalog-seo';
 import { getMockupCategories } from '@/lib/mockup-categories';
+import { siteUrl as base } from '@/lib/site-url';
 
 export const dynamic = 'force-static';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = 'https://www.leemockups.com';
   const products = await getSeoCatalog();
   const categoryPages = getMockupCategories(products).map(({ slug }) => ({
     url: `${base}/mockups/${slug}/`, changeFrequency: 'weekly' as const, priority: 0.7,

@@ -1,3 +1,5 @@
+import { siteUrl } from "@/lib/site-url";
+
 export const catalogAssetBase = "https://downloads.leemockups.com";
 
 export type CatalogProduct = {
@@ -53,5 +55,5 @@ export async function getSeoCatalog(): Promise<CatalogProduct[]> {
 }
 
 export function productUrl(sku: string): string {
-  return `https://www.leemockups.com/mockup/${encodeURIComponent(sku)}/`;
+  return `${siteUrl}/mockup/${encodeURIComponent(sku)}/`;
 }

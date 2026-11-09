@@ -5,29 +5,31 @@ import { SiteNav } from "@/components/site-nav";
 import { PolicyLinks } from "@/components/policy-links";
 import { MockupCatalog } from "@/app/mockups/mockup-catalog";
 import { getSeoCatalogData } from "@/lib/catalog-seo";
+import { getMockupCategories } from "@/lib/mockup-categories";
+import { siteUrl } from "@/lib/site-url";
 
-const homeTitle = "Video Mockups for POD Sellers | LeeMockups";
-const homeDescription = "Create T-shirt and mug video mockups for print-on-demand sellers. Make videos and still images for Etsy and eBay listings, Shopify and WooCommerce stores, and social posts.";
+const homeTitle = "Product Mockups & Video Mockups | LeeMockups";
+const homeDescription = "Shop product mockups for T-shirts, mugs, posters, and picture frames. Add your artwork with the online mockup generator and download MP4 videos and matching still images.";
 
 export const metadata: Metadata = {
   title: { absolute: homeTitle },
   description: homeDescription,
-  openGraph: { title: homeTitle, description: homeDescription },
-  twitter: { title: homeTitle, description: homeDescription },
+  alternates: { canonical: "/" },
+  openGraph: { title: homeTitle, description: homeDescription, url: "/", images: [{ url: "/og.png", width: 1536, height: 864, alt: "LeeMockups product mockups" }] },
+  twitter: { card: "summary_large_image", title: homeTitle, description: homeDescription, images: ["/og.png"] },
 };
 
 export default async function Home() {
   const { products, homeFeaturedSkus } = await getSeoCatalogData();
   const seoSkus = products.map((product) => product.sku);
+  const categories = getMockupCategories(products);
+  const freeSample = products.find((product) => product.isFree);
   const structuredData = {
     '@context': 'https://schema.org',
-    '@type': 'WebApplication',
+    '@type': 'WebSite',
     name: 'LeeMockups',
-    applicationCategory: 'MultimediaApplication',
-    operatingSystem: 'Any modern browser',
-    description: 'Online tool for turning LeeMockups video mockups and artwork into product videos and still images.',
-    url: 'https://www.leemockups.com/',
-    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    description: homeDescription,
+    url: `${siteUrl}/`,
   };
 
   return <main className="home-page">
@@ -44,20 +46,23 @@ export default async function Home() {
       <section className="hero product-first-hero shell" id="top">
         <div className="hero-copy">
           <div className="eyebrow">Made for print-on-demand sellers</div>
-          <h1>Video mockups. <br /><em>Ready for your designs.</em></h1>
-          <p>Create product videos and still images for print-on-demand (POD) shops—from Etsy and eBay listings to Shopify and WooCommerce storefronts—without filming every item.</p>
-          <div className="hero-actions"><a className="button primary" href="/mockups/">Browse Mockups</a></div>
+          <h1>Product Mockups <br /><em>for Your Designs</em></h1>
+          <p>Shop video mockups for your products, add your artwork online, and download MP4 videos and matching still images for your listings.</p>
+          <div className="hero-actions"><a className="button primary" href="/mockups/">Browse Video Mockups</a><a className="button secondary" href="#how">Mockup Generator</a></div>
         </div>
       </section>
 
       <div className="home-library" id="library">
+        {categories.length > 0 && <nav className="catalog-categories shell" aria-label="Browse product mockups by category">
+          {categories.map(({ slug, label }) => <a href={`/mockups/${slug}/`} key={slug}>{label} Mockups</a>)}
+        </nav>}
         <MockupCatalog seoSkus={seoSkus} initialProducts={products} initialHomeFeaturedSkus={homeFeaturedSkus} previewLimit={8} />
       </div>
     </div>
 
     <section className="proof"><div className="shell proof-inner"><span>Built for the way you sell</span><b>PRODUCT LISTING READY</b><i /><b>CREATE ONLINE</b><i /><b>NO SUBSCRIPTION</b><i /><b>PRIVATE ARTWORK</b></div></section>
 
-    <section className="steps shell" id="how"><div className="section-heading"><span>SIMPLE ON PURPOSE</span><h2>From design to listing video<br />in three simple steps.</h2></div><div className="step-grid">
+    <section className="steps shell" id="how"><div className="section-heading"><span>CREATE IN YOUR BROWSER</span><h2>Online Mockup Generator</h2><p>Turn your artwork into a listing video in three steps.</p>{freeSample && <a className="button secondary" href={`/composer/?sku=${encodeURIComponent(freeSample.sku)}`}>Try the Mockup Generator</a>}</div><div className="step-grid">
       <article><span className="step-num">01</span><div className="step-icon"><Play /></div><h3>Choose a mockup</h3><p>Browse the library, select a product, and open the online creator.</p></article>
       <article><span className="step-num">02</span><div className="step-icon coral"><ImagePlus /></div><h3>Add your artwork</h3><p>Choose a PNG or JPG. See it mapped into the scene instantly, including motion and perspective.</p></article>
       <article><span className="step-num">03</span><div className="step-icon green"><Play /></div><h3>Export for your shop</h3><p>Save an MP4 video and ready-to-use still images, then upload them to your product listings.</p></article>

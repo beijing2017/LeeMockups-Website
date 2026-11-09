@@ -10,15 +10,15 @@ export type MockupCategory = {
 
 const establishedCategories: Record<string, Omit<MockupCategory, "slug">> = {
   apparel: {
-    label: "Apparel",
-    title: "Apparel Video Mockups for POD Sellers",
-    description: "T-shirt and apparel video mockups for print-on-demand sellers. Create product videos and still images for marketplace listings and independent online stores.",
+    label: "T-Shirt",
+    title: "T-Shirt Mockups for Print-on-Demand",
+    description: "Shop T-shirt mockups with animated scenes. Add your shirt design in the browser and export an MP4 video and matching stills for your product listings.",
     intro: "Show your print-on-demand T-shirt designs in motion. Create product videos and still images for Etsy and eBay listings or stores built with Shopify and WooCommerce—without filming every item.",
   },
   mugs: {
-    label: "Mugs",
-    title: "Mug Video Mockups for POD Sellers",
-    description: "Mug video mockups for print-on-demand sellers. Create product videos and still images for marketplace listings and independent online stores.",
+    label: "Mug",
+    title: "Mug Mockups for Print-on-Demand",
+    description: "Shop mug mockups for your print-on-demand designs. Preview your artwork on a mug and export a product video and still images for your listings.",
     intro: "Present your print-on-demand mug designs in motion. Make product videos and still images for Etsy and eBay listings or Shopify and WooCommerce stores—without a product shoot.",
   },
 };
@@ -42,6 +42,16 @@ export function getMockupCategories(products: CatalogProduct[]): MockupCategory[
     if (categories.has(slug)) continue;
     if (establishedCategories[slug]) {
       categories.set(slug, { slug, ...establishedCategories[slug] });
+      continue;
+    }
+    if (product.category.toUpperCase() === "FRA") {
+      categories.set(slug, {
+        slug,
+        label: "Poster & Frame",
+        title: "Poster & Picture Frame Mockups for Wall Art",
+        description: "Shop poster and picture frame mockups for prints and wall art. Add your artwork online and export a video and matching still images for your product listings.",
+        intro: "Preview posters, prints, and wall art in animated picture frame scenes. Add your artwork in the browser, then export an MP4 video and still images for your listings.",
+      });
       continue;
     }
 
