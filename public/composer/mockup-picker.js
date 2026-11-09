@@ -9,7 +9,7 @@
 
   const stylesheet = document.createElement('link');
   stylesheet.rel = 'stylesheet';
-  stylesheet.href = './mockup-picker.css?v=20261109c';
+  stylesheet.href = './mockup-picker.css?v=20261109d';
   document.head.appendChild(stylesheet);
   document.body.classList.add('generator-library');
 
