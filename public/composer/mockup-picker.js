@@ -9,7 +9,7 @@
 
   const stylesheet = document.createElement('link');
   stylesheet.rel = 'stylesheet';
-  stylesheet.href = './mockup-picker.css?v=20261109e';
+  stylesheet.href = './mockup-picker.css?v=20261110b';
   document.head.appendChild(stylesheet);
   document.body.classList.add('generator-library');
 
@@ -32,28 +32,30 @@
   }
 
   const main = document.querySelector('body > main');
+  const pickerSlot = document.createElement('div');
+  pickerSlot.className = 'generator-picker-slot';
   const sidebar = document.createElement('section');
   sidebar.className = 'generator-picker';
   sidebar.setAttribute('aria-label', 'Choose a mockup');
   sidebar.innerHTML = '<div class="generator-picker-head"><div><p class="generator-kicker">MOCKUP LIBRARY</p><h2>Choose a mockup</h2></div><span id="generatorCount"></span></div><div class="generator-tabs" role="group" aria-label="Mockup categories"></div><div class="generator-picker-list" aria-live="polite"><p class="generator-picker-message">Loading mockups…</p></div>';
-  main.prepend(sidebar);
-
-  const preview = main.querySelector('.preview');
-  if (preview) {
-    const syncColumnHeight = () => {
-      main.style.setProperty('--preview-card-height', `${Math.ceil(preview.getBoundingClientRect().height)}px`);
-    };
-    if ('ResizeObserver' in window) new ResizeObserver(syncColumnHeight).observe(preview);
-    else window.addEventListener('resize', syncColumnHeight);
-    syncColumnHeight();
-  }
+  pickerSlot.appendChild(sidebar);
+  main.prepend(pickerSlot);
 
   const tabs = sidebar.querySelector('.generator-tabs');
   const list = sidebar.querySelector('.generator-picker-list');
   const count = sidebar.querySelector('#generatorCount');
   const categories = new Map();
   let products = [];
-  let selectedCategory = 'all';
+  const savedPositionKey = 'leemockups-generator-position';
+  let savedPosition;
+  try { savedPosition = JSON.parse(sessionStorage.getItem(savedPositionKey) || 'null'); } catch (_) { /* Storage is optional. */ }
+  let selectedCategory = typeof savedPosition?.category === 'string' ? savedPosition.category : 'all';
+
+  function savePosition() {
+    try { sessionStorage.setItem(savedPositionKey, JSON.stringify({ category: selectedCategory, scrollTop: list.scrollTop })); }
+    catch (_) { /* An unavailable session store does not block navigation. */ }
+  }
+  list.addEventListener('scroll', savePosition, { passive: true });
 
   function categoryOf(product) {
     const code = String(product.category || '').toUpperCase();
@@ -93,6 +95,8 @@
         selectedCategory = slug;
         renderTabs();
         renderProducts();
+        list.scrollTop = 0;
+        savePosition();
       });
       tabs.appendChild(button);
     }
@@ -108,16 +112,45 @@
       card.href = destination(product);
       if (product.sku === activeSku) card.setAttribute('aria-current', 'true');
       if (product.sku === activeSku) card.addEventListener('click', event => event.preventDefault());
+      card.addEventListener('click', savePosition);
       card.setAttribute('aria-label', `${product.name}. ${isFree(product) ? 'Free' : 'Paid'}.`);
       card.title = product.name;
 
       const thumb = document.createElement('span');
       thumb.className = 'generator-product-thumb';
       const img = document.createElement('img');
-      img.src = new URL(String(product.thumbnailPath).replace(/^\//, ''), imageBase + '/').href;
+      const version = encodeURIComponent(product.assetVersion || '1');
+      img.src = new URL(String(product.thumbnailPath).replace(/^\//, ''), imageBase + '/').href + `?v=${version}`;
       img.alt = '';
       img.loading = 'lazy';
       thumb.appendChild(img);
+      if (product.previewPath) {
+        const video = document.createElement('video');
+        video.className = 'generator-product-video';
+        video.muted = true;
+        video.loop = true;
+        video.playsInline = true;
+        video.preload = 'none';
+        video.setAttribute('aria-hidden', 'true');
+        video.disablePictureInPicture = true;
+        video.setAttribute('controlsList', 'nodownload noremoteplayback');
+        const previewUrl = new URL(String(product.previewPath).replace(/^\//, ''), imageBase + '/').href + `?v=${version}`;
+        const playPreview = () => {
+          if (!video.src) video.src = previewUrl;
+          video.classList.add('playing');
+          video.play().catch(() => {});
+        };
+        const stopPreview = () => {
+          video.classList.remove('playing');
+          video.pause();
+          video.currentTime = 0;
+        };
+        card.addEventListener('pointerenter', event => { if (event.pointerType !== 'touch') playPreview(); });
+        card.addEventListener('pointerleave', stopPreview);
+        card.addEventListener('focus', playPreview);
+        card.addEventListener('blur', stopPreview);
+        thumb.appendChild(video);
+      }
       const badge = document.createElement('span');
       badge.className = 'generator-price-badge ' + (isFree(product) ? 'free' : 'paid');
       badge.textContent = isFree(product) ? 'FREE' : 'PAID';
@@ -149,10 +182,10 @@
       const sorted = [...categories].sort((a, b) => (priority[a[0]] ?? 3) - (priority[b[0]] ?? 3) || a[1].localeCompare(b[1]));
       categories.clear();
       for (const [slug, label] of sorted) categories.set(slug, label);
+      if (selectedCategory !== 'all' && !categories.has(selectedCategory)) selectedCategory = 'all';
       renderTabs();
       renderProducts();
-      const active = list.querySelector('.generator-product.selected');
-      active?.scrollIntoView({ block: 'nearest' });
+      if (savedPosition && Number.isFinite(savedPosition.scrollTop)) list.scrollTop = savedPosition.scrollTop;
     })
     .catch(() => {
       count.textContent = '';

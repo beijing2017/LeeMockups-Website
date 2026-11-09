@@ -111,8 +111,8 @@ function releaseTemporaryResources(){
   draw=undefined;
   decryptionKey=undefined;
 }
-window.addEventListener('pagehide',releaseTemporaryResources,{once:true});
-window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();});
+// Keep the loaded mockup intact when the browser stores this page for Back navigation.
+window.addEventListener('pagehide',event=>{if(!event.persisted)releaseTemporaryResources();});
 const stillFrameNumbers=[30,90,150,210,270];
 // Keep the preview video sample and projected mesh on the same source frame.
 const previewFrameIndex=295;
