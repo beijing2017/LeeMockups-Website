@@ -2327,23 +2327,30 @@ async function saveCreemCheckout(env, checkout, eventId) {
   return sku;
 }
 export function buildGa4Purchase(checkout, sku) {
-  if (checkout?.status !== "completed" || checkout?.mode !== "live" || checkout?.order?.status !== "paid") return null;
+  if (checkout?.status !== "completed" || !["live", "prod"].includes(checkout?.mode) || checkout?.order?.status !== "paid") return null;
   const clientId = String(checkout.metadata?.ga_client_id || "");
   const sessionId = String(checkout.metadata?.ga_session_id || "");
   const currency = String(checkout.order?.currency || "").toUpperCase();
-  const amount = checkout.order?.amount;
+  const paidAmount = checkout.order?.amount_paid;
+  const taxAmount = checkout.order?.tax_amount ?? 0;
+  const subtotal = checkout.order?.amount;
+  const discountAmount = checkout.order?.discount_amount ?? 0;
+  const amount = Number.isSafeInteger(paidAmount) ? paidAmount - taxAmount : subtotal - discountAmount;
   if (!checkout.id || !/^\d+\.\d+$/.test(clientId) || !/^[A-Z]{3}$/.test(currency) ||
-      !Number.isSafeInteger(amount) || amount < 0 || !/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku)) return null;
+      !Number.isSafeInteger(amount) || amount < 0 || !Number.isSafeInteger(taxAmount) || taxAmount < 0 ||
+      !/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku)) return null;
   let fractionDigits;
   try { fractionDigits = new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions().maximumFractionDigits; }
   catch { return null; }
   const value = amount / 10 ** fractionDigits;
+  const tax = taxAmount / 10 ** fractionDigits;
   return {
     client_id: clientId,
     events: [{ name: "purchase", params: {
       transaction_id: checkout.id,
       currency,
       value,
+      ...(tax ? { tax } : {}),
       items: [{ item_id: sku, price: value, quantity: 1 }],
       engagement_time_msec: 1,
       ...(/^\d+$/.test(sessionId) ? { session_id: sessionId } : {}),
