@@ -34,3 +34,25 @@ export function trackEvent(name:string, parameters:Record<string,unknown> = {}) 
   const gtag = (window as typeof window & {gtag?:(command:string,name:string,parameters:Record<string,unknown>)=>void}).gtag;
   if (typeof gtag === "function") gtag("event", name, parameters);
 }
+
+export async function readAnalyticsIdentifiers():Promise<{clientId?:string;sessionId?:string}> {
+  const measurementId = process.env.NEXT_PUBLIC_GA_ID;
+  const gtag = (window as typeof window & {gtag?:(...args:unknown[])=>void}).gtag;
+  if (!measurementId || typeof gtag !== "function") return {};
+  const get = (field:"client_id"|"session_id") => new Promise<string>((resolve) => {
+    let settled = false;
+    const finish = (value:unknown) => {
+      if (settled) return;
+      settled = true;
+      resolve(typeof value === "string" || typeof value === "number" ? String(value) : "");
+    };
+    window.setTimeout(() => finish(""), 1500);
+    try { gtag("get", measurementId, field, finish); } catch { finish(""); }
+  });
+  const [clientId, sessionId] = await Promise.all([get("client_id"), get("session_id")]);
+  return {
+    ...(clientId && {clientId}),
+    ...(sessionId && {sessionId}),
+  };
+}
+
