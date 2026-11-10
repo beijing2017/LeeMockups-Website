@@ -328,6 +328,8 @@ export default {
         }
         const cleanAttribution = (value, fallback = "") => String(value || fallback).trim().slice(0, 80);
         const attribution = body?.attribution || {};
+        const clientId = String(body?.analytics?.clientId || "").trim();
+        const sessionId = String(body?.analytics?.sessionId || "").trim();
         const checkoutResponse = await fetch(`${creemApiBase(env)}/v1/checkouts`, {
           method: "POST",
           headers: { "x-api-key": env.CREEM_API_KEY, "content-type": "application/json", accept: "application/json" },
@@ -345,6 +347,8 @@ export default {
               utm_campaign: cleanAttribution(attribution.campaign),
               utm_content: cleanAttribution(attribution.content),
               referrer: cleanAttribution(attribution.referrer),
+              ...(/^\d+\.\d+$/.test(clientId) && clientId.length <= 64 ? { ga_client_id: clientId } : {}),
+              ...(/^\d+$/.test(sessionId) && sessionId.length <= 32 ? { ga_session_id: sessionId } : {}),
             },
           }),
         });
@@ -374,7 +378,10 @@ export default {
       try {
         const event = JSON.parse(rawBody);
         await ensurePaddleTables(env);
-        if (event.eventType === "checkout.completed") await saveCreemCheckout(env, event.object || {}, event.id || "");
+        if (event.eventType === "checkout.completed") {
+          const sku = await saveCreemCheckout(env, event.object || {}, event.id || "");
+          if (sku) await sendGa4Purchase(env, event.object, sku);
+        }
         if (event.eventType === "refund.created" || event.eventType === "dispute.created") {
           await revokeCreemEntitlements(env, event.object || {}, event.id || "");
         }
@@ -2205,6 +2212,9 @@ async function ensurePaddleTables(env) {
       provider TEXT NOT NULL, event_id TEXT NOT NULL, event_type TEXT NOT NULL,
       processed_at TEXT NOT NULL, PRIMARY KEY (provider, event_id)
     )`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS ga4_purchase_events (
+      transaction_id TEXT PRIMARY KEY, sent_at TEXT NOT NULL
+    )`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS mockup_download_totals (
       sku TEXT PRIMARY KEY, download_count INTEGER NOT NULL DEFAULT 0,
       unique_purchase_count INTEGER NOT NULL DEFAULT 0, last_downloaded_at TEXT NOT NULL
@@ -2314,6 +2324,55 @@ async function saveCreemCheckout(env, checkout, eventId) {
       cleanAttribution(checkout.metadata?.utm_campaign),
       cleanAttribution(checkout.metadata?.utm_content),
       cleanAttribution(checkout.metadata?.referrer), purchasedAt).run();
+  return sku;
+}
+export function buildGa4Purchase(checkout, sku) {
+  if (checkout?.status !== "completed" || checkout?.mode !== "live" || checkout?.order?.status !== "paid") return null;
+  const clientId = String(checkout.metadata?.ga_client_id || "");
+  const sessionId = String(checkout.metadata?.ga_session_id || "");
+  const currency = String(checkout.order?.currency || "").toUpperCase();
+  const amount = checkout.order?.amount;
+  if (!checkout.id || !/^\d+\.\d+$/.test(clientId) || !/^[A-Z]{3}$/.test(currency) ||
+      !Number.isSafeInteger(amount) || amount < 0 || !/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku)) return null;
+  let fractionDigits;
+  try { fractionDigits = new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions().maximumFractionDigits; }
+  catch { return null; }
+  const value = amount / 10 ** fractionDigits;
+  return {
+    client_id: clientId,
+    events: [{ name: "purchase", params: {
+      transaction_id: checkout.id,
+      currency,
+      value,
+      items: [{ item_id: sku, price: value, quantity: 1 }],
+      engagement_time_msec: 1,
+      ...(/^\d+$/.test(sessionId) ? { session_id: sessionId } : {}),
+    } }],
+  };
+}
+export async function sendGa4Purchase(env, checkout, sku) {
+  if (creemMode(env) !== "live") return;
+  if (!env.GA_MEASUREMENT_ID || !env.GA_API_SECRET) {
+    console.warn(JSON.stringify({ type: "ga4_purchase_skipped", reason: "not_configured" }));
+    return;
+  }
+  const payload = buildGa4Purchase(checkout, sku);
+  if (!payload) {
+    console.warn(JSON.stringify({ type: "ga4_purchase_skipped", reason: "missing_analytics_or_order_data", checkoutId: checkout?.id || "" }));
+    return;
+  }
+  const previouslySent = await env.DB.prepare(`SELECT transaction_id FROM ga4_purchase_events WHERE transaction_id=?`)
+    .bind(checkout.id).first();
+  if (previouslySent) return;
+  const endpoint = new URL("https://www.google-analytics.com/mp/collect");
+  endpoint.searchParams.set("measurement_id", env.GA_MEASUREMENT_ID);
+  endpoint.searchParams.set("api_secret", env.GA_API_SECRET);
+  const response = await fetch(endpoint, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error(`GA4 purchase delivery failed: HTTP ${response.status}`);
+  await env.DB.prepare(`INSERT OR IGNORE INTO ga4_purchase_events (transaction_id, sent_at) VALUES (?, ?)`)
+    .bind(checkout.id, new Date().toISOString()).run();
 }
 async function revokeCreemEntitlements(env, object, eventId) {
   const references = new Set([
@@ -2569,3 +2628,4 @@ function jsonResponse(
     }
   );
 }
+
