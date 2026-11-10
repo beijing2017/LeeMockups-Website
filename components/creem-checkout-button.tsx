@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
-import { readAttribution, trackEvent } from "@/lib/marketing-attribution";
+import { readAnalyticsIdentifiers, readAttribution, trackEvent } from "@/lib/marketing-attribution";
 import { openPurchasedComposer } from "@/lib/browser-composer";
 
 type DownloadItem={sku:string;name:string;url:string};
@@ -45,7 +45,6 @@ export function CreemCheckoutButton({sku}:{sku:string}){
         const pending=JSON.parse(purchaseRaw) as {claimToken:string};
         const record:PurchaseRecord={transactionId:returnedCheckout,claimToken:pending.claimToken};
         localStorage.setItem(storageKey,JSON.stringify(record));localStorage.removeItem(`${storageKey}:pending`);
-        trackEvent("purchase",{transaction_id:returnedCheckout,items:[{item_id:sku}]});
         redeem(record,8).catch((reason)=>setError(reason instanceof Error?reason.message:"Payment received. Download verification is still processing.")).finally(()=>setChecking(false));
         return;
       }catch{localStorage.removeItem(`${storageKey}:pending`)}
@@ -59,7 +58,8 @@ export function CreemCheckoutButton({sku}:{sku:string}){
     setOpening(true);setError("");
     try{
       const claimToken=randomToken();localStorage.setItem(`${storageKey}:pending`,JSON.stringify({claimToken}));
-      const response=await fetch(checkoutApi,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sku,claimToken,attribution:readAttribution()})});
+      const analytics=await readAnalyticsIdentifiers();
+      const response=await fetch(checkoutApi,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sku,claimToken,attribution:readAttribution(),analytics})});
       const body=await response.json();
       if(!response.ok||!body.checkoutUrl)throw new Error(body.error||"Checkout could not open.");
       trackEvent("begin_checkout",{items:[{item_id:sku}]});window.location.assign(body.checkoutUrl);
@@ -80,3 +80,4 @@ export function CreemCheckoutButton({sku}:{sku:string}){
   if(downloads.length)return <><div className="purchase-downloads purchased">{downloads.map((item)=><button className="button primary purchase-primary purchased" type="button" key={item.sku} onClick={()=>beginCreate(item)}><Play size={17}/>Create video online</button>)}</div>{error&&<small className="checkout-error" role="alert">{error}</small>}</>;
   return <>{checking?<button className="button primary purchase-primary" disabled>Checking purchase…</button>:<button className="button primary purchase-primary" type="button" onClick={openCheckout} disabled={opening}>{opening?"Opening checkout…":"Buy now"}</button>}{error&&<small className="checkout-error" role="alert">{error}</small>}<Link className="mockup-existing-download" href="/order-download/">Already purchased? Restore access</Link></>;
 }
+
