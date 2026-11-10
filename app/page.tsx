@@ -7,6 +7,7 @@ import { MockupCatalog } from "@/app/mockups/mockup-catalog";
 import { getSeoCatalogData } from "@/lib/catalog-seo";
 import { getMockupCategories } from "@/lib/mockup-categories";
 import { siteUrl } from "@/lib/site-url";
+import { featuredGuideSlugs, guideBySlug } from "@/lib/guides";
 
 const homeTitle = "Product Mockups & Video Mockups | LeeMockups";
 const homeDescription = "Shop product mockups for T-shirts, mugs, posters, and picture frames. Add your artwork with the online mockup generator and download MP4 videos and matching still images.";
@@ -62,6 +63,8 @@ export default async function Home() {
 
     <section className="proof"><div className="shell proof-inner"><span>Built for the way you sell</span><b>PRODUCT LISTING READY</b><i /><b>CREATE ONLINE</b><i /><b>NO SUBSCRIPTION</b><i /><b>PRIVATE ARTWORK</b></div></section>
 
+    <section className="home-guides shell" aria-labelledby="home-guides-title"><div className="home-guides-heading"><div><span className="section-tag">SELLER GUIDES</span><h2 id="home-guides-title">Questions sellers ask before they create</h2><p>Clear answers for Etsy listings, POD products, and browser-based video mockups.</p></div><a href="/guides/">View all guides <span aria-hidden="true">→</span></a></div><div className="home-guides-grid">{featuredGuideSlugs.map((slug) => { const guide = guideBySlug(slug); return guide && <a className="home-guide-card" href={`/guides/${slug}/`} key={slug}><span>{guide.category}</span><h3>{guide.title}</h3><strong>Read guide <span aria-hidden="true">→</span></strong></a>; })}</div></section>
+
     <section className="steps shell" id="how"><div className="section-heading"><span>CREATE IN YOUR BROWSER</span><h2>Online Mockup Generator</h2><p>Turn your artwork into a listing video in three steps.</p>{freeSample && <a className="button secondary" href={`/composer/?sku=${encodeURIComponent(freeSample.sku)}`}>Try the Mockup Generator</a>}</div><div className="step-grid">
       <article><span className="step-num">01</span><div className="step-icon"><Play /></div><h3>Choose a mockup</h3><p>Browse the library, select a product, and open the online creator.</p></article>
       <article><span className="step-num">02</span><div className="step-icon coral"><ImagePlus /></div><h3>Add your artwork</h3><p>Choose a PNG or JPG. See it mapped into the scene instantly, including motion and perspective.</p></article>
@@ -74,3 +77,5 @@ export default async function Home() {
     <footer className="shell"><div className="brand"><Image src="/leemockups-symbol.png" width={34} height={34} alt="" /><span>LeeMockups</span></div><PolicyLinks /><span>© 2026 LeeMockups</span></footer>
   </main>;
 }
+
+
