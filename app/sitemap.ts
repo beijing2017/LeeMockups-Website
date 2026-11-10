@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next';
 import { getSeoCatalog, productUrl } from '@/lib/catalog-seo';
 import { getMockupCategories } from '@/lib/mockup-categories';
 import { siteUrl as base } from '@/lib/site-url';
+import { guides } from '@/lib/guides';
 
 export const dynamic = 'force-static';
 
@@ -15,6 +16,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
   return [
     { url: `${base}/`, changeFrequency: 'weekly', priority: 1 },
+    { url: `${base}/guides/`, changeFrequency: 'monthly', priority: 0.7 },
+    ...guides.map(({ slug }) => ({ url: `${base}/guides/${slug}/`, changeFrequency: 'monthly' as const, priority: 0.65 })),
     { url: `${base}/help/`, changeFrequency: 'monthly', priority: 0.7 },
     { url: `${base}/mockups/`, changeFrequency: 'weekly', priority: 0.8 },
     ...categoryPages,
@@ -24,3 +27,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/refunds/`, changeFrequency: 'yearly', priority: 0.4 },
   ];
 }
+
+
