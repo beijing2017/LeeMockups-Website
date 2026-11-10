@@ -4,7 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { getSeoCatalogData } from "@/lib/catalog-seo";
 import { getMockupCategories } from "@/lib/mockup-categories";
 
-type SiteNavProps = { current?: "help" | "mockups" | "order-download" };
+type SiteNavProps = { current?: "help" | "mockups" | "order-download" | "guides" };
 
 export async function SiteNav({ current }: SiteNavProps) {
   const { products } = await getSeoCatalogData();
@@ -24,7 +24,10 @@ export async function SiteNav({ current }: SiteNavProps) {
       <Link href="/composer/">Mockup Generator</Link>
       <Link href="/#how">How it works</Link>
       <Link href="/#features">Features</Link>
+      <Link href="/guides/" aria-current={current === "guides" ? "page" : undefined}>Guides</Link>
       <Link href="/help/" aria-current={current === "help" ? "page" : undefined}>Help</Link>
     </div>
   </nav>;
 }
+
+
