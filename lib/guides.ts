@@ -25,10 +25,10 @@ export const guides: Guide[] = [
     sections: [
       { heading: "Choose the product before choosing the motion", paragraphs: ["A video is useful when it helps a buyer understand the product. For a T-shirt, show the design on the garment while it turns or moves. For a mug, check that the artwork remains readable as the curved surface moves. A dramatic camera move is less useful if it hides the design.", "Match the product color, print position, and overall feel to your real listing. A mockup should explain what the buyer receives; it should not imply a different product or print method."] },
       { heading: "Make the video in your browser", paragraphs: ["Open a matching mockup, add your PNG or JPG, then adjust the artwork's position and size while watching the preview. Generate the finished video only after the design looks right. LeeMockups also provides matching still images from the same scene, so your listing can use a consistent look."], steps: ["Select a T-shirt, mug, or frame mockup that matches your product.", "Upload the design and inspect its size, placement, and edges.", "Generate the video and watch it from beginning to end.", "Save the video and still images, then add the files to the relevant listing."] },
-      { heading: "Check the listing before publishing", paragraphs: ["Watch the exported file on a phone-sized screen. Make sure the product is identifiable immediately, the artwork stays visible, and no crop or seam appears during movement. Etsy's video specifications can change, so check its own help page before uploading. The listing's photos, title, and description still need to describe the actual product accurately."] },
+      { heading: "Check the listing before publishing", paragraphs: ["Watch the exported file on a phone-sized screen. Make sure the product is identifiable immediately, the artwork stays visible, and no crop or seam appears during movement. Etsy's video specifications can change, so check its own help page before uploading. For POD items, also check Etsy's current listing image rules and confirm that your mockup use is authorized. The listing's photos, title, and description still need to describe the actual product accurately."] },
     ],
     action: { label: "Try a video mockup", href: "/composer/" },
-    sources: [{ label: "Etsy: How to add a listing video", href: "https://help.etsy.com/hc/en-us/articles/360053206073-How-to-Add-Listing-Videos" }],
+    sources: [{ label: "Etsy: How to add a listing video", href: "https://help.etsy.com/hc/en-us/articles/360053206073-How-to-Add-Listing-Videos" }, { label: "Etsy: Listing image requirements", href: "https://www.etsy.com/legal/policy/listing-image-requirements/253962679005" }],
   },
   {
     slug: "video-mockup-without-photoshop-or-3d",
@@ -65,9 +65,10 @@ export const guides: Guide[] = [
     sections: [
       { heading: "Start with the shirt buyers will recognize", paragraphs: ["Match the color, neckline, sleeve shape, and intended print position where possible. If your listing has multiple shirt colors, do not let a video of one color imply that every option looks identical. Keep your main product photo clear and use video to add a view of movement and scale."] },
       { heading: "Place the artwork deliberately", paragraphs: ["Upload a clean transparent PNG for logos or illustrations with irregular edges. Move it up or down on the shirt and compare the result with your print provider's placement. For small text, preview at mobile size. Leave room from the edge of the printable area so distortion during motion does not clip letters or borders."] },
-      { heading: "Review the complete export", paragraphs: ["Play the video from start to finish, not just its first frame. Check the design as the fabric bends and the camera moves. Inspect the still images separately, then add only the assets that accurately represent the product. If the artwork looks too small or too low, adjust it and generate again."] },
+      { heading: "Review the complete export", paragraphs: ["Play the video from start to finish, not just its first frame. Check the design as the fabric bends and the camera moves. Inspect the still images separately, then add only the assets that accurately represent the product. Check Etsy's current rules for POD mockups and confirm the image owner's permission. If the artwork looks too small or too low, adjust it and generate again."] },
     ],
     action: { label: "Browse apparel mockups", href: "/mockups/apparel/" },
+    sources: [{ label: "Etsy: Listing image requirements", href: "https://www.etsy.com/legal/policy/listing-image-requirements/253962679005" }],
   },
   {
     slug: "mug-video-mockup-for-pod",
@@ -120,7 +121,21 @@ export const guides: Guide[] = [
       { heading: "Technical and listing checks", paragraphs: ["Open the actual exported file and play it all the way through. Check Etsy's current video duration, size, and supported format requirements before upload. After upload, preview the listing again; the platform may process or display the video differently. Keep the title, photos, and description focused on the physical or digital product the buyer will receive."], steps: ["Match the mockup to the item for sale.", "Check artwork placement and full playback.", "Check Etsy's latest upload rules.", "Preview the published listing on mobile."] },
     ],
     action: { label: "Explore video mockups", href: "/mockups/" },
-    sources: [{ label: "Etsy: How to add a listing video", href: "https://help.etsy.com/hc/en-us/articles/360053206073-How-to-Add-Listing-Videos" }],
+    sources: [{ label: "Etsy: How to add a listing video", href: "https://help.etsy.com/hc/en-us/articles/360053206073-How-to-Add-Listing-Videos" }, { label: "Etsy: Listing image requirements", href: "https://www.etsy.com/legal/policy/listing-image-requirements/253962679005" }],
+  },
+  {
+    slug: "are-pod-mockups-allowed-on-etsy-2026",
+    title: "Are Print-on-Demand Mockups Allowed on Etsy in 2026?",
+    description: "Understand Etsy's current POD mockup exception, image-owner permission, and how to keep listing photos accurate for buyers.",
+    category: "Etsy listings",
+    answer: "Etsy's current listing image policy allows a stock photo mockup for a standard base product printed by a production partner with your original design, provided the image owner has authorized its use. Every listing image still needs to represent the item buyers will receive accurately.",
+    sections: [
+      { heading: "Check whether the POD exception applies", paragraphs: ["Etsy's October 2026 image policy generally asks for an unedited photo of the actual item. It makes a specific exception when a production partner prints your original design on a standard base product such as a T-shirt or mug: you may use an authorized stock photo mockup. Read the current policy for the exact item you sell before assuming the exception applies.", "The exception does not turn every styled image into a product photo. The blank garment or mug should resemble the base product, and your placed design should match what the production partner can print."] },
+      { heading: "Confirm permission and product accuracy", paragraphs: ["Use mockup images only under the owner's license or permission. Check that the garment color, cut, print area, mug shape, and frame format represent your actual offer. Avoid showing features or a finish the buyer cannot receive. If a scene could confuse a buyer about what is included, clarify it in the listing and choose a plainer image alongside it."] },
+      { heading: "Use video as an additional view", paragraphs: ["A moving mockup can show artwork placement from another angle. Watch the complete export for clipping and misleading changes in color or scale. Keep the still images and video consistent with the real product and with each other. Etsy's listing video and image rules may change, so review its official guidance when you publish or refresh a listing."] },
+    ],
+    action: { label: "Explore POD mockups", href: "/mockups/" },
+    sources: [{ label: "Etsy: Listing image requirements", href: "https://www.etsy.com/legal/policy/listing-image-requirements/253962679005" }, { label: "Etsy: Important updates to AI use", href: "https://www.etsy.com/seller-handbook/article/1522733284810" }],
   },
   {
     slug: "mockup-generator-tools-2026",
@@ -189,7 +204,7 @@ export const featuredGuideSlugs = [
   "etsy-listing-video-without-filming",
   "video-mockup-without-photoshop-or-3d",
   "choose-mockups-for-print-on-demand",
-  "etsy-listing-video-checklist",
+  "are-pod-mockups-allowed-on-etsy-2026",
 ];
 
 export function guideBySlug(slug: string): Guide | undefined {
