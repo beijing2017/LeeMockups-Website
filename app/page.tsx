@@ -8,6 +8,7 @@ import { getSeoCatalogData } from "@/lib/catalog-seo";
 import { getMockupCategories } from "@/lib/mockup-categories";
 import { siteUrl } from "@/lib/site-url";
 import { featuredGuideSlugs, guideBySlug } from "@/lib/guides";
+import { MockupUpdates } from "@/components/mockup-updates";
 
 const homeTitle = "Product Mockups & Video Mockups | LeeMockups";
 const homeDescription = "Shop product mockups for T-shirts, mugs, posters, and picture frames. Add your artwork with the online mockup generator and download MP4 videos and matching still images.";
@@ -60,6 +61,8 @@ export default async function Home() {
         <MockupCatalog seoSkus={seoSkus} initialProducts={products} initialHomeFeaturedSkus={homeFeaturedSkus} previewLimit={8} />
       </div>
     </div>
+
+    <MockupUpdates skus={seoSkus} />
 
     <section className="proof"><div className="shell proof-inner"><span>Built for the way you sell</span><b>PRODUCT LISTING READY</b><i /><b>CREATE ONLINE</b><i /><b>NO SUBSCRIPTION</b><i /><b>PRIVATE ARTWORK</b></div></section>
 

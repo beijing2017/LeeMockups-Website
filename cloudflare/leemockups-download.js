@@ -38,6 +38,7 @@ const CLIENT_DOWNLOADS = {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith("/updates/")) return handleUpdates(request, env, url);
     const clientDownload = CLIENT_DOWNLOADS[url.pathname];
     if (clientDownload) {
       if (request.method !== "GET" && request.method !== "HEAD") {
@@ -1645,6 +1646,161 @@ async function verifyEtsyWebhookSignature({
     }
   }
   return false;
+}
+
+// Mockup update mail is opt-in and remains disabled until DirectMail is configured.
+function updatesConfigured(env) {
+  return Boolean(env.UPDATES_ENABLED === "true" && env.DB && env.MOCKUPS && env.DIRECTMAIL_ACCESS_KEY_ID && env.DIRECTMAIL_ACCESS_KEY_SECRET && env.DIRECTMAIL_CONFIRM_ACCOUNT_NAME && env.DIRECTMAIL_NEWS_ACCOUNT_NAME && env.UPDATES_TOKEN_SECRET);
+}
+function updatesCors(origin) {
+  const headers = new Headers({ "access-control-allow-methods": "GET, POST, OPTIONS", "access-control-allow-headers": "content-type", "cache-control": "no-store", "vary": "Origin" });
+  if (isRedeemOrigin(origin)) headers.set("access-control-allow-origin", origin);
+  return headers;
+}
+function updatesJson(data, status, origin) {
+  return redeemJson(data, status, updatesCors(origin));
+}
+async function ensureUpdateTables(env) {
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mockup_update_subscribers (
+    email TEXT PRIMARY KEY, status TEXT NOT NULL, confirm_hash TEXT, confirm_expires TEXT,
+    unsubscribe_hash TEXT NOT NULL, created_at TEXT NOT NULL, confirmed_at TEXT
+  )`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mockup_update_deliveries (
+    sku TEXT NOT NULL, email TEXT NOT NULL, sent_at TEXT NOT NULL,
+    PRIMARY KEY (sku, email)
+  )`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mockup_update_requests (
+    ip_hash TEXT NOT NULL, day TEXT NOT NULL, count INTEGER NOT NULL,
+    PRIMARY KEY (ip_hash, day)
+  )`).run();
+}
+function updateToken() {
+  return bytesToBase64Url(crypto.getRandomValues(new Uint8Array(32)));
+}
+function updateEmail(value) {
+  const email = String(value || "").trim().toLowerCase();
+  return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
+}
+function updateHtml(title, message) {
+  const escape = (value) => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+  return htmlResponse(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} | LeeMockups</title><body style="margin:0;background:#f8f5fc;color:#24212c;font:16px/1.6 Arial,sans-serif"><main style="max-width:520px;margin:10vh auto;padding:32px;border-radius:20px;background:white"><h1>${escape(title)}</h1><p>${escape(message)}</p><a href="https://www.leemockups.com/">Back to LeeMockups</a></main></body></html>`);
+}
+async function handleUpdates(request, env, url) {
+  const origin = request.headers.get("origin") || "";
+  const pathname = url.pathname;
+  if (request.method === "OPTIONS" && pathname !== "/updates/admin/announce") return new Response(null, { status: 204, headers: updatesCors(origin) });
+  if (pathname === "/updates/config" && request.method === "GET") return updatesJson({ enabled: updatesConfigured(env) }, 200, origin);
+  if (pathname === "/updates/admin/announce" && request.method === "POST") {
+    if (!await isAdminRequest(request, env)) return jsonResponse({ ok: false, error: "Unauthorized." }, 401);
+    if (!updatesConfigured(env)) return jsonResponse({ ok: true, enabled: false, sent: 0, remaining: 0 });
+    const sku = String((await request.json().catch(() => ({})))?.sku || "");
+    if (!/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku)) return jsonResponse({ ok: false, error: "Invalid SKU." }, 400);
+    const object = await env.MOCKUPS.get("public/catalog/products.json");
+    const catalog = object ? await object.json() : {};
+    const product = Array.isArray(catalog.products) ? catalog.products.find((item) => item.sku === sku) : null;
+    if (!product) return jsonResponse({ ok: false, error: "This mockup is not in the published catalog." }, 404);
+    await ensureUpdateTables(env);
+    const { results = [] } = await env.DB.prepare(`SELECT email FROM mockup_update_subscribers s WHERE status = 'active' AND NOT EXISTS (SELECT 1 FROM mockup_update_deliveries d WHERE d.sku = ? AND d.email = s.email) ORDER BY confirmed_at LIMIT 1`).bind(sku).all();
+    let sent = 0;
+    for (const row of results) {
+      const unsubscribeUrl = `https://downloads.leemockups.com/updates/unsubscribe?token=${encodeURIComponent(await updateUnsubscribeToken(env, row.email))}`;
+      const name = String(product.name || "New mockup").slice(0, 78);
+      const detailUrl = `https://www.leemockups.com/mockup/${encodeURIComponent(sku)}/`;
+      const body = `A new mockup is available: ${name}\n\nView it here: ${detailUrl}\n\nYou subscribed to LeeMockups updates. Unsubscribe: ${unsubscribeUrl}`;
+      await sendDirectMail(env, "news", row.email, `New mockup: ${name}`, body);
+      await env.DB.prepare("INSERT OR IGNORE INTO mockup_update_deliveries (sku, email, sent_at) VALUES (?, ?, ?)").bind(sku, row.email, new Date().toISOString()).run();
+      sent++;
+    }
+    const pending = await env.DB.prepare(`SELECT COUNT(*) AS n FROM mockup_update_subscribers s WHERE status = 'active' AND NOT EXISTS (SELECT 1 FROM mockup_update_deliveries d WHERE d.sku = ? AND d.email = s.email)`).bind(sku).first();
+    return jsonResponse({ ok: true, enabled: true, sent, remaining: pending?.n || 0 });
+  }
+  if (!updatesConfigured(env)) return updatesJson({ ok: false, error: "Updates are not available yet." }, 503, origin);
+  if (pathname === "/updates/subscribe" && request.method === "POST") {
+    if (!isRedeemOrigin(origin)) return updatesJson({ ok: false, error: "Origin not allowed." }, 403, origin);
+    if (Number(request.headers.get("content-length") || 0) > 2048) return updatesJson({ ok: false, error: "Request too large." }, 413, origin);
+    const raw = await request.text();
+    if (raw.length > 2048) return updatesJson({ ok: false, error: "Request too large." }, 413, origin);
+    let body;
+    try { body = JSON.parse(raw); } catch { body = {}; }
+    const email = updateEmail(body.email);
+    if (!email) return updatesJson({ ok: false, error: "Enter a valid email address." }, 400, origin);
+    await ensureUpdateTables(env);
+    const ipHash = await sha256Base64Url(`${env.UPDATES_TOKEN_SECRET}:${request.headers.get("cf-connecting-ip") || "unknown"}`);
+    const day = new Date().toISOString().slice(0, 10);
+    await env.DB.prepare("INSERT INTO mockup_update_requests (ip_hash, day, count) VALUES (?, ?, 1) ON CONFLICT(ip_hash, day) DO UPDATE SET count = count + 1").bind(ipHash, day).run();
+    const rate = await env.DB.prepare("SELECT count FROM mockup_update_requests WHERE ip_hash = ? AND day = ?").bind(ipHash, day).first();
+    if (rate.count > 8) return updatesJson({ ok: false, error: "Please try again tomorrow." }, 429, origin);
+    const existing = await env.DB.prepare("SELECT status FROM mockup_update_subscribers WHERE email = ?").bind(email).first();
+    if (existing?.status === "active") return updatesJson({ ok: true, message: "If this address needs confirmation, you will receive an email shortly." }, 200, origin);
+    const token = updateToken();
+    const hash = await sha256Base64Url(token);
+    const unsubscribeHash = await sha256Base64Url(await updateUnsubscribeToken(env, email));
+    const now = new Date().toISOString();
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    await env.DB.prepare(`INSERT INTO mockup_update_subscribers (email, status, confirm_hash, confirm_expires, unsubscribe_hash, created_at) VALUES (?, 'pending', ?, ?, ?, ?)
+      ON CONFLICT(email) DO UPDATE SET status = 'pending', confirm_hash = excluded.confirm_hash, confirm_expires = excluded.confirm_expires, unsubscribe_hash = excluded.unsubscribe_hash`).bind(email, hash, expires, unsubscribeHash, now).run();
+    const confirmationUrl = `https://downloads.leemockups.com/updates/confirm?token=${encodeURIComponent(token)}`;
+    await sendDirectMail(env, "confirm", email, "Confirm your LeeMockups updates", `Please confirm that you want email when new mockups arrive:\n\n${confirmationUrl}\n\nThis link expires in 24 hours. If you did not subscribe, ignore this email.`);
+    return updatesJson({ ok: true, message: "Check your inbox and confirm your subscription." }, 200, origin);
+  }
+  if (pathname === "/updates/confirm" && (request.method === "GET" || request.method === "POST")) {
+    const token = url.searchParams.get("token") || "";
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return updateHtml("Invalid link", "This confirmation link is invalid.");
+    await ensureUpdateTables(env);
+    const hash = await sha256Base64Url(token);
+    const row = await env.DB.prepare("SELECT email, confirm_expires FROM mockup_update_subscribers WHERE status = 'pending' AND confirm_hash = ?").bind(hash).first();
+    if (!row || row.confirm_expires < new Date().toISOString()) return updateHtml("Link expired", "Please subscribe again to receive a new confirmation email.");
+    if (request.method === "GET") return htmlResponse(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Confirm updates | LeeMockups</title><body style="margin:0;background:#f8f5fc;color:#24212c;font:16px/1.6 Arial,sans-serif"><main style="max-width:520px;margin:10vh auto;padding:32px;border-radius:20px;background:white"><h1>Confirm updates</h1><p>Receive an email when new LeeMockups mockups are published?</p><form method="post"><button style="padding:12px 20px;border:0;border-radius:9px;color:white;background:#7850e8;cursor:pointer">Confirm subscription</button></form></main></body></html>`);
+    await env.DB.prepare("UPDATE mockup_update_subscribers SET status = 'active', confirm_hash = NULL, confirm_expires = NULL, confirmed_at = ? WHERE email = ?").bind(new Date().toISOString(), row.email).run();
+    return updateHtml("Subscription confirmed", "You will receive an email when new mockups are published.");
+  }
+  if (pathname === "/updates/unsubscribe" && (request.method === "GET" || request.method === "POST")) {
+    const token = url.searchParams.get("token") || "";
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return updateHtml("Invalid link", "This unsubscribe link is invalid.");
+    await ensureUpdateTables(env);
+    const hash = await sha256Base64Url(token);
+    const row = await env.DB.prepare("SELECT email FROM mockup_update_subscribers WHERE unsubscribe_hash = ?").bind(hash).first();
+    if (!row) return updateHtml("Link expired", "This unsubscribe link is no longer valid.");
+    if (request.method === "GET") return htmlResponse(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Unsubscribe | LeeMockups</title><body style="margin:0;background:#f8f5fc;color:#24212c;font:16px/1.6 Arial,sans-serif"><main style="max-width:520px;margin:10vh auto;padding:32px;border-radius:20px;background:white"><h1>Unsubscribe</h1><p>Stop receiving email when new LeeMockups mockups are published?</p><form method="post"><button style="padding:12px 20px;border:0;border-radius:9px;color:white;background:#7850e8;cursor:pointer">Unsubscribe</button></form></main></body></html>`);
+    await env.DB.prepare("UPDATE mockup_update_subscribers SET status = 'unsubscribed', confirm_hash = NULL WHERE email = ?").bind(row.email).run();
+    return updateHtml("Unsubscribed", "You will not receive further mockup updates.");
+  }
+  return updatesJson({ ok: false, error: "Not found." }, 404, origin);
+}
+async function updateUnsubscribeToken(env, email) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(env.UPDATES_TOKEN_SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return bytesToBase64Url(new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`unsubscribe:${email}`))));
+}
+function aliyunEncode(value) {
+  return encodeURIComponent(String(value)).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+async function sendDirectMail(env, kind, to, subject, body) {
+  const region = env.DIRECTMAIL_REGION_ID || "cn-hangzhou";
+  const endpoints = {
+    "cn-hangzhou": "https://dm.aliyuncs.com/",
+    "ap-southeast-1": "https://dm.ap-southeast-1.aliyuncs.com/",
+    "ap-southeast-2": "https://dm.ap-southeast-2.aliyuncs.com/",
+    "us-east-1": "https://dm.us-east-1.aliyuncs.com/",
+    "eu-central-1": "https://dm.eu-central-1.aliyuncs.com/",
+  };
+  const endpoint = endpoints[region];
+  if (!endpoint) throw new Error("Unsupported DirectMail region.");
+  const params = {
+    AccessKeyId: env.DIRECTMAIL_ACCESS_KEY_ID, Action: "SingleSendMail", AddressType: "1",
+    AccountName: kind === "news" ? env.DIRECTMAIL_NEWS_ACCOUNT_NAME : env.DIRECTMAIL_CONFIRM_ACCOUNT_NAME,
+    FromAlias: "LeeMockups", Format: "JSON", RegionId: region,
+    ReplyToAddress: env.DIRECTMAIL_REPLY_ADDRESS ? "true" : "false", SignatureMethod: "HMAC-SHA1", SignatureNonce: crypto.randomUUID(),
+    SignatureVersion: "1.0", Subject: subject, TextBody: body,
+    Timestamp: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"), ToAddress: to, Version: "2015-11-23",
+  };
+  if (env.DIRECTMAIL_REPLY_ADDRESS) params.ReplyAddress = env.DIRECTMAIL_REPLY_ADDRESS;
+  const canonical = Object.keys(params).sort().map((key) => `${aliyunEncode(key)}=${aliyunEncode(params[key])}`).join("&");
+  const stringToSign = `POST&%2F&${aliyunEncode(canonical)}`;
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(`${env.DIRECTMAIL_ACCESS_KEY_SECRET}&`), { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
+  const signature = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(stringToSign)))));
+  const response = await fetch(endpoint, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: `${canonical}&Signature=${aliyunEncode(signature)}`, signal: AbortSignal.timeout(15_000) });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.Code) throw new Error(`DirectMail rejected the message: ${result.Code || response.status}`);
 }
 // ==================================================
 // Etsy API Headers
