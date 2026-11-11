@@ -10,7 +10,7 @@ export async function SiteNav({ current }: SiteNavProps) {
   const { products } = await getSeoCatalogData();
   const categories = getMockupCategories(products);
   return <nav className="nav shell">
-    <Link className="brand" href="/"><Image src="/leemockups-symbol.png" width={38} height={38} alt="" /><span>LeeMockups</span><span className="beta-badge" title="Preview release">BETA</span></Link>
+          <Link className="brand" href="/"><Image src="/leemockups-symbol.png" width={38} height={38} alt="" /><span>LeeMockups</span></Link>
     <div className="nav-links">
       <div className="nav-library">
         <div className="nav-library-menu">
