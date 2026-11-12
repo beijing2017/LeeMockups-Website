@@ -1705,6 +1705,23 @@ function updateEmail(value) {
   const email = String(value || "").trim().toLowerCase();
   return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
 }
+function updateSkus(body) {
+  const input = Array.isArray(body?.skus) ? body.skus : body?.sku ? [body.sku] : [];
+  const skus = [...new Set(input.map((sku) => String(sku || "")))];
+  return skus.length > 0 && skus.length <= 10 && skus.every((sku) => /^LM-VM-[A-Z]{3}-\d{3}$/.test(sku)) ? skus : null;
+}
+async function publishedUpdateProducts(env, skus) {
+  const object = await env.MOCKUPS.get("public/catalog/products.json");
+  const catalog = object ? await object.json() : {};
+  const products = Array.isArray(catalog.products) ? catalog.products : [];
+  return skus ? skus.map((sku) => products.find((item) => item.sku === sku)) : products;
+}
+async function pendingUpdateRecipients(env, skus) {
+  const placeholders = skus.map(() => "?").join(",");
+  const query = `SELECT COUNT(*) AS n FROM mockup_update_subscribers s WHERE s.status = 'active' AND (SELECT COUNT(*) FROM mockup_update_deliveries d WHERE d.email = s.email AND d.sku IN (${placeholders})) < ?`;
+  const row = await env.DB.prepare(query).bind(...skus, skus.length).first();
+  return Number(row?.n || 0);
+}
 function updateHtml(title, message) {
   const escape = (value) => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
   return htmlResponse(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)} | LeeMockups</title><body style="margin:0;background:#f8f5fc;color:#24212c;font:16px/1.6 Arial,sans-serif"><main style="max-width:520px;margin:10vh auto;padding:32px;border-radius:20px;background:white"><h1>${escape(title)}</h1><p>${escape(message)}</p><a href="https://www.leemockups.com/">Back to LeeMockups</a></main></body></html>`);
@@ -1712,31 +1729,54 @@ function updateHtml(title, message) {
 async function handleUpdates(request, env, url) {
   const origin = request.headers.get("origin") || "";
   const pathname = url.pathname;
-  if (request.method === "OPTIONS" && pathname !== "/updates/admin/announce") return new Response(null, { status: 204, headers: updatesCors(origin) });
+  if (request.method === "OPTIONS" && !pathname.startsWith("/updates/admin/")) return new Response(null, { status: 204, headers: updatesCors(origin) });
   if (pathname === "/updates/config" && request.method === "GET") return updatesJson({ enabled: updatesConfigured(env) }, 200, origin);
+  if (pathname === "/updates/admin/status" && request.method === "GET") {
+    if (!await isAdminRequest(request, env)) return jsonResponse({ ok: false, error: "Unauthorized." }, 401);
+    if (!updatesConfigured(env)) return jsonResponse({ ok: true, enabled: false, subscribers: { active: 0, pending: 0, unsubscribed: 0 }, products: [] });
+    await ensureUpdateTables(env);
+    const { results: statusRows = [] } = await env.DB.prepare("SELECT status, COUNT(*) AS n FROM mockup_update_subscribers GROUP BY status").all();
+    const subscribers = { active: 0, pending: 0, unsubscribed: 0 };
+    for (const row of statusRows) if (Object.hasOwn(subscribers, row.status)) subscribers[row.status] = Number(row.n || 0);
+    const { results: deliveryRows = [] } = await env.DB.prepare(`SELECT d.sku, COUNT(*) AS n, MAX(d.sent_at) AS last_sent FROM mockup_update_deliveries d JOIN mockup_update_subscribers s ON s.email = d.email AND s.status = 'active' GROUP BY d.sku`).all();
+    const deliveries = new Map(deliveryRows.map((row) => [row.sku, row]));
+    const products = (await publishedUpdateProducts(env)).map((product) => ({ sku: product.sku, name: String(product.name || product.sku), pendingCount: Math.max(0, subscribers.active - Number(deliveries.get(product.sku)?.n || 0)), lastSentAt: deliveries.get(product.sku)?.last_sent || null }));
+    return jsonResponse({ ok: true, enabled: true, subscribers, products });
+  }
+  if (pathname === "/updates/admin/preview" && request.method === "POST") {
+    if (!await isAdminRequest(request, env)) return jsonResponse({ ok: false, error: "Unauthorized." }, 401);
+    if (!updatesConfigured(env)) return jsonResponse({ ok: true, enabled: false, recipients: 0 });
+    const skus = updateSkus(await request.json().catch(() => ({})));
+    if (!skus) return jsonResponse({ ok: false, error: "Invalid SKUs." }, 400);
+    const products = await publishedUpdateProducts(env, skus);
+    if (products.some((product) => !product)) return jsonResponse({ ok: false, error: "A selected mockup is not in the published catalog." }, 404);
+    await ensureUpdateTables(env);
+    return jsonResponse({ ok: true, enabled: true, recipients: await pendingUpdateRecipients(env, skus), products: products.map((product) => ({ sku: product.sku, name: String(product.name || product.sku) })) });
+  }
   if (pathname === "/updates/admin/announce" && request.method === "POST") {
     if (!await isAdminRequest(request, env)) return jsonResponse({ ok: false, error: "Unauthorized." }, 401);
     if (!updatesConfigured(env)) return jsonResponse({ ok: true, enabled: false, sent: 0, remaining: 0 });
-    const sku = String((await request.json().catch(() => ({})))?.sku || "");
-    if (!/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku)) return jsonResponse({ ok: false, error: "Invalid SKU." }, 400);
-    const object = await env.MOCKUPS.get("public/catalog/products.json");
-    const catalog = object ? await object.json() : {};
-    const product = Array.isArray(catalog.products) ? catalog.products.find((item) => item.sku === sku) : null;
-    if (!product) return jsonResponse({ ok: false, error: "This mockup is not in the published catalog." }, 404);
+    const skus = updateSkus(await request.json().catch(() => ({})));
+    if (!skus) return jsonResponse({ ok: false, error: "Invalid SKUs." }, 400);
+    const products = await publishedUpdateProducts(env, skus);
+    if (products.some((product) => !product)) return jsonResponse({ ok: false, error: "A selected mockup is not in the published catalog." }, 404);
     await ensureUpdateTables(env);
-    const { results = [] } = await env.DB.prepare(`SELECT email FROM mockup_update_subscribers s WHERE status = 'active' AND NOT EXISTS (SELECT 1 FROM mockup_update_deliveries d WHERE d.sku = ? AND d.email = s.email) ORDER BY confirmed_at LIMIT 1`).bind(sku).all();
+    const placeholders = skus.map(() => "?").join(",");
+    const { results = [] } = await env.DB.prepare(`SELECT email FROM mockup_update_subscribers s WHERE status = 'active' AND (SELECT COUNT(*) FROM mockup_update_deliveries d WHERE d.email = s.email AND d.sku IN (${placeholders})) < ? ORDER BY confirmed_at LIMIT 1`).bind(...skus, skus.length).all();
     let sent = 0;
     for (const row of results) {
+      const { results: delivered = [] } = await env.DB.prepare(`SELECT sku FROM mockup_update_deliveries WHERE email = ? AND sku IN (${placeholders})`).bind(row.email, ...skus).all();
+      const deliveredSkus = new Set(delivered.map((item) => item.sku));
+      const unsentProducts = products.filter((product) => !deliveredSkus.has(product.sku));
+      if (!unsentProducts.length) continue;
       const unsubscribeUrl = `https://downloads.leemockups.com/updates/unsubscribe?token=${encodeURIComponent(await updateUnsubscribeToken(env, row.email))}`;
-      const name = String(product.name || "New mockup").slice(0, 78);
-      const detailUrl = `https://www.leemockups.com/mockup/${encodeURIComponent(sku)}/`;
-      const body = `A new mockup is available: ${name}\n\nView it here: ${detailUrl}\n\nYou subscribed to LeeMockups updates. Unsubscribe: ${unsubscribeUrl}`;
-      await sendDirectMail(env, "news", row.email, `New mockup: ${name}`, body);
-      await env.DB.prepare("INSERT OR IGNORE INTO mockup_update_deliveries (sku, email, sent_at) VALUES (?, ?, ?)").bind(sku, row.email, new Date().toISOString()).run();
+      const links = unsentProducts.map((product) => `${String(product.name || product.sku).slice(0, 100)}\nhttps://www.leemockups.com/mockup/${encodeURIComponent(product.sku)}/`).join("\n\n");
+      const body = `New LeeMockups mockups are available:\n\n${links}\n\nYou subscribed to LeeMockups updates. Unsubscribe: ${unsubscribeUrl}`;
+      await sendDirectMail(env, "news", row.email, unsentProducts.length === 1 ? `New mockup: ${String(unsentProducts[0].name || unsentProducts[0].sku).slice(0, 78)}` : `${unsentProducts.length} new LeeMockups mockups`, body);
+      for (const product of unsentProducts) await env.DB.prepare("INSERT OR IGNORE INTO mockup_update_deliveries (sku, email, sent_at) VALUES (?, ?, ?)").bind(product.sku, row.email, new Date().toISOString()).run();
       sent++;
     }
-    const pending = await env.DB.prepare(`SELECT COUNT(*) AS n FROM mockup_update_subscribers s WHERE status = 'active' AND NOT EXISTS (SELECT 1 FROM mockup_update_deliveries d WHERE d.sku = ? AND d.email = s.email)`).bind(sku).first();
-    return jsonResponse({ ok: true, enabled: true, sent, remaining: pending?.n || 0 });
+    return jsonResponse({ ok: true, enabled: true, sent, remaining: await pendingUpdateRecipients(env, skus) });
   }
   if (!updatesConfigured(env)) return updatesJson({ ok: false, error: "Updates are not available yet." }, 503, origin);
   if (pathname === "/updates/subscribe" && request.method === "POST") {
