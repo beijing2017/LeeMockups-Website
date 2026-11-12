@@ -38,7 +38,15 @@ const CLIENT_DOWNLOADS = {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith("/updates/")) return handleUpdates(request, env, url);
+    if (url.pathname.startsWith("/updates/")) {
+      try {
+        return await handleUpdates(request, env, url);
+      } catch (error) {
+        const message = String(error?.message || error);
+        console.error(JSON.stringify({ type: "updates_request_error", path: url.pathname, message }));
+        return updatesJson({ ok: false, error: "Could not process your request. Please try again later.", diagnostic: message.match(/DirectMail rejected the message: ([A-Za-z0-9.]+)/)?.[1] || undefined }, 503, request.headers.get("origin") || "");
+      }
+    }
     const clientDownload = CLIENT_DOWNLOADS[url.pathname];
     if (clientDownload) {
       if (request.method !== "GET" && request.method !== "HEAD") {
@@ -206,14 +214,30 @@ export default {
           FROM site_download_clicks GROUP BY kind, item ORDER BY click_count DESC, kind, item`).all();
         const distinctClickBrowsers = await env.DB.prepare(`SELECT COUNT(DISTINCT visitor_hash) AS browser_count FROM site_download_clicks`).first();
         const channelResult = await env.DB.prepare(`SELECT source, medium, campaign,
-          COUNT(DISTINCT transaction_id) AS purchases, COUNT(DISTINCT sku) AS products
-          FROM commerce_attribution GROUP BY source, medium, campaign
+          COUNT(DISTINCT a.provider || ':' || a.transaction_id) AS purchases, COUNT(DISTINCT a.sku) AS products
+          FROM commerce_attribution a
+          JOIN commerce_entitlements e ON e.provider = a.provider AND e.transaction_id = a.transaction_id AND e.sku = a.sku
+          WHERE e.status = 'completed' AND (e.provider != 'CREEM' OR e.mode = 'live')
+          GROUP BY source, medium, campaign
           ORDER BY purchases DESC, source ASC`).all();
+        const orderResult = await env.DB.prepare(`SELECT sku,
+          COUNT(DISTINCT provider || ':' || transaction_id) AS paid_order_count
+          FROM commerce_entitlements
+          WHERE status = 'completed' AND (provider != 'CREEM' OR mode = 'live')
+          GROUP BY sku`).all();
+        const paidOrders = new Map((orderResult.results || []).map((row) => [row.sku, Number(row.paid_order_count || 0)]));
+        const paidOrderTotal = await env.DB.prepare(`SELECT COUNT(DISTINCT provider || ':' || transaction_id) AS purchases
+          FROM commerce_entitlements
+          WHERE status = 'completed' AND (provider != 'CREEM' OR mode = 'live')`).first();
+        for (const product of products) product.paid_order_count = paidOrders.get(product.sku) || 0;
+        for (const [sku, count] of paidOrders) {
+          if (!products.some((product) => product.sku === sku)) products.push({ sku, download_count: 0, unique_purchase_count: 0, free_download_count: 0, repeat_download_count: 0, downloads_7d: 0, downloads_30d: 0, paid_order_count: count, last_downloaded_at: null });
+        }
         const totals = products.reduce((summary, row) => ({
           downloads: summary.downloads + Number(row.download_count || 0),
-          purchases: summary.purchases + Number(row.unique_purchase_count || 0),
           downloads7d: summary.downloads7d + Number(row.downloads_7d || 0),
-        }), { downloads: 0, purchases: 0, downloads7d: 0 });
+        }), { downloads: 0, downloads7d: 0 });
+        totals.purchases = Number(paidOrderTotal?.purchases || 0);
         totals.downloadClicks = (clickResult.results || []).reduce((sum, row) => sum + Number(row.click_count || 0), 0);
         totals.downloadBrowsers = Number(distinctClickBrowsers?.browser_count || 0);
         return jsonResponse({ ok: true, updatedAt: new Date().toISOString(), totals, products, downloadClicks: clickResult.results || [], channels: channelResult.results || [] });

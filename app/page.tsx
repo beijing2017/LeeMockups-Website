@@ -17,8 +17,8 @@ export const metadata: Metadata = {
   title: { absolute: homeTitle },
   description: homeDescription,
   alternates: { canonical: "/" },
-  openGraph: { title: homeTitle, description: homeDescription, url: "/", images: [{ url: "/og.png", width: 1536, height: 864, alt: "LeeMockups product mockups" }] },
-  twitter: { card: "summary_large_image", title: homeTitle, description: homeDescription, images: ["/og.png"] },
+  openGraph: { title: homeTitle, description: homeDescription, url: "/", images: [{ url: "/leemockups-social-2026.png", width: 1622, height: 970, alt: "LeeMockups video mockups for mugs, shirts, and frames" }] },
+  twitter: { card: "summary_large_image", title: homeTitle, description: homeDescription, images: ["/leemockups-social-2026.png"] },
 };
 
 export default async function Home() {
