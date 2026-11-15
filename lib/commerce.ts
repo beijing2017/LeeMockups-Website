@@ -19,9 +19,10 @@ export function resolvePriceUsd(product: CommerceProduct) {
 }
 
 export function resolveCommerce(product: CommerceProduct) {
-  const provider = String(product.purchaseProvider || (product.etsyUrl ? "ETSY" : "NONE")).toUpperCase() as PurchaseProvider;
-  const purchaseUrl = String(product.purchaseUrl || product.etsyUrl || "").trim();
-  const deliveryUrl = String(product.deliveryUrl || (provider === "ETSY" && purchaseUrl ? "/order-download/" : "")).trim();
+  const configuredProvider = String(product.purchaseProvider || "NONE").toUpperCase() as PurchaseProvider;
+  const provider = configuredProvider === "ETSY" ? "NONE" : configuredProvider;
+  const purchaseUrl = configuredProvider === "ETSY" ? "" : String(product.purchaseUrl || "").trim();
+  const deliveryUrl = configuredProvider === "ETSY" ? "" : String(product.deliveryUrl || "").trim();
   return {
     provider,
     purchaseUrl,

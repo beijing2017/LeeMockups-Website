@@ -49,10 +49,10 @@ export function OrderDownloadClient({ navigation }: { navigation: ReactNode }) {
   return <main className="order-page">
     {navigation}
     <section className="order-shell shell">
-      <div className="order-copy"><span className="section-tag">PURCHASE ACCESS</span><h1>Create your mockup.</h1><p>Enter the order number from your Creem receipt. We’ll verify your purchase and open the online creator.</p><ul><li><ShieldCheck /> Secure, time-limited access</li><li><KeyRound /> No LeeMockups account required</li></ul></div>
+      <div className="order-copy"><span className="section-tag">WEBSITE ORDER HELP</span><h1>Access your website purchase.</h1><p>For purchases made on leemockups.com and paid through Creem. Enter your Creem order number and the email used at checkout to access the online creator.</p><ul><li><ShieldCheck /> Secure, time-limited access</li><li><KeyRound /> No LeeMockups account required</li></ul></div>
       <div className="order-card">
         <form onSubmit={redeem}>
-          <label>Order number<input required autoComplete="off" value={orderNumber} onFocus={() => { if (!orderNumber) setOrderNumber(localStorage.getItem(lastOrderKey) || ""); }} onChange={(event) => setOrderNumber(event.target.value.trim())} placeholder="e.g. ORD-1A0CA4D195542817" /></label>
+          <label>Creem order number<input required autoComplete="off" value={orderNumber} onFocus={() => { if (!orderNumber) setOrderNumber(localStorage.getItem(lastOrderKey) || ""); }} onChange={(event) => setOrderNumber(event.target.value.trim())} placeholder="e.g. ORD-1A0CA4D195542817" /></label>
           <label>Email used at checkout<input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></label>
           {downloads.length > 0
             ? <button className="button primary purchase-primary purchased" type="button" onClick={() => beginCreate(downloads[0])}><Play size={17} /> Create video online</button>

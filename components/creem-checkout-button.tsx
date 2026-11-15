@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+
 import { useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
 import { readAnalyticsIdentifiers, readAttribution, trackEvent } from "@/lib/marketing-attribution";
@@ -70,7 +70,7 @@ export function CreemCheckoutButton({sku}:{sku:string}){
     downloadLock.current=true;setError("");
     try{
       const record=JSON.parse(localStorage.getItem(storageKey)||"null") as PurchaseRecord|null;
-      if(!record)throw new Error("Purchase verification expired. Please restore your order.");
+      if(!record)throw new Error("Purchase access could not be verified. Visit Help for Creem order assistance.");
       const fresh=await redeem(record);
       openPurchasedComposer(fresh.find((entry)=>entry.sku===item.sku)||item);
     }
@@ -78,6 +78,6 @@ export function CreemCheckoutButton({sku}:{sku:string}){
     finally{downloadLock.current=false}
   }
   if(downloads.length)return <><div className="purchase-downloads purchased">{downloads.map((item)=><button className="button primary purchase-primary purchased" type="button" key={item.sku} onClick={()=>beginCreate(item)}><Play size={17}/>Create video online</button>)}</div>{error&&<small className="checkout-error" role="alert">{error}</small>}</>;
-  return <>{checking?<button className="button primary purchase-primary" disabled>Checking purchase…</button>:<button className="button primary purchase-primary" type="button" onClick={openCheckout} disabled={opening}>{opening?"Opening checkout…":"Buy now"}</button>}{error&&<small className="checkout-error" role="alert">{error}</small>}<Link className="mockup-existing-download" href="/order-download/">Already purchased? Restore access</Link></>;
+  return <>{checking?<button className="button primary purchase-primary" disabled>Checking purchase…</button>:<button className="button primary purchase-primary" type="button" onClick={openCheckout} disabled={opening}>{opening?"Opening checkout…":"Buy now"}</button>}{error&&<small className="checkout-error" role="alert">{error}</small>}</>;
 }
 

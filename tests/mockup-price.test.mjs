@@ -21,6 +21,26 @@ const commerce = loadTs("../lib/commerce.ts");
 const { MockupPrice } = loadTs("../components/mockup-price.tsx", { "@/lib/commerce": commerce });
 const render = product => renderToStaticMarkup(createElement(MockupPrice, { product }));
 
+test("retired Etsy listings cannot create website purchase or order-recovery links", () => {
+  for (const product of [
+    { etsyUrl: "https://www.etsy.com/listing/123" },
+    { purchaseProvider: "ETSY", purchaseUrl: "https://www.etsy.com/listing/123", deliveryUrl: "/order-download/" },
+  ]) {
+    const resolved = commerce.resolveCommerce(product);
+    assert.equal(resolved.provider, "NONE");
+    assert.equal(resolved.purchaseUrl, "");
+    assert.equal(resolved.deliveryUrl, "");
+    assert.equal(resolved.available, false);
+  }
+});
+
+test("Creem checkout configuration is preserved", () => {
+  const resolved = commerce.resolveCommerce({ purchaseProvider: "CREEM", purchaseUrl: "https://www.creem.io/payment/example", priceUsd: 9.99 });
+  assert.equal(resolved.provider, "CREEM");
+  assert.equal(resolved.purchaseUrl, "https://www.creem.io/payment/example");
+  assert.equal(resolved.price, "$9.99");
+});
+
 test("launch price shows the regular price struck through", () => {
   const html = render({ purchaseProvider: "CREEM", priceUsd: 3.49 });
   assert.match(html, /<strong>\$3\.49<\/strong>/);
