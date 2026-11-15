@@ -5,6 +5,9 @@ import { SiteNav } from "@/components/site-nav";
 import { PolicyLinks } from "@/components/policy-links";
 
 const faqs = [
+  ["Is this a subscription?", "No. Paid mockups are purchased individually with a one-time payment. Your purchase covers the selected scene, not the whole library."],
+  ["Can I use a purchased scene with another design?", "Yes. Open the purchased scene, replace your artwork, adjust its placement, and generate again. Each generation provides an MP4 video and five matching still images."],
+  ["Can I use the exported results in my shop?", "Yes. Exported videos and images may be used for commercial product listings, advertising, and client presentations under the Terms of Service. The original mockup itself may not be redistributed."],
   ["What do I need before I start?", "Choose a mockup and prepare your artwork as a PNG or JPG. Generation runs in your browser; there is no app to install."],
   ["How do I create a paid mockup?", "Complete checkout, then use Create video online from your verified purchase. Keep your Creem receipt in case you need help accessing your purchase."],
   ["My artwork looks cropped. What should I do?", "Use the artwork placement controls to move and resize your design. The recommended image size is shown beside the upload area."],
@@ -28,6 +31,7 @@ export default function HelpPage() { return <main className="help-page">
     <article><b>3</b><Play/><h3>Create your video</h3><p>Check the preview, then create your MP4 video and five still images in the browser.</p></article>
     <article><b>4</b><ShieldCheck/><h3>Save your files</h3><p>Download your finished video and stills for your product listings.</p></article>
   </div></section>
+  <section className="support shell"><Play/><div><h2>See the complete workflow</h2><p><Link href="/#demo">Watch the walkthrough</Link>, then <Link href="/#try-free">choose a free mockup</Link> to test generation and downloads on your computer.</p></div></section>
   <section className="faq shell"><div className="section-heading"><span>QUICK ANSWERS</span><h2>Common questions.</h2></div><div className="faq-list">{faqs.map(([q,a],i)=><details key={q} open={i===0}><summary>{q}<span>+</span></summary><p>{a}</p></details>)}</div></section>
   <section className="support shell"><KeyRound/><div><h2>Need access to a website purchase?</h2><p>If you changed browsers or cleared your browser data, <Link href="/order-download/">verify your Creem website order</Link> using your order number and checkout email. This is for purchases made on leemockups.com, not marketplace orders.</p></div></section>
   <section className="support shell"><HelpCircle/><div><h2>Still stuck?</h2><p>Take a screenshot of what you see and email <a href="mailto:support@leemockups.com">support@leemockups.com</a> with the mockup name and your order details if applicable.</p></div></section>

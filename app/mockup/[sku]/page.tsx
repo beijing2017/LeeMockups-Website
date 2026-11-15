@@ -74,7 +74,7 @@ export default async function ProductPage({ params }: { params: Promise<{ sku: s
   return <main className="mockup-product-page">
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} />
     <SiteNav current="mockups" />
-    <MockupDetailClient sku={sku} initialProduct={product} />
+    <MockupDetailClient sku={sku} initialProduct={product} initialFreeSample={sameCategory.find((item) => item.isFree) || catalog.find((item) => item.isFree)} />
     <section className="related-mockups shell" aria-labelledby="related-mockups-title">
       <div className="related-mockups-heading"><div><span className="mockup-section-kicker">EXPLORE MORE</span><h2 id="related-mockups-title">More {categoryLabel} video mockups</h2><p>Compare scenes for your print-on-demand listings on Etsy, Shopify, or your own store.</p></div><Link href={categoryLink.href}>{categoryLink.label} →</Link></div>
       {relatedProducts.length > 0 && <div className="mockup-grid">{relatedProducts.map((item) => <ProductCard product={item} seoReady key={item.sku} />)}</div>}

@@ -9,6 +9,7 @@ import { getMockupCategories } from "@/lib/mockup-categories";
 import { siteUrl } from "@/lib/site-url";
 import { featuredGuideSlugs, guideBySlug } from "@/lib/guides";
 import { MockupUpdates } from "@/components/mockup-updates";
+import { WorkflowDemo } from "@/components/workflow-demo";
 
 const homeTitle = "Product Mockups & Video Mockups | LeeMockups";
 const homeDescription = "Shop product mockups for T-shirts, mugs, posters, and picture frames. Add your artwork with the online mockup generator and download MP4 videos and matching still images.";
@@ -26,6 +27,7 @@ export default async function Home() {
   const seoSkus = products.map((product) => product.sku);
   const categories = getMockupCategories(products);
   const freeSample = products.find((product) => product.isFree);
+  const freeSamples = products.filter((product) => product.isFree).slice(0, 3);
   const structuredData = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -74,7 +76,11 @@ export default async function Home() {
       <article><span className="step-num">03</span><div className="step-icon green"><Play /></div><h3>Export for your shop</h3><p>Save an MP4 video and ready-to-use still images, then upload them to your product listings.</p></article>
     </div></section>
 
+    <section className="workflow-section shell" id="demo"><div className="workflow-heading"><div><span className="section-tag">WATCH THE REAL WORKFLOW</span><h2>From your artwork<br />to a moving mockup.</h2></div><div><p>Follow the complete walkthrough, then try it with your own design. No Photoshop or 3D software to install.</p><a className="text-link" href="https://www.youtube.com/watch?v=sFGsWJYoUrc" target="_blank" rel="noopener noreferrer">Watch on YouTube ↗</a></div></div><WorkflowDemo /><div className="free-try-heading" id="try-free"><h3>Try before you buy.</h3><p>These scenes are free to use. Add a PNG or JPG, adjust the design, and export your video and still images. No payment required.</p></div><div className="free-try-grid">{freeSamples.map((product) => <a className="free-try-card" key={product.sku} href={`/composer/?sku=${encodeURIComponent(product.sku)}`}><img src={`https://downloads.leemockups.com/${product.thumbnailPath}?v=${encodeURIComponent(product.assetVersion || "1")}`} alt={product.name} loading="lazy" /><div><span>FREE MOCKUP</span><h4>{product.name}</h4><strong>Try this scene →</strong></div></a>)}</div><p className="workflow-note">Generation time depends on your device and browser. Use a free scene to check the workflow on your computer.</p></section>
+
     <section className="feature-band" id="features"><div className="shell feature-grid"><div className="feature-copy"><span className="section-tag">THE QUIETLY POWERFUL PART</span><h2>Professional results.<br />None of the learning curve.</h2><p>LeeMockups handles perspective, motion, and export settings for you. Your only creative decision is the artwork.</p><ul><li><Check /> Live design preview</li><li><Check /> High-resolution MP4 and stills</li><li><Check /> Create directly in your browser</li><li><Check /> Your artwork stays in your browser</li></ul></div><div className="feature-visual"><div className="frame-stack back" /><div className="frame-stack middle" /><div className="frame-stack front"><Image src="/room-mockup.webp" fill sizes="480px" alt="Interior wall art mockup" /></div><div className="badge"><Sparkles />Ready for your shop</div></div></div></section>
+
+    <section className="maker-intro shell"><span className="section-tag">BEHIND LEEMOCKUPS</span><h2>Built by an independent designer.</h2><p>A focused tool for creators who want to show their designs in motion.</p><a className="text-link" href="/about/">Why I built LeeMockups →</a></section>
 
 
     <footer className="shell"><div className="brand"><Image src="/leemockups-symbol.png" width={34} height={34} alt="" /><span>LeeMockups</span></div><PolicyLinks /><span>© 2026 LeeMockups</span></footer>
