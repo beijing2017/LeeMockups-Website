@@ -6,6 +6,7 @@ import test from "node:test";
 const token = "local-test-admin-token";
 const hash = createHash("sha256").update(token).digest("base64url");
 const source = fs.readFileSync(new URL("../cloudflare/leemockups-download.js", import.meta.url), "utf8")
+  .replace('"./mockup-update-email.mjs"', JSON.stringify(new URL('../cloudflare/mockup-update-email.mjs', import.meta.url).href))
   .replace(/const ANALYTICS_ACCESS_HASH = "[^"]+";/, `const ANALYTICS_ACCESS_HASH = "${hash}";`);
 const { default: worker } = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
 const sku = "LM-VM-MUG-001";
@@ -13,6 +14,7 @@ const imageUrl = `https://downloads.leemockups.com/mockups/${sku}/gallery/${sku}
 
 function environment(requestedKeys = []) {
   return {
+    ANALYTICS_ACCESS_HASH: hash,
     CREEM_API_KEY: "fake-test-key",
     CREEM_MODE: "live",
     DB: { prepare: () => ({ run: async () => ({}), bind() { return this; }, first: async () => ({ product_id: "prod_Existing123", discount_code: "LAUNCH", launch_active: 1, regular_price_cents: 999, launch_price_cents: 349 }) }) },
@@ -25,7 +27,7 @@ test("editing an existing Creem product patches its original ID and image", asyn
   const calls = [];
   globalThis.fetch = async (url, options) => {
     calls.push({ url: String(url), method: options.method, body: options.body ? JSON.parse(options.body) : undefined });
-    return new Response(JSON.stringify({ id: "prod_Existing123", image_url: `https://www.creem.io/api/images?url=${encodeURIComponent(imageUrl)}` }), { status: 200, headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify({ id: "prod_Existing123", price: 999, currency: "USD", image_url: `https://www.creem.io/api/images?url=${encodeURIComponent(imageUrl)}` }), { status: 200, headers: { "content-type": "application/json" } });
   };
   try {
     const request = new Request("https://downloads.leemockups.com/admin/creem-product-sync", {
@@ -53,7 +55,7 @@ test("existing Creem prices cannot silently drift from Publisher settings", asyn
   });
   const response = await worker.fetch(request, environment(), {});
   assert.equal(response.status, 502);
-  assert.match((await response.json()).error, /prices differ/);
+  assert.match((await response.json()).error, /single regular price/);
 });
 
 test("the new public gallery image URL is available while private paths stay closed", async () => {
@@ -66,3 +68,11 @@ test("the new public gallery image URL is available while private paths stay clo
   await worker.fetch(new Request(`https://downloads.leemockups.com/private/mockups/${sku}/${sku}.mockup`), env, {});
   assert.equal(requestedKeys.length, 1);
 });
+
+ test("regular price migration retains product ID and confirms actual payment price", async () => {
+ const originalFetch=globalThis.fetch; const calls=[]; const env=environment();
+ globalThis.fetch=async (url, options)=>{calls.push({method:options.method,body:options.body?JSON.parse(options.body):null}); return Response.json({id:"prod_Existing123",image_url:imageUrl,price:200,currency:"USD"});};
+ try {const response=await worker.fetch(new Request("https://downloads.leemockups.com/admin/creem-product-sync",{method:"POST",headers:{authorization:`Bearer ${token}`,"content-type":"application/json"},body:JSON.stringify({sku,name:"Mug",description:"Mug",imageUrl,regularPriceCents:200,launchPriceCents:200,launchActive:false})}),env,{});
+ assert.equal(response.status,200); const result=await response.json();assert.equal(result.priceCents,200);assert.equal(result.productId,"prod_Existing123");assert.equal(result.discountCode,"");assert.equal(calls[0].body.price,200);assert.equal(calls[1].method,"GET");
+ }finally{globalThis.fetch=originalFetch;}
+ });

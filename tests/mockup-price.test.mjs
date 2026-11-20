@@ -41,11 +41,9 @@ test("Creem checkout configuration is preserved", () => {
   assert.equal(resolved.price, "$9.99");
 });
 
-test("launch price shows the regular price struck through", () => {
-  const html = render({ purchaseProvider: "CREEM", priceUsd: 3.49 });
-  assert.match(html, /<strong>\$3\.49<\/strong>/);
-  assert.match(html, /<s [^>]*>\$9\.99<\/s>/);
-  assert.match(html, /Launch Special/);
+test("uniform two-dollar pricing has no old discount or struck-through price", () => {
+ const html=render({purchaseProvider:"CREEM",priceUsd:2});
+ assert.match(html, /\$2\.00/); assert.doesNotMatch(html, /<s |Launch Special/); assert.equal(commerce.resolvePriceUsd({}),2);
 });
 test("regular price, free and non-Creem products do not show a launch discount", () => {
   for (const product of [

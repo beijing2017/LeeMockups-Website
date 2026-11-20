@@ -256,8 +256,8 @@ export default {
         const name = String(body?.name || "").trim().slice(0, 160);
         const description = String(body?.description || "").trim().slice(0, 2000);
         const imageUrl = String(body?.imageUrl || "").trim();
-        const regularPriceCents = Number(body?.regularPriceCents || 999);
-        const launchPriceCents = Number(body?.launchPriceCents || 349);
+        const regularPriceCents = Number(body?.regularPriceCents || 200);
+        const launchPriceCents = Number(body?.launchPriceCents || 200);
         const launchActive = body?.launchActive !== false;
         const expectedImagePrefix = `https://downloads.leemockups.com/mockups/${sku}/gallery/`;
         if (!/^LM-VM-[A-Z]{3}-\d{3}$/.test(sku) || !name || !imageUrl.startsWith(expectedImagePrefix) || !/^[A-Za-z0-9._-]+\.(?:jpe?g|png)$/i.test(imageUrl.slice(expectedImagePrefix.length)) || !Number.isInteger(regularPriceCents) || !Number.isInteger(launchPriceCents) || launchPriceCents < 100 || regularPriceCents < launchPriceCents) {
@@ -2330,22 +2330,23 @@ async function syncCreemProduct(env, product) {
   await ensureCreemProductTable(env);
   const existing = await getCreemProductBySku(env, product.sku);
   if (existing && !(creemMode(env) === "live" && CREEM_PRODUCT_SKUS[existing.product_id])) {
-    if (Number(existing.regular_price_cents) !== product.regularPriceCents || Number(existing.launch_price_cents) !== product.launchPriceCents) {
-      throw new Error("Existing Creem prices differ from Publisher settings; changing amounts requires new product and discount setup.");
+    const priceChanged = Number(existing.regular_price_cents) !== product.regularPriceCents || Number(existing.launch_price_cents) !== product.launchPriceCents;
+    if (priceChanged && (product.launchActive || product.launchPriceCents !== product.regularPriceCents)) {
+      throw new Error("Price changes require a single regular price with launch discounts disabled.");
     }
     if (product.launchActive && !existing.discount_code) throw new Error("Existing Creem product has no launch discount code.");
     await creemRequest(env, `/v1/products/${encodeURIComponent(existing.product_id)}`, {
       method: "PATCH",
-      body: JSON.stringify({ name: product.name, description: product.description, image_url: product.imageUrl }),
+      body: JSON.stringify({ name: product.name, description: product.description, image_url: product.imageUrl, ...(priceChanged ? { price: product.regularPriceCents } : {}) }),
     });
     const confirmed = await creemRequest(env, `/v1/products/${encodeURIComponent(existing.product_id)}`, { method: "GET" });
     const entity = confirmed?.product || confirmed;
-    if (String(entity?.id || "") !== existing.product_id || !creemImageMatches(entity?.image_url, product.imageUrl)) {
-      throw new Error("Creem did not confirm the updated product image.");
+    if (String(entity?.id || "") !== existing.product_id || !creemImageMatches(entity?.image_url, product.imageUrl) || Number(entity?.price) !== product.regularPriceCents || String(entity?.currency).toUpperCase() !== "USD") {
+      throw new Error("Creem did not confirm the updated product image and USD price.");
     }
-    await env.DB.prepare(`UPDATE commerce_product_mappings SET launch_active=?, updated_at=? WHERE provider='CREEM' AND sku=?`)
-      .bind(product.launchActive ? 1 : 0, new Date().toISOString(), product.sku).run();
-    return { sku: product.sku, productId: existing.product_id, discountCode: existing.discount_code || "", created: false, updated: true };
+    await env.DB.prepare(`UPDATE commerce_product_mappings SET launch_active=?, regular_price_cents=?, launch_price_cents=?, discount_code=?, updated_at=? WHERE provider='CREEM' AND sku=?`)
+      .bind(product.launchActive ? 1 : 0, product.regularPriceCents, product.launchPriceCents, priceChanged ? null : existing.discount_code, new Date().toISOString(), product.sku).run();
+    return { sku: product.sku, productId: existing.product_id, discountCode: priceChanged ? "" : existing.discount_code || "", priceCents: Number(entity.price), currency: entity.currency, created: false, updated: true };
   }
   const successUrl = `https://www.leemockups.com/mockup/?sku=${encodeURIComponent(product.sku)}&payment=success`;
   const productList = await creemRequest(env, "/v1/products/search?page_number=1&page_size=100", { method: "GET" });
