@@ -43,13 +43,21 @@ export async function readAnalyticsIdentifiers():Promise<{clientId?:string;sessi
   const unavailable = (reason:string) => ({consent:trackingAllowed()?"granted":"denied",reason});
   if (!trackingAllowed()) return unavailable("consent_denied");
   const measurementId = process.env.NEXT_PUBLIC_GA_ID;
-  // Allow the afterInteractive tag time to initialize; blocked tags still permit checkout.
-  const deadline = Date.now() + 3000;
-  while (typeof (window as typeof window & {gtag?:unknown}).gtag !== 'function' && Date.now() < deadline && trackingAllowed()) {
-    await new Promise(resolve => window.setTimeout(resolve, 100));
+  // The local gtag queue exists immediately after consent. Wait for the Google
+  // script itself before asking it for an identifier.
+  const browser = window as typeof window & {gtag?:(...args:unknown[])=>void;leemockupsGaTagState?:"ready"|"failed"};
+  if (!measurementId) return unavailable("tag_unavailable");
+  if (browser.leemockupsGaTagState !== "ready" && browser.leemockupsGaTagState !== "failed") {
+    await new Promise<void>(resolve => {
+      const finish = () => { window.clearTimeout(timer); window.removeEventListener("leemockups-ga-tag-state",finish); resolve(); };
+      const timer = window.setTimeout(finish, 5000);
+      window.addEventListener("leemockups-ga-tag-state",finish);
+      if (browser.leemockupsGaTagState) finish();
+    });
   }
-  const gtag = (window as typeof window & {gtag?:(...args:unknown[])=>void}).gtag;
   if (!trackingAllowed()) return unavailable("consent_denied");
+  if (browser.leemockupsGaTagState !== "ready") return unavailable(browser.leemockupsGaTagState === "failed" ? "tag_load_failed" : "tag_not_ready");
+  const gtag = (window as typeof window & {gtag?:(...args:unknown[])=>void}).gtag;
   if (!measurementId || typeof gtag !== "function") return unavailable("tag_unavailable");
   const get = (field:"client_id"|"session_id") => new Promise<string>((resolve) => {
     let settled = false;
@@ -59,10 +67,11 @@ export async function readAnalyticsIdentifiers():Promise<{clientId?:string;sessi
       window.clearTimeout(timer);
       resolve(typeof value === "string" || typeof value === "number" ? String(value) : "");
     };
-    const timer=window.setTimeout(() => finish(""), Math.max(1,deadline-Date.now()));
+    const timer=window.setTimeout(() => finish(""), 3000);
     try { gtag("get", measurementId, field, finish); } catch { finish(""); }
   });
-  const [clientId, sessionId] = await Promise.all([get("client_id"), get("session_id")]);
+  let [clientId, sessionId] = await Promise.all([get("client_id"), get("session_id")]);
+  if (!/^\d+\.\d+$/.test(clientId) && trackingAllowed()) clientId = await get("client_id");
   if (!trackingAllowed()) return unavailable("consent_denied");
   return {
     consent:"granted", reason:/^\d+\.\d+$/.test(clientId)?"available":"client_id_missing",

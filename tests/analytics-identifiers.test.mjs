@@ -5,16 +5,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 function browser({allowed=true,gpc=false}={}) {
  const storage=new Map([['leemockups-tracking-consent',JSON.stringify({analytics:allowed,advertising:allowed})]]);
- const window={setTimeout,clearTimeout,dispatchEvent(){}};
+ const listeners=new Map();
+ const window={setTimeout,clearTimeout,leemockupsGaTagState:'ready',
+  addEventListener(name,listener){const group=listeners.get(name)||new Set();group.add(listener);listeners.set(name,group);},
+  removeEventListener(name,listener){listeners.get(name)?.delete(listener);},
+  dispatchEvent(event){for(const listener of listeners.get(event.type)||[])listener(event);},
+ };
  const context=vm.createContext({window,localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},navigator:{globalPrivacyControl:gpc},crypto,Event,URL,URLSearchParams,Date,Promise,process:{env:{NEXT_PUBLIC_GA_ID:'G-LOCAL'}}});
  function load(path,require=()=>{}){const module={exports:{}};context.module=module;context.exports=module.exports;context.require=require;const source=ts.transpileModule(readFileSync(new URL(path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;vm.runInContext(`(function(module,exports,require){${source}\n})`,context)(module,module.exports,require);return module.exports;}
  const consent=load('../lib/analytics-consent.ts');const api=load('../lib/marketing-attribution.ts',()=>consent);
  return {api,consent,storage,window};
 }
 test('delayed tag initialization and asynchronous identifiers are awaited',async()=>{
- const {api,window}=browser();let calls=0;
- const timer=setTimeout(()=>{window.gtag=(command,id,field,callback)=>{calls++;setTimeout(()=>callback(field==='client_id'?'123.456':1790000000),10);};},60);
+ const {api,window}=browser();let calls=0;window.leemockupsGaTagState=undefined;
+ window.gtag=()=>{throw Error('queued get must wait for the real tag');};
+ const timer=setTimeout(()=>{window.gtag=(command,id,field,callback)=>{calls++;setTimeout(()=>callback(field==='client_id'?'123.456':1790000000),10);};window.leemockupsGaTagState='ready';window.dispatchEvent(new Event('leemockups-ga-tag-state'));},60);
  try {const result=await api.readAnalyticsIdentifiers();assert.equal(result.clientId,'123.456');assert.equal(result.sessionId,'1790000000');assert.equal(calls,2);}finally{clearTimeout(timer);}
+});
+test('failed Google tag load leaves checkout available without an identifier',async()=>{
+ const {api,window}=browser();window.leemockupsGaTagState='failed';window.gtag=()=>{throw Error('must not call failed tag');};
+ const result=await api.readAnalyticsIdentifiers();assert.equal(result.reason,'tag_load_failed');assert.equal(result.clientId,undefined);
 });
 test('denied, unknown, advertising refusal and GPC never read or emit identifiers',async()=>{
  for(const options of [{allowed:false},{gpc:true},{}]){
