@@ -58,7 +58,7 @@ export function CreemCheckoutButton({sku}:{sku:string}){
     setOpening(true);setError("");
     try{
       const claimToken=randomToken();localStorage.setItem(`${storageKey}:pending`,JSON.stringify({claimToken}));
-      const analytics=await readAnalyticsIdentifiers();
+      const analytics=await readAnalyticsIdentifiers().catch(()=>({consent:"denied",reason:"identifier_read_failed"}));
       const response=await fetch(checkoutApi,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sku,claimToken,attribution:readAttribution(),analytics})});
       const body=await response.json();
       if(!response.ok||!body.checkoutUrl)throw new Error(body.error||"Checkout could not open.");
