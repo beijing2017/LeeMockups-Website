@@ -50,7 +50,7 @@ test("publisher counts subscribers and sends one combined announcement only on r
     UPDATES_ENABLED: "true", DIRECTMAIL_ACCESS_KEY_ID: "test", DIRECTMAIL_ACCESS_KEY_SECRET: "test",
     DIRECTMAIL_CONFIRM_ACCOUNT_NAME: "confirm@example.com", DIRECTMAIL_NEWS_ACCOUNT_NAME: "news@example.com",
     UPDATES_TOKEN_SECRET: "test", ANALYTICS_ACCESS_HASH: hash,
-    MOCKUPS: { async get() { return { async json() { return { products: skus.map((sku) => ({ sku, name: `Mockup ${sku}` })) }; } }; } },
+    MOCKUPS: { async get() { return { async json() { return { products: skus.map((sku) => ({ sku, name: `Mockup ${sku}`, thumbnailPath: `mockups/${sku}/${sku}-thumb.webp`, gallery: [{ type: "image", path: `mockups/${sku}/${sku}-preview.jpg` }] })) }; } }; } },
     DB: { prepare(query) {
       return {
         args: [], bind(...args) { this.args = args; return this; },
@@ -87,7 +87,9 @@ test("publisher counts subscribers and sends one combined announcement only on r
     assert.equal(status.subscribers.active, 1);
     assert.equal(status.subscribers.pending, 1);
     assert.equal(status.products[0].pendingCount, 1);
-    assert.equal((await (await admin("preview", { skus })).json()).recipients, 1);
+    const preview = await (await admin("preview", { skus })).json();
+    assert.equal(preview.recipients, 1);
+    assert.match(preview.emailHtml, /LM-VM-MUG-001-preview\.jpg/);
     assert.equal(messages.length, 0);
     const sent = await (await admin("announce", { skus })).json();
     assert.equal(sent.sent, 1);
@@ -95,6 +97,9 @@ test("publisher counts subscribers and sends one combined announcement only on r
     assert.equal(messages.length, 1);
     assert.match(messages[0].get("TextBody"), /LM-VM-MUG-001/);
     assert.match(messages[0].get("TextBody"), /LM-VM-SHI-001/);
+    assert.match(messages[0].get("HtmlBody"), /LM-VM-MUG-001-preview\.jpg/);
+    assert.match(messages[0].get("HtmlBody"), /LM-VM-SHI-001-preview\.jpg/);
+    assert.match(messages[0].get("HtmlBody"), /updates\/unsubscribe\?token=/);
     assert.equal((await (await admin("announce", { skus })).json()).sent, 0);
     assert.equal(messages.length, 1);
   } finally {

@@ -6,8 +6,8 @@ import test from "node:test";
 const token = "local-test-admin-token";
 const hash = createHash("sha256").update(token).digest("base64url");
 const source = fs.readFileSync(new URL("../cloudflare/leemockups-download.js", import.meta.url), "utf8")
-  .replace('"./mockup-update-email.mjs"', JSON.stringify(new URL('../cloudflare/mockup-update-email.mjs', import.meta.url).href))
-  .replace(/const ANALYTICS_ACCESS_HASH = "[^"]+";/, `const ANALYTICS_ACCESS_HASH = "${hash}";`);
+  .replaceAll('"./ga4-purchase.mjs"', JSON.stringify(new URL('../cloudflare/ga4-purchase.mjs', import.meta.url).href))
+  .replace('"./mockup-update-email.mjs"', JSON.stringify(new URL('../cloudflare/mockup-update-email.mjs', import.meta.url).href));
 const { default: worker } = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
 const sku = "LM-VM-MUG-001";
 const imageUrl = `https://downloads.leemockups.com/mockups/${sku}/gallery/${sku}-gallery-1234abcd-5678-90ab-cdef-123456789abc.jpg`;

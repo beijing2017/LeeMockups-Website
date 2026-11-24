@@ -8,8 +8,10 @@ const canvas=$('canvas');
 const videos=[$('black'),$('white'),$('base')];
 const requestedSku=new URLSearchParams(location.search).get('sku');
 if(requestedSku&&!/^LM-VM-[A-Z]{3}-\d{3}$/.test(requestedSku))location.replace('/mockups/');
-const sampleId=requestedSku||'LM-VM-MUG-002';
+if(!requestedSku||!/^LM-VM-[A-Z]{3}-\d{3}$/.test(requestedSku))throw new Error('Choose a mockup before starting the creator.');
+const sampleId=requestedSku;
 const localTest=location.hostname==='127.0.0.1'||location.hostname==='localhost';
+$('returnToDetail').textContent='← Back to mockup details';
 $('returnToDetail').href=`${localTest?'https://www.leemockups.com':''}/mockup/${encodeURIComponent(sampleId)}/`;
 const packageMode=true;
 const assetRoot=sampleId==='v10'?'./assets':`./assets/${sampleId}`;
@@ -480,6 +482,7 @@ try{
   }
   if(![300,301].includes(manifest.frameEnd-manifest.frameStart+1)||manifest.fps!==30
       ||manifest.output.width!==2000||manifest.output.height!==2000)throw new Error('This mockup has an unsupported format.');
+  $('videoDuration').textContent=`${Math.round((manifest.frameEnd-manifest.frameStart+1)/manifest.fps)} seconds`;
   $('outputSize').textContent=`${manifest.output.width} × ${manifest.output.height} px`;
   $('recommendedSize').textContent=`Recommended: ${manifest.slot.recommendedWidth} × ${manifest.slot.recommendedHeight} px`;
   if(!packageMode&&manifest.browserEncryption){
@@ -530,6 +533,8 @@ try{
     $('exportBtn').disabled=true;
     hideStatus();
   }else hideStatus();
+  $('file').disabled=false;
+  $('uvCanvas').tabIndex=0;
 }catch(error){
   showError(`Could not load this mockup: ${error.message}`);
 }

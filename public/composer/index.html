@@ -7,6 +7,7 @@
   <meta name="description" content="Create your LeeMockups video and five full-resolution still images in your browser.">
   <title>LeeMockups · Create your mockup</title>
   <link rel="stylesheet" href="./style-v2.css?v=20261028c">
+  <link rel="stylesheet" href="./mockup-picker.css?v=20261115-empty">
   <style id="composer-muted-surfaces">
     :root{--composer-muted:#f9f7fa}
     .canvas-wrap,.progress-overlay,.still-placeholder,.still-card img,.still-zoom,aside .drop,aside .drop:hover{background:var(--composer-muted)}
@@ -17,11 +18,13 @@
   <style>#download[hidden]{display:none}</style>
   <style>#purchaseReturn{display:inline-block;margin:4px 0 14px;color:#6748c4;font-size:14px;font-weight:700}#purchaseReturn[hidden]{display:none}</style>
 </head>
-<body>
-  <header><a class="brand" href="/" aria-label="LeeMockups home"><img src="/leemockups-symbol.png" width="38" height="38" alt=""><span><strong>LeeMockups</strong><small>Create your video mockup</small></span></a></header>
+<body class="generator-library composer-empty">
+  <header><a class="brand" href="/" aria-label="LeeMockups home"><img src="/leemockups-symbol.png" width="38" height="38" alt=""><span><strong>LeeMockups</strong><small>Create your video mockup</small></span></a><nav class="generator-nav" aria-label="Main navigation"><a href="/mockups/">Mockup Library</a><a class="active" href="/composer/" aria-current="page">Mockup Generator</a><a href="/#how">How it works</a><a href="/#features">Features</a><a href="/help/">Help</a></nav></header>
+  <div class="generator-intro"><p class="generator-kicker">CREATE IN YOUR BROWSER</p><h1>Mockup <span>Generator</span></h1><p>Choose a mockup, add your design, and create a product video.</p></div>
   <main>
+    <div class="generator-picker-slot"><section class="generator-picker" aria-label="Choose a mockup"><div class="generator-picker-head"><div><p class="generator-kicker">MOCKUP LIBRARY</p><h2>Choose a mockup</h2></div><span id="generatorCount"></span></div><div class="generator-tabs" role="group" aria-label="Mockup categories"></div><div class="generator-picker-list" aria-live="polite"><p class="generator-picker-message">Loading mockups…</p></div></section></div>
     <section class="preview">
-      <div class="preview-head"><div><a id="returnToDetail" class="return-to-detail" href="/mockups/">← Back to mockup details</a><p class="eyebrow">High-resolution preview</p><h1>Add your design and create your video</h1></div></div>
+      <div class="preview-head"><div><a id="returnToDetail" class="return-to-detail" href="/mockups/">← Browse mockup library</a><p class="eyebrow">High-resolution preview</p><h2>Add your design and create your video</h2></div></div>
       <div class="visual-column">
         <div class="canvas-wrap">
           <canvas id="canvas" width="2000" height="2000" aria-label="Mockup preview"></canvas>
@@ -29,9 +32,9 @@
           <img id="cover" hidden alt="Default mockup preview">
           <div id="progressOverlay" class="progress-overlay">
             <div class="progress-panel">
-              <p id="status" role="status">Loading your mockup…</p>
-              <p class="progress-meta"><span id="progressDetail"></span><strong id="progressPercent"></strong></p>
-              <div id="progressTrack" class="progress-track indeterminate" role="progressbar" aria-label="Mockup loading progress" aria-valuemin="0" aria-valuemax="100"><div id="meterFill"></div></div>
+              <p id="status" role="status">Choose a mockup to get started</p>
+              <p class="progress-meta"><span id="progressDetail">Select a scene from the mockup library. Your preview will appear here.</span><strong id="progressPercent"></strong></p>
+              <div id="progressTrack" hidden class="progress-track indeterminate" role="progressbar" aria-label="Mockup loading progress" aria-valuemin="0" aria-valuemax="100"><div id="meterFill"></div></div>
             </div>
           </div>
         </div>
@@ -50,16 +53,16 @@
       <a id="purchaseReturn" hidden href="https://www.leemockups.com/mockup/?sku=LM-VM-MUG-001">Return to your purchased mockup to generate again</a>
     </section>
     <aside>
-      <p class="eyebrow">Your mockup</p><h2 id="sampleName">Video mockup</h2>
+      <p class="eyebrow">Your mockup</p><h2 id="sampleName">No mockup selected</h2>
       <p class="muted">Your artwork stays in this browser. It is not uploaded to LeeMockups.</p>
       <label class="drop" for="file"><span class="upload">↑</span><strong>Choose a PNG or JPG</strong><small id="recommendedSize"></small><span id="filename"></span></label>
-      <input id="file" type="file" accept="image/png,image/jpeg" hidden>
+      <input id="file" disabled type="file" accept="image/png,image/jpeg" hidden>
       <section class="uv-editor" aria-label="Artwork placement">
-        <div class="uv-editor-head"><strong>Artwork placement</strong><small id="uvHint">Loading the design area…</small></div>
-        <div class="uv-board"><canvas id="uvCanvas" width="512" height="512" tabindex="0" aria-label="Artwork placement on the mockup"></canvas></div>
+        <div class="uv-editor-head"><strong>Artwork placement</strong><small id="uvHint">Select a mockup to enable artwork placement.</small></div>
+        <div class="uv-board"><canvas id="uvCanvas" width="512" height="512" tabindex="-1" aria-label="Artwork placement on the mockup"></canvas></div>
         <div class="uv-editor-foot"><span>Drag to move · corners resize evenly · sides stretch</span></div>
       </section>
-      <div class="info"><div><small>Video duration</small><strong>10 seconds</strong></div><div><small>Output resolution</small><strong id="outputSize">2000 × 2000 px</strong></div></div>
+      <div class="info"><div><small>Video duration</small><strong id="videoDuration">—</strong></div><div><small>Output resolution</small><strong id="outputSize">—</strong></div></div>
       <div class="actions">
         <button id="exportBtn" class="primary" disabled>Create video</button>
         <a id="download" hidden>Download video</a>
@@ -69,15 +72,9 @@
   </main> <video id="black" preload="auto" muted playsinline hidden></video>
   <video id="white" preload="auto" muted playsinline hidden></video>
   <video id="base" preload="auto" muted playsinline hidden></video>
-  <script src="./vendor/fflate.min.js"></script>
-  <script type="module" src="./app-v8.js?v=20261110a"></script>
-  <script>
-    if (location.protocol !== 'file:') {
-      const picker = document.createElement('script');
-      picker.src = './mockup-picker.js?v=20261110b';
-      document.body.appendChild(picker);
-    }
-  </script>
+  <script src="./mockup-picker.js?v=20261115-empty" defer></script>
+  <script type="module" src="./composer-entry.mjs?v=20261115-empty"></script>
+  <noscript><p>Please enable JavaScript to choose a mockup and create a video.</p></noscript>
   <script src="https://trtc.io/knocket-sdk/sdk.js?identifier=b9b0861f7897ffb683&v=1792859357282" async></script>
 </body>
 </html>

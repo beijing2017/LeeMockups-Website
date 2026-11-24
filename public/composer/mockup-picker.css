@@ -1,5 +1,12 @@
 /* Online catalog layout. Offline Open.html never loads this stylesheet. */
 body.generator-library{background:#f7f5fa}
+.composer-empty .progress-panel{border:1px dashed #d9cdec;box-shadow:none;background:transparent;padding:32px 24px}
+.composer-empty #status{font-size:22px;line-height:1.3;letter-spacing:-.02em}
+.composer-empty .progress-meta{margin:14px 0 0;line-height:1.7}
+.composer-empty .drop{opacity:.5;cursor:not-allowed}
+.composer-empty .uv-editor{opacity:.45;pointer-events:none}
+.composer-empty .canvas-wrap{min-height:280px}
+.generator-picker-head>span{min-width:62px;text-align:right}
 .generator-library>header{height:76px;gap:28px;padding-inline:max(24px,calc((100vw - 1560px)/2));}
 .generator-library>header .brand small{display:none}
 .generator-library .generator-nav{display:flex;align-items:center;justify-content:flex-end;gap:28px;margin-left:auto;white-space:nowrap}

@@ -6,7 +6,8 @@ import test from "node:test";
 const token = "local-test-admin-token";
 const hash = createHash("sha256").update(token).digest("base64url");
 const source = fs.readFileSync(new URL("../cloudflare/leemockups-download.js", import.meta.url), "utf8")
-  .replace(/const ANALYTICS_ACCESS_HASH = "[^"]+";/, `const ANALYTICS_ACCESS_HASH = "${hash}";`);
+  .replaceAll('"./ga4-purchase.mjs"', JSON.stringify(new URL('../cloudflare/ga4-purchase.mjs', import.meta.url).href))
+  .replaceAll('"./mockup-update-email.mjs"', JSON.stringify(new URL('../cloudflare/mockup-update-email.mjs', import.meta.url).href));
 const { default: worker } = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
 
 function environment(missingDiscount = false, missingMapping = false) {
@@ -20,7 +21,7 @@ function environment(missingDiscount = false, missingMapping = false) {
       };
     },
   };
-  return { DB: db, updates };
+  return { DB: db, updates, ANALYTICS_ACCESS_HASH: hash };
 }
 
 async function request(env, launchActive, authorized = true) {

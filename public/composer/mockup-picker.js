@@ -2,45 +2,12 @@
 (() => {
   const skuPattern = /^LM-VM-[A-Z]{3}-\d{3}$/;
   const requestedSku = new URLSearchParams(location.search).get('sku');
-  const activeSku = skuPattern.test(requestedSku || '') ? requestedSku : 'LM-VM-MUG-002';
+  const activeSku = skuPattern.test(requestedSku || '') ? requestedSku : null;
   const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
   const catalogUrl = local ? '/catalog/products.json' : 'https://downloads.leemockups.com/catalog/products.json';
   const imageBase = 'https://downloads.leemockups.com';
 
-  const stylesheet = document.createElement('link');
-  stylesheet.rel = 'stylesheet';
-  stylesheet.href = './mockup-picker.css?v=20261110b';
-  document.head.appendChild(stylesheet);
-  document.body.classList.add('generator-library');
-
-  const header = document.querySelector('body > header');
-  const nav = document.createElement('nav');
-  nav.className = 'generator-nav';
-  nav.setAttribute('aria-label', 'Main navigation');
-  nav.innerHTML = '<a href="/mockups/">Mockup Library</a><a class="active" href="/composer/" aria-current="page">Mockup Generator</a><a href="/#how">How it works</a><a href="/#features">Features</a><a href="/help/">Help</a>';
-  header.appendChild(nav);
-
-  const intro = document.createElement('div');
-  intro.className = 'generator-intro';
-  intro.innerHTML = '<p class="generator-kicker">CREATE IN YOUR BROWSER</p><h1>Mockup <span>Generator</span></h1><p>Choose a mockup, add your design, and create a product video.</p>';
-  header.after(intro);
-  const previewTitle = document.querySelector('.preview-head h1');
-  if (previewTitle) {
-    const h2 = document.createElement('h2');
-    h2.innerHTML = previewTitle.innerHTML;
-    previewTitle.replaceWith(h2);
-  }
-
-  const main = document.querySelector('body > main');
-  const pickerSlot = document.createElement('div');
-  pickerSlot.className = 'generator-picker-slot';
-  const sidebar = document.createElement('section');
-  sidebar.className = 'generator-picker';
-  sidebar.setAttribute('aria-label', 'Choose a mockup');
-  sidebar.innerHTML = '<div class="generator-picker-head"><div><p class="generator-kicker">MOCKUP LIBRARY</p><h2>Choose a mockup</h2></div><span id="generatorCount"></span></div><div class="generator-tabs" role="group" aria-label="Mockup categories"></div><div class="generator-picker-list" aria-live="polite"><p class="generator-picker-message">Loading mockups…</p></div>';
-  pickerSlot.appendChild(sidebar);
-  main.prepend(pickerSlot);
-
+  const sidebar = document.querySelector('.generator-picker');
   const tabs = sidebar.querySelector('.generator-tabs');
   const list = sidebar.querySelector('.generator-picker-list');
   const count = sidebar.querySelector('#generatorCount');
@@ -175,6 +142,7 @@
         .filter(product => skuPattern.test(product.sku) && product.thumbnailPath && product.name)
         .sort((a, b) => Number(isFree(b)) - Number(isFree(a)) || a.sku.localeCompare(b.sku));
       for (const product of products) {
+        product.assetVersion = data.updatedAt || product.assetVersion;
         const category = categoryOf(product);
         categories.set(category.slug, category.label);
       }
@@ -189,6 +157,6 @@
     })
     .catch(() => {
       count.textContent = '';
-      list.innerHTML = '<p class="generator-picker-message">Mockups could not load. The current creator is still available.</p><a class="generator-picker-fallback" href="/mockups/">Browse Mockup Library →</a>';
+      list.innerHTML = '<p class="generator-picker-message">The mockup library could not load. Please refresh this page or browse the library.</p><a class="generator-picker-fallback" href="/mockups/">Browse Mockup Library →</a>';
     });
 })();

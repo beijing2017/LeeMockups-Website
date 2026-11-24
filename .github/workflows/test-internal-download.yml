@@ -35,6 +35,8 @@ jobs:
               --request PUT \
               --header "Authorization: Bearer ${CLOUDFLARE_WORKER_DEPLOY_TOKEN}" \
               --form 'metadata={"main_module":"leemockups-download.js"};type=application/json' \
+              --form 'ga4-purchase.mjs=@cloudflare/ga4-purchase.mjs;type=application/javascript+module' \
+              --form 'mockup-update-email.mjs=@cloudflare/mockup-update-email.mjs;type=application/javascript+module' \
               --form "worker.js=@${source};filename=leemockups-download.js;type=application/javascript+module" \
               "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${SCRIPT_NAME}/content")"
             if ! test "${status}" -ge 200 -a "${status}" -lt 300 || ! jq -e '.success == true' "${response}" >/dev/null; then

@@ -1,5 +1,6 @@
 import {sendGa4Purchase, checkoutAnalyticsMetadata} from "./ga4-purchase.mjs";
 export {buildGa4Purchase, sendGa4Purchase, purchaseSkipReason} from "./ga4-purchase.mjs";
+import { renderMockupUpdateEmail } from "./mockup-update-email.mjs";
 const FILES = {
   "mug-v1": "Mug v1-v1.0.0.mockup",
 };
@@ -1750,7 +1751,7 @@ async function handleUpdates(request, env, url) {
     const products = await publishedUpdateProducts(env, skus);
     if (products.some((product) => !product)) return jsonResponse({ ok: false, error: "A selected mockup is not in the published catalog." }, 404);
     await ensureUpdateTables(env);
-    return jsonResponse({ ok: true, enabled: true, recipients: await pendingUpdateRecipients(env, skus), products: products.map((product) => ({ sku: product.sku, name: String(product.name || product.sku) })) });
+    return jsonResponse({ ok: true, enabled: true, recipients: await pendingUpdateRecipients(env, skus), products: products.map((product) => ({ sku: product.sku, name: String(product.name || product.sku) })), emailHtml: renderMockupUpdateEmail(products, "#unsubscribe-preview") });
   }
   if (pathname === "/updates/admin/announce" && request.method === "POST") {
     if (!await isAdminRequest(request, env)) return jsonResponse({ ok: false, error: "Unauthorized." }, 401);
@@ -1771,7 +1772,7 @@ async function handleUpdates(request, env, url) {
       const unsubscribeUrl = `https://downloads.leemockups.com/updates/unsubscribe?token=${encodeURIComponent(await updateUnsubscribeToken(env, row.email))}`;
       const links = unsentProducts.map((product) => `${String(product.name || product.sku).slice(0, 100)}\nhttps://www.leemockups.com/mockup/${encodeURIComponent(product.sku)}/`).join("\n\n");
       const body = `New LeeMockups mockups are available:\n\n${links}\n\nYou subscribed to LeeMockups updates. Unsubscribe: ${unsubscribeUrl}`;
-      await sendDirectMail(env, "news", row.email, unsentProducts.length === 1 ? `New mockup: ${String(unsentProducts[0].name || unsentProducts[0].sku).slice(0, 78)}` : `${unsentProducts.length} new LeeMockups mockups`, body);
+      await sendDirectMail(env, "news", row.email, unsentProducts.length === 1 ? `New mockup: ${String(unsentProducts[0].name || unsentProducts[0].sku).slice(0, 78)}` : `${unsentProducts.length} new LeeMockups mockups`, body, renderMockupUpdateEmail(unsentProducts, unsubscribeUrl));
       for (const product of unsentProducts) await env.DB.prepare("INSERT OR IGNORE INTO mockup_update_deliveries (sku, email, sent_at) VALUES (?, ?, ?)").bind(product.sku, row.email, new Date().toISOString()).run();
       sent++;
     }
@@ -1837,7 +1838,7 @@ async function updateUnsubscribeToken(env, email) {
 function aliyunEncode(value) {
   return encodeURIComponent(String(value)).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
 }
-async function sendDirectMail(env, kind, to, subject, body) {
+async function sendDirectMail(env, kind, to, subject, body, htmlBody) {
   const region = env.DIRECTMAIL_REGION_ID || "cn-hangzhou";
   const endpoints = {
     "cn-hangzhou": "https://dm.aliyuncs.com/",
@@ -1856,6 +1857,7 @@ async function sendDirectMail(env, kind, to, subject, body) {
     SignatureVersion: "1.0", Subject: subject, TextBody: body,
     Timestamp: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"), ToAddress: to, Version: "2015-11-23",
   };
+  if (htmlBody) params.HtmlBody = htmlBody;
   if (env.DIRECTMAIL_REPLY_ADDRESS) params.ReplyAddress = env.DIRECTMAIL_REPLY_ADDRESS;
   const canonical = Object.keys(params).sort().map((key) => `${aliyunEncode(key)}=${aliyunEncode(params[key])}`).join("&");
   const stringToSign = `POST&%2F&${aliyunEncode(canonical)}`;
