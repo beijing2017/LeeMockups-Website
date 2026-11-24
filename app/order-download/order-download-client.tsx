@@ -1,7 +1,7 @@
 "use client";
 
 import { Play, KeyRound, ShieldCheck } from "lucide-react";
-import { FormEvent, type ReactNode, useState } from "react";
+import { FormEvent, type ReactNode, useEffect, useState } from "react";
 import { PolicyLinks } from "@/components/policy-links";
 import { openPurchasedComposer } from "@/lib/browser-composer";
 
@@ -14,6 +14,11 @@ export function OrderDownloadClient({ navigation }: { navigation: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [downloads, setDownloads] = useState<DownloadItem[]>([]);
+
+  useEffect(() => {
+    const checkoutId = new URLSearchParams(window.location.search).get("checkout_id") || "";
+    if (/^ch_[A-Za-z\d]+$/.test(checkoutId)) setOrderNumber(checkoutId);
+  }, []);
 
   async function redeem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,7 +57,7 @@ export function OrderDownloadClient({ navigation }: { navigation: ReactNode }) {
       <div className="order-copy"><span className="section-tag">WEBSITE ORDER HELP</span><h1>Access your website purchase.</h1><p>For purchases made on leemockups.com and paid through Creem. Enter your Creem order number and the email used at checkout to access the online creator.</p><ul><li><ShieldCheck /> Secure, time-limited access</li><li><KeyRound /> No LeeMockups account required</li></ul></div>
       <div className="order-card">
         <form onSubmit={redeem}>
-          <label>Creem order number<input required autoComplete="off" value={orderNumber} onFocus={() => { if (!orderNumber) setOrderNumber(localStorage.getItem(lastOrderKey) || ""); }} onChange={(event) => setOrderNumber(event.target.value.trim())} placeholder="e.g. ORD-1A0CA4D195542817" /></label>
+          <label>Creem order or checkout number<input required autoComplete="off" value={orderNumber} onFocus={() => { if (!orderNumber) setOrderNumber(localStorage.getItem(lastOrderKey) || ""); }} onChange={(event) => setOrderNumber(event.target.value.trim())} placeholder="e.g. ch_123456789" /></label>
           <label>Email used at checkout<input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></label>
           {downloads.length > 0
             ? <button className="button primary purchase-primary purchased" type="button" onClick={() => beginCreate(downloads[0])}><Play size={17} /> Create video online</button>

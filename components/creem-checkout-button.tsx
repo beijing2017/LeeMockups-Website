@@ -39,11 +39,20 @@ export function CreemCheckoutButton({sku}:{sku:string}){
   useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
     const returnedCheckout=params.getAll("checkout_id").find((value)=>/^ch_[A-Za-z\d]+$/.test(value))||"";
-    const purchaseRaw=localStorage.getItem(`${storageKey}:pending`)||localStorage.getItem(storageKey);
-    if(params.get("payment")==="success"&&returnedCheckout&&purchaseRaw){
+    const purchaseRaw=localStorage.getItem(`${storageKey}:pending`);
+    let matchingPending:{claimToken:string;checkoutId:string}|null=null;
+    try{
+      const pending=purchaseRaw?JSON.parse(purchaseRaw) as {claimToken?:string;checkoutId?:string}:null;
+      if(pending?.checkoutId===returnedCheckout&&/^[a-f\d]{64}$/.test(pending.claimToken||"")) matchingPending=pending as {claimToken:string;checkoutId:string};
+    }catch{localStorage.removeItem(`${storageKey}:pending`)}
+    if(params.get("payment")==="success"&&returnedCheckout&&!matchingPending){
+      setError("Payment received. This checkout was opened in another browser. Verify it with your checkout email to access your mockup.");
+      setChecking(false);
+      return;
+    }
+    if(params.get("payment")==="success"&&returnedCheckout&&matchingPending){
       try{
-        const pending=JSON.parse(purchaseRaw) as {claimToken:string};
-        const record:PurchaseRecord={transactionId:returnedCheckout,claimToken:pending.claimToken};
+        const record:PurchaseRecord={transactionId:returnedCheckout,claimToken:matchingPending.claimToken};
         localStorage.setItem(storageKey,JSON.stringify(record));localStorage.removeItem(`${storageKey}:pending`);
         redeem(record,8).catch((reason)=>setError(reason instanceof Error?reason.message:"Payment received. Download verification is still processing.")).finally(()=>setChecking(false));
         return;
@@ -62,6 +71,8 @@ export function CreemCheckoutButton({sku}:{sku:string}){
       const response=await fetch(checkoutApi,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sku,claimToken,attribution:readAttribution(),analytics})});
       const body=await response.json();
       if(!response.ok||!body.checkoutUrl)throw new Error(body.error||"Checkout could not open.");
+      const checkoutId=new URL(body.checkoutUrl).pathname.match(/\/(ch_[A-Za-z\d]+)\/?$/)?.[1];
+      if(checkoutId)localStorage.setItem(`${storageKey}:pending`,JSON.stringify({claimToken,checkoutId}));
       trackEvent("begin_checkout",{items:[{item_id:sku}]});window.location.assign(body.checkoutUrl);
     }catch(reason){localStorage.removeItem(`${storageKey}:pending`);setError(reason instanceof Error?reason.message:"Checkout could not open. Please try again.");setOpening(false)}
   }
@@ -78,6 +89,8 @@ export function CreemCheckoutButton({sku}:{sku:string}){
     finally{downloadLock.current=false}
   }
   if(downloads.length)return <><div className="purchase-downloads purchased">{downloads.map((item)=><button className="button primary purchase-primary purchased" type="button" key={item.sku} onClick={()=>beginCreate(item)}><Play size={17}/>Create video online</button>)}</div>{error&&<small className="checkout-error" role="alert">{error}</small>}</>;
-  return <>{checking?<button className="button primary purchase-primary" disabled>Checking purchase…</button>:<button className="button primary purchase-primary" type="button" onClick={openCheckout} disabled={opening}>{opening?"Opening checkout…":"Buy now"}</button>}{error&&<small className="checkout-error" role="alert">{error}</small>}</>;
+  const returnedCheckout=typeof window!=="undefined"?new URLSearchParams(window.location.search).get("checkout_id"):null;
+  const crossBrowserReturn=error.startsWith("Payment received. This checkout was opened in another browser.")&&returnedCheckout;
+  return <>{crossBrowserReturn?<a className="button primary purchase-primary" href={`/order-download/?checkout_id=${encodeURIComponent(returnedCheckout)}`}>Verify purchase</a>:checking?<button className="button primary purchase-primary" disabled>Checking purchase…</button>:<button className="button primary purchase-primary" type="button" onClick={openCheckout} disabled={opening}>{opening?"Opening checkout…":"Buy now"}</button>}{error&&<small className="checkout-error" role="alert">{error}</small>}</>;
 }
 
