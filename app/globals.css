@@ -140,6 +140,10 @@
 .mockup-updates-mail button{padding:0 17px;border:0;border-radius:9px;color:#fff;background:linear-gradient(110deg,#7847eb,#fa7774);font:700 13px Arial,sans-serif;cursor:pointer;white-space:nowrap}
 .mockup-updates-mail button:disabled{opacity:.6;cursor:wait}
 .mockup-updates-message{min-height:1.4em}
+.mockup-updates-message.is-success{color:#16734d;font-weight:700}
+.mockup-updates-message.is-error{color:#b42332;font-weight:700}
+.mockup-updates-mail button.is-success,.mockup-updates-mail button.is-success:disabled{background:#16805a;opacity:1;cursor:default}
+.mockup-updates-mail button.is-error{background:#b42332}
 @media(max-width:650px){.mockup-updates-visit,.mockup-updates-mail{align-items:flex-start;flex-direction:column;padding:18px}.mockup-updates-mail form{width:100%;flex-basis:auto}.mockup-updates-message{min-height:2.8em}}
 
 
