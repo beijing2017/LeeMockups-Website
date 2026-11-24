@@ -1795,17 +1795,13 @@ async function handleUpdates(request, env, url) {
     const rate = await env.DB.prepare("SELECT count FROM mockup_update_requests WHERE ip_hash = ? AND day = ?").bind(ipHash, day).first();
     if (rate.count > 8) return updatesJson({ ok: false, error: "Please try again tomorrow." }, 429, origin);
     const existing = await env.DB.prepare("SELECT status FROM mockup_update_subscribers WHERE email = ?").bind(email).first();
-    if (existing?.status === "active") return updatesJson({ ok: true, message: "If this address needs confirmation, you will receive an email shortly." }, 200, origin);
-    const token = updateToken();
-    const hash = await sha256Base64Url(token);
+    const success = { ok: true, message: "You're subscribed. We'll email you when new mockups arrive." };
+    if (existing?.status === "active") return updatesJson(success, 200, origin);
     const unsubscribeHash = await sha256Base64Url(await updateUnsubscribeToken(env, email));
     const now = new Date().toISOString();
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    await env.DB.prepare(`INSERT INTO mockup_update_subscribers (email, status, confirm_hash, confirm_expires, unsubscribe_hash, created_at) VALUES (?, 'pending', ?, ?, ?, ?)
-      ON CONFLICT(email) DO UPDATE SET status = 'pending', confirm_hash = excluded.confirm_hash, confirm_expires = excluded.confirm_expires, unsubscribe_hash = excluded.unsubscribe_hash`).bind(email, hash, expires, unsubscribeHash, now).run();
-    const confirmationUrl = `https://downloads.leemockups.com/updates/confirm?token=${encodeURIComponent(token)}`;
-    await sendDirectMail(env, "confirm", email, "Confirm your LeeMockups updates", `Please confirm that you want email when new mockups arrive:\n\n${confirmationUrl}\n\nThis link expires in 24 hours. If you did not subscribe, ignore this email.`);
-    return updatesJson({ ok: true, message: "Check your inbox and confirm your subscription." }, 200, origin);
+    await env.DB.prepare(`INSERT INTO mockup_update_subscribers (email, status, confirm_hash, confirm_expires, unsubscribe_hash, created_at, confirmed_at) VALUES (?, 'active', NULL, NULL, ?, ?, ?)
+      ON CONFLICT(email) DO UPDATE SET status = 'active', confirm_hash = NULL, confirm_expires = NULL, unsubscribe_hash = excluded.unsubscribe_hash, confirmed_at = excluded.confirmed_at`).bind(email, unsubscribeHash, now, now).run();
+    return updatesJson(success, 200, origin);
   }
   if (pathname === "/updates/confirm" && (request.method === "GET" || request.method === "POST")) {
     const token = url.searchParams.get("token") || "";

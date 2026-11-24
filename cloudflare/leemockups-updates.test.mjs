@@ -15,6 +15,49 @@ test("announcement requires publisher authorization", async () => {
   assert.equal(response.status, 401);
 });
 
+test("new and pending addresses subscribe immediately without a confirmation email", async () => {
+  const writes = [];
+  let status = null;
+  const env = {
+    UPDATES_ENABLED: "true", DIRECTMAIL_ACCESS_KEY_ID: "test", DIRECTMAIL_ACCESS_KEY_SECRET: "test",
+    DIRECTMAIL_CONFIRM_ACCOUNT_NAME: "confirm@example.com", DIRECTMAIL_NEWS_ACCOUNT_NAME: "news@example.com",
+    UPDATES_TOKEN_SECRET: "test", MOCKUPS: {},
+    DB: { prepare(query) {
+      return {
+        bind(...args) { this.args = args; return this; },
+        async run() { if (query.startsWith("INSERT INTO mockup_update_subscribers")) { writes.push(this.args); status = "active"; } },
+        async first() {
+          if (query.startsWith("SELECT count FROM mockup_update_requests")) return { count: 1 };
+          if (query.startsWith("SELECT status FROM mockup_update_subscribers")) return { status };
+          throw new Error(`Unexpected query: ${query}`);
+        },
+      };
+    } },
+  };
+  const subscribe = () => worker.fetch(new Request(`${url}/updates/subscribe`, {
+    method: "POST", headers: { origin: "https://www.leemockups.com", "content-type": "application/json" },
+    body: JSON.stringify({ email: "Reader@Example.com" }),
+  }), env);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = () => { throw new Error("Confirmation email must not be sent"); };
+  try {
+    const first = await (await subscribe()).json();
+    assert.equal(first.ok, true);
+    assert.match(first.message, /You're subscribed/);
+    assert.equal(writes.length, 1);
+    assert.equal(writes[0][0], "reader@example.com");
+    const repeat = await (await subscribe()).json();
+    assert.equal(repeat.message, first.message);
+    assert.equal(writes.length, 1);
+    status = "pending";
+    const pending = await (await subscribe()).json();
+    assert.equal(pending.message, first.message);
+    assert.equal(writes.length, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("opening a confirmation email does not subscribe until the button is pressed", async () => {
   const token = "a".repeat(43);
   let activated = false;

@@ -36,7 +36,7 @@ export function MockupUpdates({ skus }: { skus: string[] }) {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Please try again later.");
-      setMessage(result.message || "Check your inbox to confirm your subscription.");
+      setMessage(result.message || "You're subscribed. We'll email you when new mockups arrive.");
       setEmail("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Please try again later.");
@@ -48,6 +48,6 @@ export function MockupUpdates({ skus }: { skus: string[] }) {
   if (!added && !mailEnabled) return null;
   return <section className="mockup-updates shell" aria-label="Mockup updates">
     {added > 0 && <div className="mockup-updates-visit"><strong>{added} {added === 1 ? "mockup" : "mockups"} added since your last visit</strong><a href="/mockups/">Browse the library <span aria-hidden="true">→</span></a></div>}
-    {mailEnabled && <div className="mockup-updates-mail"><div><strong>Hear about new mockups</strong><p>Only product updates. Confirm by email; unsubscribe any time.</p></div><form onSubmit={subscribe}><label className="sr-only" htmlFor="mockup-updates-email">Email address</label><input id="mockup-updates-email" type="email" autoComplete="email" required maxLength={254} placeholder="Your email address" value={email} onChange={(event) => setEmail(event.target.value)} /><button type="submit" disabled={sending}>{sending ? "Sending…" : "Notify me"}</button></form>{message && <p className="mockup-updates-message" role="status">{message}</p>}</div>}
+    {mailEnabled && <div className="mockup-updates-mail"><div><strong>Hear about new mockups</strong><p>Only product updates. Unsubscribe any time.</p></div><form onSubmit={subscribe}><label className="sr-only" htmlFor="mockup-updates-email">Email address</label><input id="mockup-updates-email" type="email" autoComplete="email" required maxLength={254} placeholder="Your email address" value={email} onChange={(event) => setEmail(event.target.value)} /><button type="submit" disabled={sending}>{sending ? "Sending…" : "Notify me"}</button></form>{message && <p className="mockup-updates-message" role="status">{message}</p>}</div>}
   </section>;
 }
